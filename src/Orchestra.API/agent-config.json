@@ -1,0 +1,19 @@
+{
+  "PingIntervalSeconds": 30,
+  "Agents": [
+    {
+      "Id": "claude-1",
+      "Name": "Claude Agent 1",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
+      "Enabled": true
+    },
+    {
+      "Id": "claude-2",
+      "Name": "Claude Agent 2",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Enabled": true
+    }
+  ]
+}

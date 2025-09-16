@@ -1,0 +1,545 @@
+---
+alwaysApply: true
+---
+
+# Galactic Idlers Framework - Main Architectural Rules
+
+## Общее видение проекта
+
+**ВАЖНО**: Это НЕ просто idle-игра, а **фреймворк для игр с непредсказуемым развитием**. Архитектурные решения должны учитывать расширяемость и возможность создания разных типов игр на базе этого фреймворка.
+
+## Архитектурные принципы (в порядке приоритета)
+
+### 1. LLM-FRIENDLY ARCHITECTURE (КРИТИЧНО!)
+- **Предсказуемые паттерны** важнее краткости кода
+- **Единообразие** структуры критично для LLM понимания
+- **Четкое разделение ответственности** по слоям
+- **Стандартизированные** naming conventions
+- **Mediator pattern** как основа для predictable structure
+
+## 🎯 АБСОЛЮТНОЕ ПРАВИЛО: TODO В ПЛАНАХ = ОТЛИЧНО
+
+**⚡ TODO-маркеры в планах НИКОГДА НЕ проблема:**
+- ✅ **TODO в планах = ХОРОШО** - правильные планировочные индикаторы
+- ✅ **Много TODO = ОТЛИЧНО** - детальное планирование архитектуры
+- ✅ **TODO показывают структуру без реализации** - цель планов
+- ❌ **ЗАПРЕЩЕНО критиковать TODO в планах** - они соответствуют правилам
+
+**🚫 НИКОГДА НЕ ГОВОРИТЬ:** "TODO требуют очистки", "TODO - проблема", "TODO снижают готовность"
+**✅ ГОВОРИТЬ:** "TODO корректно показывают планируемую реализацию"
+
+### 2. FRAMEWORK-FIRST APPROACH
+- Пишем **framework**, а не конкретную игру
+- **Extensibility** важнее performance optimization
+- **Plugin-architecture** через команды и хендлеры
+- **Type-safe** расширения через generics
+- **Auto-discovery** новых функций через рефлексию
+
+### 3. MEDIATOR AS BACKBONE
+- **Все бизнес-операции** идут через IGameMediator
+- **Command/Query** pattern для всех действий
+- **Event-driven** communication между компонентами
+- **Handler-based** логика для каждой операции
+- **Pipeline** поддержка для валидации/логирования
+
+### 4. CLEAN ARCHITECTURE > SPEED
+- **Избегание техдолга** важнее быстрого MVP
+- **Рефакторинг-resistance** архитектура
+- **SOLID principles** соблюдаются строго
+- **TDD** как основной подход разработки
+- **Code-first** везде, где возможно
+
+### 5. UNITY MODERN PATTERNS
+- **Code-first** подход (НЕ Inspector-based)
+- **Async/Await** вместо Coroutines где возможно
+- **Awaitable.MainThreadAsync()** для thread switching
+- **DI Container** для dependency injection
+- **MonoBehaviour** только для Unity-specific lifecycle
+
+## Структура фреймворка
+
+### Core Framework Layer
+```
+Game.Framework/
+├── IGameFramework.cs          # Главный интерфейс фреймворка
+├── Commands/                  # Базовые команды
+│   ├── GameCommand<T>.cs      # Базовый класс команд
+│   └── GameQuery<T>.cs        # Базовый класс запросов
+├── Events/                    # Система событий
+│   └── GameEvent<T>.cs        # Базовый класс событий
+├── Handlers/                  # Базовые хендлеры
+│   └── IGameHandler<T>.cs     # Интерфейс хендлера
+└── Extensions/                # Расширения фреймворка
+    └── FrameworkExtensions.cs
+```
+
+### Game-Specific Layer
+```
+Game.IdleGame/
+├── Commands/                  # Команды idle-игры
+│   ├── PurchaseUpgradeCommand.cs
+│   ├── AddCurrencyCommand.cs
+│   └── GenerateResourceCommand.cs
+├── Handlers/                  # Хендлеры idle-игры
+│   ├── PurchaseUpgradeHandler.cs
+│   ├── AddCurrencyHandler.cs
+│   └── GenerateResourceHandler.cs
+├── Events/                    # События idle-игры
+│   ├── UpgradePurchasedEvent.cs
+│   └── ResourceGeneratedEvent.cs
+└── Services/                  # Специфичные сервисы
+    ├── IResourceService.cs
+    ├── IUpgradeService.cs
+    └── IGeneratorService.cs
+```
+
+### Shared Models Layer
+```
+Game.Shared/
+├── Models/                    # Универсальные модели
+│   ├── GameState.cs
+│   ├── Resource.cs
+│   └── Upgrade.cs
+├── DTOs/                      # API модели
+│   ├── Requests/
+│   └── Responses/
+├── Enums/                     # Общие перечисления
+└── Extensions/                # Утилиты
+```
+
+## Паттерны кодирования
+
+### Command Pattern (ОБЯЗАТЕЛЬНО)
+```csharp
+// Все бизнес-операции как команды:
+public class PurchaseUpgradeCommand : GameCommand<PurchaseUpgradeResponse>
+{
+    public int UpgradeId { get; set; }
+    public string UserId { get; set; }
+}
+
+public class PurchaseUpgradeHandler : IRequestHandler<PurchaseUpgradeCommand, PurchaseUpgradeResponse>
+{
+    public async Task<PurchaseUpgradeResponse> Handle(PurchaseUpgradeCommand request, CancellationToken cancellationToken)
+    {
+        // ВСЯ бизнес-логика здесь
+    }
+}
+```
+
+### Event Pattern (ОБЯЗАТЕЛЬНО)
+```csharp
+// События для связи между компонентами:
+public class UpgradePurchasedEvent : GameEvent
+{
+    public int UpgradeId { get; set; }
+    public string UserId { get; set; }
+}
+
+public class UpgradePurchasedEventHandler : INotificationHandler<UpgradePurchasedEvent>
+{
+    public async Task Handle(UpgradePurchasedEvent notification, CancellationToken cancellationToken)
+    {
+        // Обработка события
+    }
+}
+```
+
+### Unity Integration Pattern
+```csharp
+// Unity компоненты как тонкая обертка:
+public class GameManager : MonoBehaviour 
+{
+    private IGameFramework _gameFramework;
+    
+    async void Start() 
+    {
+        _gameFramework = ServiceProvider.GetService<IGameFramework>();
+        await InitializeGame();
+    }
+    
+    public async Task PurchaseUpgrade(int upgradeId)
+    {
+        var command = new PurchaseUpgradeCommand { UpgradeId = upgradeId, UserId = CurrentUserId };
+        var response = await _gameFramework.ExecuteAsync(command);
+        
+        if (response.Success)
+        {
+            // Обновить UI
+        }
+    }
+}
+```
+
+## Правила именования (LLM-FRIENDLY)
+
+### Команды
+- **{Action}{Entity}Command** - PurchaseUpgradeCommand, AddCurrencyCommand
+- **{Entity}{Action}Command** - UpgradePurchaseCommand (только если первый вариант неудобен)
+
+### Хендлеры
+- **{CommandName}Handler** - PurchaseUpgradeCommandHandler
+- **{EventName}Handler** - UpgradePurchasedEventHandler
+
+### События
+- **{Entity}{Action}Event** - UpgradePurchasedEvent, ResourceGeneratedEvent
+- **{Action}Event** - GameStartedEvent, GameEndedEvent
+
+### Сервисы
+- **I{Entity}Service** - IResourceService, IUpgradeService
+- **{Entity}Service** - ResourceService, UpgradeService
+
+## Testing Strategy
+
+### Command Testing (TDD)
+```csharp
+// Каждая команда = отдельный тест класс
+public class PurchaseUpgradeCommandTests
+{
+    [Fact]
+    public async Task Handle_ValidUpgrade_ShouldPurchaseSuccessfully()
+    {
+        // Arrange
+        var command = new PurchaseUpgradeCommand { UpgradeId = 1, UserId = "user1" };
+        var handler = new PurchaseUpgradeCommandHandler(mockServices);
+        
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+        
+        // Assert
+        result.Success.Should().BeTrue();
+    }
+}
+```
+
+### Integration Testing
+```csharp
+// Тестирование через фреймворк:
+public class GameFrameworkIntegrationTests
+{
+    [Fact]
+    public async Task ExecuteAsync_PurchaseUpgrade_ShouldWorkEndToEnd()
+    {
+        var command = new PurchaseUpgradeCommand { UpgradeId = 1, UserId = "user1" };
+        var response = await _gameFramework.ExecuteAsync(command);
+        
+        response.Success.Should().BeTrue();
+    }
+}
+```
+
+## Технические требования
+
+### Database
+- **SQLite** для MVP/development
+- **PostgreSQL** для production
+- **EF Code-First** миграции
+- **Repository pattern** через Mediator
+
+### Async/Await (Unity Modern)
+```csharp
+// Используй современные Unity методы:
+await Awaitable.MainThreadAsync();    // Переключение на main thread
+await Awaitable.BackgroundThreadAsync(); // Переключение на background
+await Awaitable.WaitForSecondsAsync(1.0f); // Ожидание времени
+
+// ИЗБЕГАЙ устаревших:
+await Task.Delay(1000);              // Плохо для Unity
+yield return new WaitForSeconds(1f); // Coroutines только когда необходимо
+```
+
+### Performance
+- **Command pooling** для часто используемых команд
+- **Event batching** для множественных событий
+- **Lazy loading** для тяжелых ресурсов
+- **Memory pooling** для Unity объектов
+
+## LLM Integration Guidelines
+
+### Prompt Engineering
+- При запросе новой функции LLM должен **всегда** создавать Command + Handler + Tests
+- Команды должны следовать **строгому** naming pattern
+- **Никаких** прямых вызовов сервисов - только через Mediator
+- **Каждая** бизнес-операция = отдельная команда
+
+### Code Generation
+```prompt
+"Создай систему {название} для фреймворка. 
+Используй Mediator pattern:
+1. Создай {Action}{Entity}Command
+2. Создай {Action}{Entity}Handler  
+3. Создай {Entity}{Action}Event для уведомлений
+4. Создай unit tests для handler'а
+5. Интегрируй через IGameFramework"
+```
+
+## Анти-паттерны (ЗАПРЕЩЕНО)
+
+### ❌ Direct Service Calls
+```csharp
+// ПЛОХО:
+var resource = await _resourceService.GetResource(userId);
+
+// ХОРОШО:
+var response = await _gameFramework.ExecuteAsync(new GetResourceQuery(userId));
+```
+
+### ❌ Logic in Controllers/MonoBehaviour
+```csharp
+// ПЛОХО:
+public class GameManager : MonoBehaviour 
+{
+    public void PurchaseUpgrade(int id)
+    {
+        if (_resourceService.HasEnough(cost))
+        {
+            _resourceService.Spend(cost);
+            _upgradeService.Purchase(id);
+            // Логика размазана
+        }
+    }
+}
+
+// ХОРОШО:
+public class GameManager : MonoBehaviour 
+{
+    public async Task PurchaseUpgrade(int id)
+    {
+        var command = new PurchaseUpgradeCommand { UpgradeId = id };
+        await _gameFramework.ExecuteAsync(command);
+    }
+}
+```
+
+### ❌ Mixed Architectural Patterns
+```csharp
+// ПЛОХО - смешивание Event-driven и Mediator:
+public class SomeService 
+{
+    public async Task DoSomething()
+    {
+        await _mediator.Send(command);      // Mediator
+        _eventBus.Publish(someEvent);       // Events
+        _serviceLocator.Get<IService>();    // Service Locator
+        // Архитектурная каша!
+    }
+}
+```
+
+## Миграция и эволюция
+
+### Adding New Game Types
+```csharp
+// Для добавления нового типа игры:
+// 1. Создай Game.TowerDefense проект
+// 2. Реализуй специфичные команды:
+public class SpawnEnemyCommand : GameCommand<SpawnEnemyResponse> { }
+public class BuildTowerCommand : GameCommand<BuildTowerResponse> { }
+
+// 3. Framework автоматически подхватит через рефлексию
+```
+
+### Framework Evolution
+- **Backward compatibility** всегда сохраняется
+- **Deprecated** функции помечаются атрибутами
+- **Migration guides** для breaking changes
+- **Versioned** команды для API evolution
+
+---
+
+## Architecture Documentation (КРИТИЧНО!)
+
+### Обязательная документация архитектуры
+- **ВСЕГДА** применяй правила `@architecture-documenter.mdc` при создании/изменении архитектуры
+- **Многоуровневая документация**: от высокоуровневых схем до деталей интерфейсов
+- **План vs Факт**: разделяй планируемую и фактическую архитектуру
+- **Code Mapping**: обязательные ссылки на реальные файлы кода
+- **Traceability**: связи между планами разработки и архитектурой
+
+### Architecture-First Approach
+```
+При создании нового компонента:
+1. Задокументировать интерфейсы в Docs/Architecture/Planned/
+2. Ссылка на план разработки
+3. Реализовать компонент
+4. Обновить Docs/Architecture/Actual/ с привязкой к коду
+5. Синхронизировать план/факт
+```
+
+## Правила именования (LLM-FRIENDLY)
+
+### Команды
+- **{Action}{Entity}Command** - PurchaseUpgradeCommand, AddCurrencyCommand
+- **{Entity}{Action}Command** - UpgradePurchaseCommand (только если первый вариант неудобен)
+
+### Хендлеры
+- **{CommandName}Handler** - PurchaseUpgradeCommandHandler
+- **{EventName}Handler** - UpgradePurchasedEventHandler
+
+### События
+- **{Entity}{Action}Event** - UpgradePurchasedEvent, ResourceGeneratedEvent
+- **{Action}Event** - GameStartedEvent, GameEndedEvent
+
+### Сервисы
+- **I{Entity}Service** - IResourceService, IUpgradeService
+- **{Entity}Service** - ResourceService, UpgradeService
+
+## Testing Strategy
+
+### Command Testing (TDD)
+```csharp
+// Каждая команда = отдельный тест класс
+public class PurchaseUpgradeCommandTests
+{
+    [Fact]
+    public async Task Handle_ValidUpgrade_ShouldPurchaseSuccessfully()
+    {
+        // Arrange
+        var command = new PurchaseUpgradeCommand { UpgradeId = 1, UserId = "user1" };
+        var handler = new PurchaseUpgradeCommandHandler(mockServices);
+        
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+        
+        // Assert
+        result.Success.Should().BeTrue();
+    }
+}
+```
+
+### Integration Testing
+```csharp
+// Тестирование через фреймворк:
+public class GameFrameworkIntegrationTests
+{
+    [Fact]
+    public async Task ExecuteAsync_PurchaseUpgrade_ShouldWorkEndToEnd()
+    {
+        var command = new PurchaseUpgradeCommand { UpgradeId = 1, UserId = "user1" };
+        var response = await _gameFramework.ExecuteAsync(command);
+        
+        response.Success.Should().BeTrue();
+    }
+}
+```
+
+## Технические требования
+
+### Database
+- **SQLite** для MVP/development
+- **PostgreSQL** для production
+- **EF Code-First** миграции
+- **Repository pattern** через Mediator
+
+### Async/Await (Unity Modern)
+```csharp
+// Используй современные Unity методы:
+await Awaitable.MainThreadAsync();    // Переключение на main thread
+await Awaitable.BackgroundThreadAsync(); // Переключение на background
+await Awaitable.WaitForSecondsAsync(1.0f); // Ожидание времени
+
+// ИЗБЕГАЙ устаревших:
+await Task.Delay(1000);              // Плохо для Unity
+yield return new WaitForSeconds(1f); // Coroutines только когда необходимо
+```
+
+### Performance
+- **Command pooling** для часто используемых команд
+- **Event batching** для множественных событий
+- **Lazy loading** для тяжелых ресурсов
+- **Memory pooling** для Unity объектов
+
+## LLM Integration Guidelines
+
+### Prompt Engineering
+- При запросе новой функции LLM должен **всегда** создавать Command + Handler + Tests
+- Команды должны следовать **строгому** naming pattern
+- **Никаких** прямых вызовов сервисов - только через Mediator
+- **Каждая** бизнес-операция = отдельная команда
+
+### Code Generation
+```prompt
+"Создай систему {название} для фреймворка. 
+Используй Mediator pattern:
+1. Создай {Action}{Entity}Command
+2. Создай {Action}{Entity}Handler  
+3. Создай {Entity}{Action}Event для уведомлений
+4. Создай unit tests для handler'а
+5. Интегрируй через IGameFramework"
+```
+
+## Анти-паттерны (ЗАПРЕЩЕНО)
+
+### ❌ Direct Service Calls
+```csharp
+// ПЛОХО:
+var resource = await _resourceService.GetResource(userId);
+
+// ХОРОШО:
+var response = await _gameFramework.ExecuteAsync(new GetResourceQuery(userId));
+```
+
+### ❌ Logic in Controllers/MonoBehaviour
+```csharp
+// ПЛОХО:
+public class GameManager : MonoBehaviour 
+{
+    public void PurchaseUpgrade(int id)
+    {
+        if (_resourceService.HasEnough(cost))
+        {
+            _resourceService.Spend(cost);
+            _upgradeService.Purchase(id);
+            // Логика размазана
+        }
+    }
+}
+
+// ХОРОШО:
+public class GameManager : MonoBehaviour 
+{
+    public async Task PurchaseUpgrade(int id)
+    {
+        var command = new PurchaseUpgradeCommand { UpgradeId = id };
+        await _gameFramework.ExecuteAsync(command);
+    }
+}
+```
+
+### ❌ Mixed Architectural Patterns
+```csharp
+// ПЛОХО - смешивание Event-driven и Mediator:
+public class SomeService 
+{
+    public async Task DoSomething()
+    {
+        await _mediator.Send(command);      // Mediator
+        _eventBus.Publish(someEvent);       // Events
+        _serviceLocator.Get<IService>();    // Service Locator
+        // Архитектурная каша!
+    }
+}
+```
+
+## Миграция и эволюция
+
+### Adding New Game Types
+```csharp
+// Для добавления нового типа игры:
+// 1. Создай Game.TowerDefense проект
+// 2. Реализуй специфичные команды:
+public class SpawnEnemyCommand : GameCommand<SpawnEnemyResponse> { }
+public class BuildTowerCommand : GameCommand<BuildTowerResponse> { }
+
+// 3. Framework автоматически подхватит через рефлексию
+```
+
+### Framework Evolution
+- **Backward compatibility** всегда сохраняется
+- **Deprecated** функции помечаются атрибутами
+- **Migration guides** для breaking changes
+- **Versioned** команды для API evolution
+
+---
+
+**ПОМНИ**: Этот проект - фреймворк будущего, где LLM будет активным co-developer'ом. Архитектура должна быть **предсказуемой**, **расширяемой** и **понятной** как человеку, так и ИИ.

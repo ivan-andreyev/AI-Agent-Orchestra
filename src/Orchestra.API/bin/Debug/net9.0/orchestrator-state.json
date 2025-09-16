@@ -1,0 +1,24 @@
+{
+  "Agents": {
+    "claude-1": {
+      "Id": "claude-1",
+      "Name": "Claude Agent 1",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
+      "Status": 0,
+      "LastPing": "2025-09-17T03:54:18.9225264+04:00",
+      "CurrentTask": null
+    },
+    "claude-2": {
+      "Id": "claude-2",
+      "Name": "Claude Agent 2",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-17T03:54:18.9230458+04:00",
+      "CurrentTask": null
+    }
+  },
+  "TaskQueue": [],
+  "LastUpdate": "2025-09-17T03:54:18.9230482+04:00"
+}

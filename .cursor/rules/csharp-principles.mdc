@@ -1,0 +1,290 @@
+---
+description: "C#-специфичные принципы разработки. Ключевые слова: 'C# принципы', 'csharp principles', 'dotnet принципы', '.NET принципы', 'принципы C#', 'using statements', 'IDisposable', 'async/await', 'LINQ', 'nullable', 'records', 'patterns'."
+globs: *.cs, *.csproj, *.sln
+alwaysApply: false
+---
+
+# C#/.NET Принципы разработки
+
+## Resource Management Principles
+
+### IDisposable Pattern
+- Всегда освобождай неуправляемые ресурсы
+- Используй `using` statements для автоматического освобождения
+- Реализуй `IDisposable` правильно с `Dispose(bool disposing)` паттерном
+
+```csharp
+// ✅ Правильное использование using
+using var connection = new SqlConnection(connectionString);
+using var command = new SqlCommand(sql, connection);
+// автоматическое освобождение ресурсов
+
+// ❌ Забыл освободить ресурсы
+var connection = new SqlConnection(connectionString);
+var command = new SqlCommand(sql, connection);
+// утечка ресурсов!
+```
+
+### Using Statements Best Practices
+- Предпочитай `using var` для локальных переменных
+- Используй `using` блоки для контроля области видимости
+- Не вызывай `Dispose()` вручную если используешь `using`
+
+## Asynchronous Programming Principles
+
+### Async/Await Best Practices
+- Используй `async/await` для всех I/O операций
+- НЕ используй `.Result` или `.Wait()` - это блокирует поток
+- Передавай `CancellationToken` в асинхронные методы
+- Добавляй суффикс `Async` к асинхронным методам
+
+```csharp
+// ✅ Правильный асинхронный код
+/// <summary>
+/// Асинхронно получает пользователя по идентификатору.
+/// </summary>
+/// <param name="id">Идентификатор пользователя</param>
+/// <param name="cancellationToken">Токен отмены операции</param>
+/// <returns>Пользователь или null, если не найден</returns>
+public async Task<User> GetUserAsync(int id, CancellationToken cancellationToken = default)
+{
+    return await _repository.FindByIdAsync(id, cancellationToken);
+}
+
+// ❌ Блокировка потока
+public User GetUser(int id)
+{
+    return _repository.FindByIdAsync(id).Result; // Deadlock risk!
+}
+```
+
+### ConfigureAwait Usage
+- Используй `ConfigureAwait(false)` в библиотечном коде
+- Не используй в UI приложениях где нужен возврат на UI поток
+- Предпочитай `ConfigureAwait(false)` для избежания deadlocks
+
+```csharp
+// ✅ В библиотечном коде
+var result = await SomeOperationAsync().ConfigureAwait(false);
+
+// ✅ В UI коде (WPF/WinForms)
+var result = await SomeOperationAsync(); // возврат на UI поток нужен
+```
+
+## Null Safety Principles
+
+### Nullable Reference Types
+- Включай nullable reference types (`<Nullable>enable</Nullable>`)
+- Используй `?` для nullable типов явно
+- Проверяй на null перед использованием
+- Используй null-coalescing операторы (`??`, `??=`)
+
+```csharp
+// ✅ Explicit nullability
+/// <summary>
+/// Безопасно получает имя пользователя с обработкой null.
+/// </summary>
+/// <param name="user">Пользователь, может быть null</param>
+/// <returns>Имя пользователя или "Unknown" если null</returns>
+public string? GetUserName(User? user)
+{
+    return user?.Name ?? "Unknown";
+}
+
+// ❌ Potential null reference
+public string GetUserName(User user)
+{
+    return user.Name; // что если user null?
+}
+```
+
+### Null Checks
+- Используй `ArgumentNullException.ThrowIfNull()` (.NET 6+)
+- Применяй pattern matching для null checks
+- Предпочитай null-conditional operators (`?.`, `?[]`)
+
+```csharp
+// ✅ Modern null checking (.NET 6+)
+/// <summary>
+/// Обрабатывает пользователя с современной проверкой на null.
+/// </summary>
+/// <param name="user">Пользователь для обработки</param>
+/// <exception cref="ArgumentNullException">Если user равен null</exception>
+public void ProcessUser(User user)
+{
+    ArgumentNullException.ThrowIfNull(user);
+    // логика
+}
+
+// ✅ Pattern matching
+if (user is not null && user.IsActive)
+{
+    // логика
+}
+```
+
+## LINQ and Functional Principles
+
+### LINQ Best Practices
+- Используй method syntax для простых операций
+- Query syntax для сложных запросов с множественными `from`
+- Избегай лишних материализаций (`ToList()`, `ToArray()`)
+- Используй `Any()` вместо `Count() > 0`
+
+```csharp
+// ✅ Эффективное использование LINQ
+var activeUsers = users
+    .Where(u => u.IsActive)
+    .Select(u => u.Name)
+    .Take(10); // ленивое выполнение
+
+// ❌ Неэффективно
+var activeUsers = users.ToList()
+    .Where(u => u.IsActive).ToList()
+    .Select(u => u.Name).ToList()
+    .Take(10); // множественные материализации
+```
+
+### Functional Programming Elements
+- Используй immutable объекты где возможно
+- Предпочитай pure functions (без побочных эффектов)
+- Используй record types для data objects
+- Применяй pattern matching
+
+```csharp
+// ✅ Immutable record
+public record User(int Id, string Name, bool IsActive);
+
+// ✅ Pattern matching
+public string GetUserStatus(User user) => user switch
+{
+    { IsActive: true } => "Active",
+    { IsActive: false } => "Inactive",
+    null => "Unknown"
+};
+```
+
+## Exception Handling Principles
+
+### Exception Best Practices
+- Используй специфичные типы исключений
+- Не ловий `Exception` без веской причины
+- Логируй исключения перед re-throw
+- Используй custom exceptions для бизнес-логики
+
+```csharp
+// ✅ Специфичная обработка
+try
+{
+    await ProcessUserAsync(user);
+}
+catch (UserNotFoundException ex)
+{
+    _logger.LogWarning("User not found: {UserId}", ex.UserId);
+    return NotFound();
+}
+catch (ValidationException ex)
+{
+    _logger.LogError(ex, "Validation failed");
+    return BadRequest(ex.Message);
+}
+```
+
+### Finally vs Using
+- Предпочитай `using` для ресурсов
+- `finally` только для критичной очистки
+- Не смешивай оба подхода для одного ресурса
+
+## Dependency Injection Principles
+
+### DI Container Best Practices
+- Регистрируй интерфейсы, не классы
+- Используй правильные lifetimes (Singleton/Scoped/Transient)
+- Избегай Service Locator antipattern
+- Не разрешай зависимости в конструкторе
+
+```csharp
+// ✅ Правильная регистрация
+services.AddScoped<IUserService, UserService>();
+services.AddSingleton<IConfiguration>(configuration);
+services.AddTransient<IEmailSender, EmailSender>();
+
+// ❌ Service Locator antipattern
+public class UserService
+{
+    public UserService(IServiceProvider serviceProvider)
+    {
+        _repository = serviceProvider.GetService<IUserRepository>(); // плохо!
+    }
+}
+```
+
+## Performance Principles
+
+### Memory Allocation
+- Используй `Span<T>` и `ReadOnlySpan<T>` для избежания аллокаций
+- `StringBuilder` для множественных конкатенаций строк
+- Избегай boxing примитивов
+- Используй object pooling для часто создаваемых объектов
+
+```csharp
+// ✅ Span для избежания аллокаций
+ReadOnlySpan<char> span = text.AsSpan(0, 10);
+
+// ✅ StringBuilder для конкатенации
+var sb = new StringBuilder();
+foreach (var item in items)
+    sb.AppendLine(item.ToString());
+```
+
+### Collection Principles
+- Указывай capacity для коллекций если знаешь размер
+- `List<T>` для динамических коллекций
+- `IEnumerable<T>` для параметров методов
+- `IReadOnlyList<T>` для возвращаемых значений
+
+```csharp
+// ✅ Capacity для известного размера
+var users = new List<User>(expectedCount);
+
+// ✅ Правильные типы параметров
+public void ProcessUsers(IEnumerable<User> users) { }
+public IReadOnlyList<User> GetUsers() => _users.AsReadOnly();
+```
+
+## Code Organization Principles
+
+### Namespace Organization
+- Один класс на файл
+- Namespace соответствует структуре папок
+- Избегай `using static` кроме особых случаев
+- Группируй `using` statements логически
+
+### File and Class Organization
+- Публичные члены сверху, приватные снизу
+- Конструкторы после полей
+- Методы группируй по функциональности
+- Используй partial classes осторожно
+
+```csharp
+// ✅ Правильная организация класса
+public class UserService : IUserService
+{
+    // Fields
+    private readonly IUserRepository _repository;
+    private readonly ILogger<UserService> _logger;
+
+    // Constructor
+    public UserService(IUserRepository repository, ILogger<UserService> logger)
+    {
+        _repository = repository;
+        _logger = logger;
+    }
+
+    // Public methods
+    public async Task<User> GetUserAsync(int id) { }
+
+    // Private methods
+    private void ValidateUser(User user) { }
+}
+```

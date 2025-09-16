@@ -1,0 +1,61 @@
+---
+description: 
+globs: *.razor
+alwaysApply: false
+---
+# Правила кодстайла для Razor файлов
+
+## Строгий порядок секций в файле:
+
+1. `@page` - имя страницы
+2. `@inherits` - наследование  
+3. `@model` - модель данных
+4. `@using` - подключаемые сборки
+5. `@inject` - внедряемые зависимости
+6. `@layout` - макет страницы
+7. Внедренные файлы (css/js)
+8. Разметка страницы (HTML)
+9. `<style>` - стили
+10. `@code` - C# код
+
+## Пример правильной структуры:
+
+```razor
+@page "/controlpanel"
+@inherits EllyAnalytics.Pages.Shared.EllyComponentBase
+@model EllyAnalytics.Pages.ErrorModel
+
+@using Elly.Core.Microservices;
+@using EllyAnalytics.Pages.Common;
+@using Syncfusion.Blazor.TreeGrid;
+
+@inject NavigationManager NavigationManager
+@inject IStringLocalizer<ControlPanel> Localizer
+@inject UiContext uiContext
+
+@layout NavLayout
+
+<link href="Algorithm.razor.css" rel="stylesheet" />
+
+<ul class="header__nav flex mt-16">
+</ul>
+
+<style>
+    .e-grid {
+        border-left: 1px solid #DEE2E6;
+        border-right: 1px solid #DEE2E6;
+    }
+</style>
+
+@code {
+    // C# код здесь
+}
+```
+
+## Обязательные рекомендации:
+- По возможности выносить CSS стили в отдельные файлы (.razor.css)
+- По возможности выносить C# код в code-behind файлы (.razor.cs)
+- Все правила наименования из C# применяются к коду в секции @code
+- XML-комментарии для публичных методов и свойств в @code секции
+- Использовать `System.Text.Json` для сериализации
+

@@ -1,0 +1,12 @@
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\obj\Debug\net9.0\Orchestra.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\obj\Debug\net9.0\Orchestra.Core.AssemblyInfoInputs.cache
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\obj\Debug\net9.0\Orchestra.Core.AssemblyInfo.cs
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\obj\Debug\net9.0\Orchestra.Core.csproj.CoreCompileInputs.cache
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\bin\Debug\net9.0\Orchestra.Core.deps.json
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\bin\Debug\net9.0\Orchestra.Core.dll
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\bin\Debug\net9.0\Orchestra.Core.pdb
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\obj\Debug\net9.0\Orchestra.Core.csproj.AssemblyReference.cache
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\obj\Debug\net9.0\Orchestra.Core.dll
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\obj\Debug\net9.0\refint\Orchestra.Core.dll
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\obj\Debug\net9.0\Orchestra.Core.pdb
+C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\obj\Debug\net9.0\ref\Orchestra.Core.dll
