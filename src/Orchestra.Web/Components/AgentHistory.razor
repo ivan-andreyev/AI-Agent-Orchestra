@@ -115,7 +115,11 @@
 
     private async Task LoadHistory()
     {
-        if (string.IsNullOrEmpty(SelectedAgentId)) return;
+        if (string.IsNullOrEmpty(SelectedAgentId))
+        {
+            _errorMessage = "No agent selected";
+            return;
+        }
 
         _isLoading = true;
         _errorMessage = null;
@@ -123,7 +127,9 @@
 
         try
         {
+            Console.WriteLine($"Loading history for agent: {SelectedAgentId}");
             _history = await OrchestratorService.GetAgentHistoryAsync(SelectedAgentId, 50);
+            Console.WriteLine($"Loaded {_history?.Count ?? 0} history entries");
 
             // Scroll to bottom after loading
             _ = Task.Delay(100).ContinueWith(async _ =>

@@ -10,40 +10,47 @@
 <div class="dashboard">
     <div class="header">
         <h1>🎼 AI Agent Orchestra</h1>
-        <div class="status-indicator @(_isConnected ? "connected" : "disconnected")">
-            @(_isConnected ? "🟢 Connected" : "🔴 Disconnected")
+        <div class="header-controls">
+            <div class="status-indicator @(_isConnected ? "connected" : "disconnected")">
+                @(_isConnected ? "🟢 Connected" : "🔴 Disconnected")
+            </div>
+            <div class="header-debug">
+                <button class="debug-button" @onclick="OnDataRefreshRequested">
+                    🔄 Refresh Data
+                </button>
+            </div>
         </div>
     </div>
 
     @if (_state != null)
     {
-        <div class="stats-row">
-            <div class="stat-card">
-                <h3>Total Agents</h3>
-                <div class="stat-number">@(_repositories?.Values.Sum(r => r.Agents.Count) ?? _state.Agents.Count)</div>
-                <div class="stat-detail">
-                    🟢 @(_repositories?.Values.Sum(r => r.IdleCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Idle))
-                    🟡 @(_repositories?.Values.Sum(r => r.WorkingCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Working))
-                    🔴 @(_repositories?.Values.Sum(r => r.ErrorCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Error))
-                    ⚫ @(_repositories?.Values.Sum(r => r.OfflineCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Offline))
-                </div>
+        <div class="d-flex justify-content-between align-items-center bg-dark p-3 rounded mb-3">
+            <div class="text-center">
+                <h6 class="text-secondary mb-1">TOTAL AGENTS</h6>
+                <h3 class="text-light mb-0">@(_repositories?.Values.Sum(r => r.Agents.Count) ?? _state.Agents.Count)</h3>
+                <small class="text-muted stat-detail">
+                    <span class="stat-emoji">🟢</span>@(_repositories?.Values.Sum(r => r.IdleCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Idle))
+                    <span class="stat-emoji">🟡</span>@(_repositories?.Values.Sum(r => r.WorkingCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Working))
+                    <span class="stat-emoji">🔴</span>@(_repositories?.Values.Sum(r => r.ErrorCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Error))
+                    <span class="stat-emoji">⚫</span>@(_repositories?.Values.Sum(r => r.OfflineCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Offline))
+                </small>
             </div>
 
-            <div class="stat-card">
-                <h3>Repositories</h3>
-                <div class="stat-number">@(_repositories?.Count ?? 0)</div>
-                <div class="stat-detail">Active repositories</div>
+            <div class="text-center">
+                <h6 class="text-secondary mb-1">REPOSITORIES</h6>
+                <h3 class="text-light mb-0">@(_repositories?.Count ?? 0)</h3>
+                <small class="text-muted">Active repositories</small>
             </div>
 
-            <div class="stat-card">
-                <h3>Tasks Queue</h3>
-                <div class="stat-number">@(_state?.TaskQueue.Count ?? 0)</div>
-                <div class="stat-detail">Pending tasks</div>
+            <div class="text-center">
+                <h6 class="text-secondary mb-1">TASKS QUEUE</h6>
+                <h3 class="text-light mb-0">@(_state?.TaskQueue.Count ?? 0)</h3>
+                <small class="text-muted">Pending tasks</small>
             </div>
 
-            <div class="stat-card">
-                <h3>Last Update</h3>
-                <div class="stat-detail">@(_state?.LastUpdate.ToString("HH:mm:ss") ?? "--")</div>
+            <div class="text-center">
+                <h6 class="text-secondary mb-1">LAST UPDATE</h6>
+                <h6 class="text-light mb-0">@(_state?.LastUpdate.ToString("HH:mm:ss") ?? "--")</h6>
             </div>
         </div>
 
@@ -51,8 +58,6 @@
                            SelectedRepository="_selectedRepository"
                            OnRepositoryChanged="OnRepositoryChanged"
                            OnRefreshRequested="OnRefreshRequested" />
-
-        <DebugPanel OnDataRefresh="OnDataRefreshRequested" />
 
         <QuickActions SelectedRepository="_selectedRepository"
                      RepositoryPath="@GetSelectedRepositoryPath()"
@@ -150,7 +155,9 @@
     private List<AgentInfo>? GetSelectedRepositoryAgents()
     {
         if (string.IsNullOrEmpty(_selectedRepository) || _repositories == null)
+        {
             return null;
+        }
 
         return _repositories.ContainsKey(_selectedRepository)
             ? _repositories[_selectedRepository].Agents
@@ -160,7 +167,9 @@
     private string? GetSelectedRepositoryPath()
     {
         if (string.IsNullOrEmpty(_selectedRepository) || _repositories == null)
+        {
             return null;
+        }
 
         return _repositories.ContainsKey(_selectedRepository)
             ? _repositories[_selectedRepository].Path
@@ -170,7 +179,9 @@
     private string? GetSelectedAgentSessionId()
     {
         if (string.IsNullOrEmpty(_selectedAgentId) || _repositories == null)
+        {
             return null;
+        }
 
         var agent = _repositories.Values
             .SelectMany(r => r.Agents)

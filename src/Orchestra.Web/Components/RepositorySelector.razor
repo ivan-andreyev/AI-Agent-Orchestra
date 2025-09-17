@@ -2,18 +2,36 @@
 
 <div class="repository-selector">
     <h2>Repository Context</h2>
-    <div class="repository-tabs">
-        @if (Repositories != null)
-        {
-            @foreach (var repo in Repositories)
-            {
-                <button class="tab-button @(SelectedRepository == repo.Key ? "active" : "")"
-                        @onclick="() => OnRepositorySelected(repo.Key)">
-                    @repo.Key (@repo.Value.Agents.Count)
-                </button>
-            }
-        }
-        <button class="refresh-button" @onclick="OnRefresh">🔄 Refresh</button>
+    <div class="d-flex align-items-center gap-3">
+        <div class="dropdown">
+            <button class="btn btn-outline-light dropdown-toggle" type="button" id="repositoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                @if (!string.IsNullOrEmpty(SelectedRepository) && Repositories != null && Repositories.ContainsKey(SelectedRepository))
+                {
+                    @($"{SelectedRepository} ({Repositories[SelectedRepository].Agents.Count})")
+                }
+                else
+                {
+                    <text>Select Repository</text>
+                }
+            </button>
+            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="repositoryDropdown">
+                @if (Repositories != null)
+                {
+                    @foreach (var repo in Repositories)
+                    {
+                        <li>
+                            <a class="dropdown-item @(SelectedRepository == repo.Key ? "active" : "")"
+                               href="#" @onclick="() => OnRepositorySelected(repo.Key)" @onclick:preventDefault="true">
+                                @repo.Key (@repo.Value.Agents.Count)
+                            </a>
+                        </li>
+                    }
+                }
+            </ul>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="OnRefresh">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
     </div>
 
     @if (!string.IsNullOrEmpty(SelectedRepository) && Repositories != null && Repositories.ContainsKey(SelectedRepository))
@@ -21,13 +39,16 @@
         var activeRepo = Repositories[SelectedRepository];
         <div class="repository-info">
             <div class="repository-header">
-                <h3>@activeRepo.Name Repository</h3>
+                <h3>🏛️ @activeRepo.Name Repository</h3>
                 <div class="repo-stats">
-                    🟢 @activeRepo.IdleCount
-                    🟡 @activeRepo.WorkingCount
-                    🔴 @activeRepo.ErrorCount
-                    ⚫ @activeRepo.OfflineCount
+                    <span class="stat-item">🟢 @activeRepo.IdleCount</span>
+                    <span class="stat-item">🟡 @activeRepo.WorkingCount</span>
+                    <span class="stat-item">🔴 @activeRepo.ErrorCount</span>
+                    <span class="stat-item">⚫ @activeRepo.OfflineCount</span>
                 </div>
+            </div>
+            <div class="repository-path">
+                <small class="text-muted">📁 @activeRepo.Path</small>
             </div>
         </div>
     }
