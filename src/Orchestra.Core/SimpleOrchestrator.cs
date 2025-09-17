@@ -38,36 +38,63 @@ public class SimpleOrchestrator
     public void QueueTask(string command, string repositoryPath, TaskPriority priority = TaskPriority.Normal)
     {
         var availableAgent = FindAvailableAgent(repositoryPath);
-        if (availableAgent != null)
-        {
-            var task = new TaskRequest(
-                Guid.NewGuid().ToString(),
-                availableAgent.Id,
-                command,
-                repositoryPath,
-                DateTime.Now,
-                priority
-            );
+        var agentId = availableAgent?.Id ?? ""; // Empty if no agent available yet
 
-            _taskQueue.Enqueue(task);
-            SaveState();
-        }
+        var task = new TaskRequest(
+            Guid.NewGuid().ToString(),
+            agentId,
+            command,
+            repositoryPath,
+            DateTime.Now,
+            priority
+        );
+
+        _taskQueue.Enqueue(task);
+        SaveState();
     }
 
     public TaskRequest? GetNextTaskForAgent(string agentId)
     {
+        // First check for tasks already assigned to this agent
         var tasksForAgent = _taskQueue.Where(t => t.AgentId == agentId).ToList();
         if (tasksForAgent.Any())
         {
             var task = tasksForAgent.First();
-            var newQueue = new Queue<TaskRequest>(_taskQueue.Where(t => t.Id != task.Id));
-            _taskQueue.Clear();
-            foreach (var t in newQueue) _taskQueue.Enqueue(t);
-
-            SaveState();
+            RemoveTaskFromQueue(task.Id);
             return task;
         }
+
+        // If no assigned tasks, look for unassigned tasks that could be handled by this agent
+        var agent = _agents.TryGetValue(agentId, out var agentInfo) ? agentInfo : null;
+        if (agent != null)
+        {
+            var unassignedTasks = _taskQueue.Where(t => string.IsNullOrEmpty(t.AgentId) ||
+                                                     (t.RepositoryPath == agent.RepositoryPath))
+                                          .OrderByDescending(t => t.Priority)
+                                          .ThenBy(t => t.CreatedAt)
+                                          .ToList();
+
+            if (unassignedTasks.Any())
+            {
+                var task = unassignedTasks.First();
+                RemoveTaskFromQueue(task.Id);
+
+                // Update task with agent assignment
+                var assignedTask = new TaskRequest(task.Id, agentId, task.Command, task.RepositoryPath, task.CreatedAt, task.Priority);
+                SaveState();
+                return assignedTask;
+            }
+        }
+
         return null;
+    }
+
+    private void RemoveTaskFromQueue(string taskId)
+    {
+        var newQueue = new Queue<TaskRequest>(_taskQueue.Where(t => t.Id != taskId));
+        _taskQueue.Clear();
+        foreach (var t in newQueue) _taskQueue.Enqueue(t);
+        SaveState();
     }
 
     public List<AgentInfo> GetAllAgents() => _agents.Values.ToList();

@@ -65,10 +65,10 @@ public class ClaudeSessionDiscovery
         if (string.IsNullOrEmpty(encodedPath))
             return encodedPath;
 
-        // First handle drive letter replacement (e.g., "C--" -> "C:\")
+        // First handle drive letter replacement (e.g., "C--" -> "C:\" or "c--" -> "C:\")
         if (encodedPath.Length >= 3 && char.IsLetter(encodedPath[0]) && encodedPath[1] == '-' && encodedPath[2] == '-')
         {
-            var drivePrefix = encodedPath[0] + ":\\";
+            var drivePrefix = char.ToUpper(encodedPath[0]) + ":\\";
             var remainingPath = encodedPath.Substring(3);
 
             // Handle double dashes first as they definitely represent directory separators

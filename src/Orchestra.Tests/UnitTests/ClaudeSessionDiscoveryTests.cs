@@ -20,6 +20,7 @@ public class ClaudeSessionDiscoveryTests
     [Theory]
     [InlineData("C--Users-mrred-RiderProjects-AI-Agent-Orchestra", @"C:\Users\mrred\RiderProjects\AI-Agent-Orchestra")]
     [InlineData("C--Users-mrred-RiderProjects-Galactic-Idlers", @"C:\Users\mrred\RiderProjects\Galactic-Idlers")]
+    [InlineData("c--Users-mrred-RiderProjects-Elly2-2", @"C:\Users\mrred\RiderProjects\Elly2-2")]
     [InlineData("D--Projects-My-Project", @"D:\Projects\My-Project")]
     [InlineData("E--Some--Nested--Path", @"E:\Some\Nested\Path")]
     public void DecodeProjectPath_ShouldDecodeCorrectly(string encoded, string expected)

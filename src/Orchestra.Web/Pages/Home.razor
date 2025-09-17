@@ -75,10 +75,30 @@
                 </div>
 
                 <div class="agents-section">
-                    @if (activeRepo.Agents.Any())
+                    <div class="agents-controls">
+                        <div class="filter-controls">
+                            <label for="statusFilter">Filter by status:</label>
+                            <select id="statusFilter" @bind="_statusFilter" @onchange="OnStatusFilterChanged" class="status-filter">
+                                <option value="">All</option>
+                                <option value="Working">🟡 Working</option>
+                                <option value="Idle">🟢 Idle</option>
+                                <option value="Error">🔴 Error</option>
+                                <option value="Offline">⚫ Offline</option>
+                            </select>
+                        </div>
+                        <div class="sort-controls">
+                            <label for="sortBy">Sort by:</label>
+                            <select id="sortBy" @bind="_sortBy" @onchange="OnSortChanged" class="sort-select">
+                                <option value="Status">Status (Active first)</option>
+                                <option value="LastPing">Last activity</option>
+                                <option value="Name">Name</option>
+                            </select>
+                        </div>
+                    </div>
+                    @if (GetFilteredAndSortedAgents(activeRepo.Agents).Any())
                     {
                         <div class="agents-grid">
-                            @foreach (var agent in activeRepo.Agents)
+                            @foreach (var agent in GetFilteredAndSortedAgents(activeRepo.Agents))
                             {
                                 <div class="agent-card @agent.Status.ToString().ToLower()">
                                     <div class="agent-header">
@@ -103,7 +123,16 @@
                     }
                     else
                     {
-                        <div class="empty-state">No agents found in this repository</div>
+                        <div class="empty-state">
+                            @if (string.IsNullOrEmpty(_statusFilter))
+                            {
+                                <span>No agents found in this repository</span>
+                            }
+                            else
+                            {
+                                <span>No @_statusFilter.ToLower() agents found in this repository</span>
+                            }
+                        </div>
                     }
                 </div>
             </div>
@@ -183,6 +212,10 @@
     private TaskPriority _newTaskPriority = TaskPriority.Normal;
     private bool _isAddingTask = false;
     private string _debugMessage = "";
+
+    // Filtering and sorting
+    private string _statusFilter = "";
+    private string _sortBy = "Status";
 
     protected override async Task OnInitializedAsync()
     {
@@ -288,6 +321,49 @@
             _debugMessage = $"❌ Error refreshing agents: {ex.Message}";
         }
 
+        StateHasChanged();
+    }
+
+    private List<AgentInfo> GetFilteredAndSortedAgents(List<AgentInfo> agents)
+    {
+        // Apply filter
+        var filtered = agents;
+        if (!string.IsNullOrEmpty(_statusFilter))
+        {
+            if (Enum.TryParse<AgentStatus>(_statusFilter, out var status))
+            {
+                filtered = agents.Where(a => a.Status == status).ToList();
+            }
+        }
+
+        // Apply sorting
+        return _sortBy switch
+        {
+            "Status" => filtered.OrderBy(a => GetStatusPriority(a.Status)).ThenByDescending(a => a.LastPing).ToList(),
+            "LastPing" => filtered.OrderByDescending(a => a.LastPing).ToList(),
+            "Name" => filtered.OrderBy(a => a.Name).ToList(),
+            _ => filtered.OrderBy(a => GetStatusPriority(a.Status)).ThenByDescending(a => a.LastPing).ToList()
+        };
+    }
+
+    private int GetStatusPriority(AgentStatus status) => status switch
+    {
+        AgentStatus.Working => 1,
+        AgentStatus.Idle => 2,
+        AgentStatus.Error => 3,
+        AgentStatus.Offline => 4,
+        _ => 5
+    };
+
+    private async Task OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        _statusFilter = e.Value?.ToString() ?? "";
+        StateHasChanged();
+    }
+
+    private async Task OnSortChanged(ChangeEventArgs e)
+    {
+        _sortBy = e.Value?.ToString() ?? "Status";
         StateHasChanged();
     }
 

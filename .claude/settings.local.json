@@ -8,7 +8,11 @@
       "Bash(scripts/test-api.sh:*)",
       "Bash(tasklist:*)",
       "Bash(powershell:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Read(//c/Users/mrred/.claude/projects/**)",
+      "Bash(csc:*)",
+      "Bash(test_decode.exe)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
