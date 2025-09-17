@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.IO;
+using System.Linq;
 
 namespace Orchestra.Core;
 
@@ -61,7 +62,46 @@ public class ClaudeSessionDiscovery
 
     private string DecodeProjectPath(string encodedPath)
     {
-        return encodedPath.Replace("--", @"\").Replace("-", ":");
+        if (string.IsNullOrEmpty(encodedPath))
+            return encodedPath;
+
+        // First handle drive letter replacement (e.g., "C--" -> "C:\")
+        if (encodedPath.Length >= 3 && char.IsLetter(encodedPath[0]) && encodedPath[1] == '-' && encodedPath[2] == '-')
+        {
+            var drivePrefix = encodedPath[0] + ":\\";
+            var remainingPath = encodedPath.Substring(3);
+
+            // Handle double dashes first as they definitely represent directory separators
+            remainingPath = remainingPath.Replace("--", "\\");
+
+            // Split the remaining path and reconstruct intelligently
+            var parts = remainingPath.Split('-');
+
+            if (parts.Length >= 4 && remainingPath.Contains("RiderProjects"))
+            {
+                // For typical structure: Users-username-RiderProjects-ProjectName
+                // Join first 3 parts as directories and rest as project name
+                var directoryParts = string.Join("\\", parts.Take(3));
+                var projectName = string.Join("-", parts.Skip(3));
+                return drivePrefix + directoryParts + "\\" + projectName;
+            }
+            else if (parts.Length >= 3)
+            {
+                // For other paths like D:\Projects\My-Project
+                // Join first N-1 parts as directories and last part as file/folder name
+                var directoryParts = string.Join("\\", parts.Take(parts.Length - 1));
+                var lastName = parts.Last();
+                return drivePrefix + directoryParts + "\\" + lastName;
+            }
+            else
+            {
+                // Simple case: replace all remaining dashes with backslashes
+                return drivePrefix + remainingPath.Replace("-", "\\");
+            }
+        }
+
+        // If no drive letter pattern, just replace double dashes
+        return encodedPath.Replace("--", @"\");
     }
 
     private AgentStatus DetermineSessionStatus(string sessionFile, DateTime lastWriteTime)
