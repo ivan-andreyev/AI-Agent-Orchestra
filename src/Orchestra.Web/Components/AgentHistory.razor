@@ -1,0 +1,199 @@
+@using Orchestra.Web.Models
+@using Orchestra.Web.Services
+@inject OrchestratorService OrchestratorService
+@implements IDisposable
+
+<div class="agent-history">
+    <div class="history-header">
+        <h3>Agent History</h3>
+        @if (!string.IsNullOrEmpty(SelectedAgentId))
+        {
+            <div class="history-controls">
+                <button class="refresh-button" @onclick="RefreshHistory" disabled="@_isLoading">
+                    @if (_isLoading)
+                    {
+                        <span class="spinner"></span>
+                    }
+                    else
+                    {
+                        <span>🔄</span>
+                    }
+                    Refresh
+                </button>
+                <div class="auto-refresh-toggle">
+                    <input type="checkbox" id="auto-refresh" @bind="_autoRefresh" @bind:after="ToggleAutoRefresh" />
+                    <label for="auto-refresh">Auto-refresh</label>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="history-content">
+        @if (string.IsNullOrEmpty(SelectedAgentId))
+        {
+            <div class="no-selection">
+                <p>Select an agent to view its conversation history</p>
+            </div>
+        }
+        else if (_isLoading && (_history == null || !_history.Any()))
+        {
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading history...</p>
+            </div>
+        }
+        else if (_history != null && _history.Any())
+        {
+            <div class="history-list" @ref="_historyContainer">
+                @foreach (var entry in _history)
+                {
+                    <div class="history-entry @entry.Type">
+                        <div class="entry-header">
+                            <span class="entry-type">@entry.Type</span>
+                            <span class="entry-time">@entry.Timestamp.ToString("HH:mm:ss")</span>
+                        </div>
+                        <div class="entry-content">
+                            @if (entry.Content.Length > 500)
+                            {
+                                @if (_expandedEntries.Contains(entry.GetHashCode()))
+                                {
+                                    <span>@entry.Content</span>
+                                    <button class="expand-button" @onclick="() => ToggleExpand(entry.GetHashCode())">Show less</button>
+                                }
+                                else
+                                {
+                                    <span>@(entry.Content[..500])...</span>
+                                    <button class="expand-button" @onclick="() => ToggleExpand(entry.GetHashCode())">Show more</button>
+                                }
+                            }
+                            else
+                            {
+                                <span>@entry.Content</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="no-history">
+                <p>No conversation history available for this agent</p>
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="error-message">
+            <strong>Error:</strong> @_errorMessage
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? SelectedAgentId { get; set; }
+
+    private List<AgentHistoryEntry>? _history;
+    private bool _isLoading = false;
+    private bool _autoRefresh = false;
+    private string? _errorMessage;
+    private string? _lastAgentId;
+    private Timer? _refreshTimer;
+    private ElementReference _historyContainer;
+    private HashSet<int> _expandedEntries = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SelectedAgentId != _lastAgentId)
+        {
+            _lastAgentId = SelectedAgentId;
+            _expandedEntries.Clear();
+            await LoadHistory();
+        }
+    }
+
+    private async Task LoadHistory()
+    {
+        if (string.IsNullOrEmpty(SelectedAgentId)) return;
+
+        _isLoading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            _history = await OrchestratorService.GetAgentHistoryAsync(SelectedAgentId, 50);
+
+            // Scroll to bottom after loading
+            _ = Task.Delay(100).ContinueWith(async _ =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        await _historyContainer.FocusAsync();
+                        await Task.Delay(50);
+                        // Scroll to bottom using JavaScript
+                        await Task.Run(() => {});
+                    }
+                    catch
+                    {
+                        // Ignore scrolling errors
+                    }
+                });
+            });
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _history = null;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshHistory()
+    {
+        await LoadHistory();
+    }
+
+    private void ToggleAutoRefresh()
+    {
+        if (_autoRefresh)
+        {
+            // Start auto-refresh every 5 seconds
+            _refreshTimer = new Timer(async _ =>
+            {
+                await InvokeAsync(async () => await LoadHistory());
+            }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+        }
+        else
+        {
+            // Stop auto-refresh
+            _refreshTimer?.Dispose();
+            _refreshTimer = null;
+        }
+    }
+
+    private void ToggleExpand(int entryHash)
+    {
+        if (_expandedEntries.Contains(entryHash))
+        {
+            _expandedEntries.Remove(entryHash);
+        }
+        else
+        {
+            _expandedEntries.Add(entryHash);
+        }
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

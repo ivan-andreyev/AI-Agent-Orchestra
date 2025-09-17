@@ -1,0 +1,309 @@
+@using Orchestra.Web.Models
+
+<div class="agent-sidebar">
+    <div class="sidebar-header">
+        <h3>Agents</h3>
+        <div class="agent-filters">
+            <select @bind="_statusFilter" @bind:after="FilterAgents" class="status-filter">
+                <option value="">All (@_totalCount)</option>
+                <option value="Working">Working (@_workingCount)</option>
+                <option value="Idle">Idle (@_idleCount)</option>
+                <option value="Error">Error (@_errorCount)</option>
+                <option value="Offline">Offline (@_offlineCount)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="agent-list">
+        @if (_filteredAgents != null && _filteredAgents.Any())
+        {
+            @foreach (var agent in _filteredAgents)
+            {
+                <div class="sidebar-agent @(SelectedAgentId == agent.Id ? "selected" : "") @GetStatusClass(agent.Status)"
+                     @onclick="() => SelectAgent(agent.Id)">
+                    <div class="agent-header">
+                        <div class="agent-name" title="@agent.Name">
+                            @GetShortName(agent.Name)
+                        </div>
+                        <div class="agent-status @GetStatusClass(agent.Status)">
+                            @GetStatusIcon(agent.Status)
+                        </div>
+                    </div>
+                    <div class="agent-details">
+                        <div class="agent-type">@agent.Type</div>
+                        <div class="last-ping">@GetTimeAgo(agent.LastPing)</div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(agent.CurrentTask))
+                    {
+                        <div class="current-task" title="@agent.CurrentTask">
+                            @GetShortTask(agent.CurrentTask)
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else if (Agents != null && Agents.Any())
+        {
+            <div class="no-agents">
+                <p>No agents match the current filter</p>
+            </div>
+        }
+        else
+        {
+            <div class="no-agents">
+                <p>No agents available in this repository</p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<AgentInfo>? Agents { get; set; }
+    [Parameter] public string? SelectedAgentId { get; set; }
+    [Parameter] public EventCallback<string> OnAgentSelected { get; set; }
+
+    private string _statusFilter = "";
+    private List<AgentInfo> _filteredAgents = new();
+    private int _totalCount, _workingCount, _idleCount, _errorCount, _offlineCount;
+
+    protected override void OnParametersSet()
+    {
+        UpdateCounts();
+        FilterAgents();
+    }
+
+    private void UpdateCounts()
+    {
+        if (Agents == null) return;
+
+        _totalCount = Agents.Count;
+        _workingCount = Agents.Count(a => a.Status == AgentStatus.Working);
+        _idleCount = Agents.Count(a => a.Status == AgentStatus.Idle);
+        _errorCount = Agents.Count(a => a.Status == AgentStatus.Error);
+        _offlineCount = Agents.Count(a => a.Status == AgentStatus.Offline);
+    }
+
+    private void FilterAgents()
+    {
+        if (Agents == null)
+        {
+            _filteredAgents = new List<AgentInfo>();
+            return;
+        }
+
+        var filtered = Agents.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_statusFilter))
+        {
+            if (Enum.TryParse<AgentStatus>(_statusFilter, out var status))
+            {
+                filtered = filtered.Where(a => a.Status == status);
+            }
+        }
+
+        // Sort by status priority, then by last ping
+        _filteredAgents = filtered
+            .OrderBy(a => GetStatusPriority(a.Status))
+            .ThenByDescending(a => a.LastPing)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    private async Task SelectAgent(string agentId)
+    {
+        await OnAgentSelected.InvokeAsync(agentId);
+    }
+
+    private static int GetStatusPriority(AgentStatus status)
+    {
+        return status switch
+        {
+            AgentStatus.Working => 1,
+            AgentStatus.Idle => 2,
+            AgentStatus.Error => 3,
+            AgentStatus.Offline => 4,
+            _ => 5
+        };
+    }
+
+    private static string GetStatusClass(AgentStatus status) => status.ToString().ToLower();
+
+    private static string GetStatusIcon(AgentStatus status)
+    {
+        return status switch
+        {
+            AgentStatus.Working => "🟢",
+            AgentStatus.Idle => "🟡",
+            AgentStatus.Error => "🔴",
+            AgentStatus.Offline => "⚫",
+            _ => "❓"
+        };
+    }
+
+    private static string GetShortName(string name)
+    {
+        const int maxLength = 25;
+        if (name.Length <= maxLength) return name;
+        return name[..maxLength] + "...";
+    }
+
+    private static string GetShortTask(string task)
+    {
+        const int maxLength = 30;
+        if (task.Length <= maxLength) return task;
+        return task[..maxLength] + "...";
+    }
+
+    private static string GetTimeAgo(DateTime lastPing)
+    {
+        var timeSpan = DateTime.Now - lastPing;
+
+        return timeSpan.TotalMinutes switch
+        {
+            < 1 => "Just now",
+            < 60 => $"{(int)timeSpan.TotalMinutes}m ago",
+            < 1440 => $"{(int)timeSpan.TotalHours}h ago",
+            _ => $"{(int)timeSpan.TotalDays}d ago"
+        };
+    }
+}
+
+<style>
+    .agent-sidebar {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sidebar-header {
+        padding: 15px;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+    }
+
+    .sidebar-header h3 {
+        margin: 0 0 10px 0;
+        color: var(--text-primary);
+        font-size: 1.1rem;
+    }
+
+    .status-filter {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-size: 0.85rem;
+    }
+
+    .agent-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+    }
+
+    .sidebar-agent {
+        padding: 12px;
+        margin-bottom: 8px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+    }
+
+    .sidebar-agent:hover {
+        background: var(--bg-hover);
+        border-color: var(--border-hover);
+    }
+
+    .sidebar-agent.selected {
+        background: var(--bg-selected, rgba(0, 122, 204, 0.1));
+        border-color: var(--accent-color, #007acc);
+        border-left-color: var(--accent-color, #007acc);
+    }
+
+    .sidebar-agent.working {
+        border-left-color: var(--status-working);
+    }
+
+    .sidebar-agent.idle {
+        border-left-color: var(--status-idle);
+    }
+
+    .sidebar-agent.error {
+        border-left-color: var(--status-error);
+    }
+
+    .sidebar-agent.offline {
+        border-left-color: var(--status-offline);
+    }
+
+    .agent-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+    }
+
+    .agent-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .agent-status {
+        font-size: 0.8rem;
+        margin-left: 8px;
+    }
+
+    .agent-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+    }
+
+    .agent-type {
+        font-style: italic;
+    }
+
+    .last-ping {
+        font-size: 0.75rem;
+    }
+
+    .current-task {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        font-style: italic;
+        margin-top: 4px;
+        padding: 4px 8px;
+        background: var(--bg-secondary);
+        border-radius: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .no-agents {
+        text-align: center;
+        padding: 20px;
+        color: var(--text-secondary);
+        font-style: italic;
+        font-size: 0.9rem;
+    }
+
+    .agent-filters {
+        margin-top: 5px;
+    }
+</style>

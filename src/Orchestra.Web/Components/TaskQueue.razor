@@ -1,0 +1,246 @@
+@using Orchestra.Web.Models
+@using Orchestra.Web.Services
+@inject OrchestratorService OrchestratorService
+@implements IDisposable
+
+<div class="task-queue">
+    <div class="queue-header">
+        <h3>Task Queue</h3>
+        <div class="queue-controls">
+            <button class="refresh-button" @onclick="RefreshQueue" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span class="spinner"></span>
+                }
+                else
+                {
+                    <span>🔄</span>
+                }
+                Refresh
+            </button>
+            <div class="auto-refresh-toggle">
+                <input type="checkbox" id="queue-auto-refresh" @bind="_autoRefresh" @bind:after="ToggleAutoRefresh" />
+                <label for="queue-auto-refresh">Auto-refresh</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="queue-content">
+        @if (string.IsNullOrEmpty(SelectedRepository))
+        {
+            <div class="no-selection">
+                <p>Select a repository to view its task queue</p>
+            </div>
+        }
+        else if (_isLoading && (_tasks == null || !_tasks.Any()))
+        {
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading tasks...</p>
+            </div>
+        }
+        else if (_tasks != null && _tasks.Any())
+        {
+            <div class="task-stats">
+                <div class="stat">
+                    <span class="stat-label">Total:</span>
+                    <span class="stat-value">@_tasks.Count</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">High Priority:</span>
+                    <span class="stat-value high">@_tasks.Count(t => t.Priority == TaskPriority.High || t.Priority == TaskPriority.Critical)</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Normal:</span>
+                    <span class="stat-value">@_tasks.Count(t => t.Priority == TaskPriority.Normal)</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Low:</span>
+                    <span class="stat-value low">@_tasks.Count(t => t.Priority == TaskPriority.Low)</span>
+                </div>
+            </div>
+
+            <div class="task-list">
+                @foreach (var task in _tasks.Take(10))
+                {
+                    <div class="task-item @GetPriorityClass(task.Priority)">
+                        <div class="task-header">
+                            <div class="task-priority">
+                                @GetPriorityIcon(task.Priority)
+                                <span class="priority-text">@task.Priority</span>
+                            </div>
+                            <div class="task-time">@GetTimeAgo(task.CreatedAt)</div>
+                        </div>
+                        <div class="task-command" title="@task.Command">
+                            @GetShortCommand(task.Command)
+                        </div>
+                        <div class="task-details">
+                            <div class="task-id">ID: @task.Id[..8]...</div>
+                            @if (!string.IsNullOrEmpty(task.AgentId))
+                            {
+                                <div class="assigned-agent">Assigned to: @task.AgentId[..8]...</div>
+                            }
+                            else
+                            {
+                                <div class="unassigned">Unassigned</div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (_tasks.Count > 10)
+                {
+                    <div class="more-tasks">
+                        <p>...and @(_tasks.Count - 10) more tasks</p>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="no-tasks">
+                <p>No tasks in queue for this repository</p>
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="error-message">
+            <strong>Error:</strong> @_errorMessage
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? SelectedRepository { get; set; }
+    [Parameter] public string? RepositoryPath { get; set; }
+
+    private List<TaskRequest> _tasks = new();
+    private bool _isLoading = false;
+    private bool _autoRefresh = false;
+    private string? _errorMessage;
+    private string? _lastRepository;
+    private Timer? _refreshTimer;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SelectedRepository != _lastRepository)
+        {
+            _lastRepository = SelectedRepository;
+            await LoadTasks();
+        }
+    }
+
+    private async Task LoadTasks()
+    {
+        if (string.IsNullOrEmpty(SelectedRepository) || string.IsNullOrEmpty(RepositoryPath))
+        {
+            _tasks = new List<TaskRequest>();
+            return;
+        }
+
+        _isLoading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var state = await OrchestratorService.GetStateAsync();
+            if (state?.TaskQueue != null)
+            {
+                _tasks = state.TaskQueue
+                    .Where(t => t.RepositoryPath == RepositoryPath)
+                    .OrderBy(t => GetPriorityValue(t.Priority))
+                    .ThenBy(t => t.CreatedAt)
+                    .ToList();
+            }
+            else
+            {
+                _tasks = new List<TaskRequest>();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _tasks = new List<TaskRequest>();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshQueue()
+    {
+        await LoadTasks();
+    }
+
+    private void ToggleAutoRefresh()
+    {
+        if (_autoRefresh)
+        {
+            _refreshTimer = new Timer(async _ =>
+            {
+                await InvokeAsync(async () => await LoadTasks());
+            }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+        }
+        else
+        {
+            _refreshTimer?.Dispose();
+            _refreshTimer = null;
+        }
+    }
+
+    private static int GetPriorityValue(TaskPriority priority)
+    {
+        switch (priority)
+        {
+            case TaskPriority.Critical: return 1;
+            case TaskPriority.High: return 2;
+            case TaskPriority.Normal: return 3;
+            case TaskPriority.Low: return 4;
+            default: return 5;
+        }
+    }
+
+    private static string GetPriorityClass(TaskPriority priority)
+    {
+        return priority.ToString().ToLower();
+    }
+
+    private static string GetPriorityIcon(TaskPriority priority)
+    {
+        switch (priority)
+        {
+            case TaskPriority.Critical: return "🚨";
+            case TaskPriority.High: return "🔴";
+            case TaskPriority.Normal: return "🟡";
+            case TaskPriority.Low: return "🟢";
+            default: return "❓";
+        }
+    }
+
+    private static string GetShortCommand(string command)
+    {
+        const int maxLength = 80;
+        if (command.Length <= maxLength) return command;
+        return command[..maxLength] + "...";
+    }
+
+    private static string GetTimeAgo(DateTime createdAt)
+    {
+        var timeSpan = DateTime.Now - createdAt;
+
+        if (timeSpan.TotalMinutes < 1) return "Just now";
+        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h ago";
+        return $"{(int)timeSpan.TotalDays}d ago";
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

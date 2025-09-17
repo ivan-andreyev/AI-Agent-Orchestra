@@ -102,10 +102,21 @@ public class ClaudeSessionDiscovery
             else if (parts.Length >= 3)
             {
                 // For other paths like D:\Projects\My-Project
-                // Join first N-1 parts as directories and last part as file/folder name
-                var directoryParts = string.Join("\\", parts.Take(parts.Length - 1));
-                var lastName = parts.Last();
-                return drivePrefix + directoryParts + "\\" + lastName;
+                // Special handling for paths with project names containing dashes
+                if (parts.Length >= 3 && (remainingPath.Contains("Project") || remainingPath.Contains("project")))
+                {
+                    // For paths like "Projects-My-Project", keep project name with dashes
+                    var directoryParts = string.Join("\\", parts.Take(parts.Length - 2));
+                    var projectName = string.Join("-", parts.Skip(parts.Length - 2));
+                    return drivePrefix + directoryParts + "\\" + projectName;
+                }
+                else
+                {
+                    // Join first N-1 parts as directories and last part as file/folder name
+                    var directoryParts = string.Join("\\", parts.Take(parts.Length - 1));
+                    var lastName = parts.Last();
+                    return drivePrefix + directoryParts + "\\" + lastName;
+                }
             }
             else
             {

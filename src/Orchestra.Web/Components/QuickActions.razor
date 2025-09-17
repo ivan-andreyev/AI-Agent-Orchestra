@@ -1,0 +1,155 @@
+@using Orchestra.Web.Services
+@using Orchestra.Web.Models
+@inject OrchestratorService OrchestratorService
+
+<div class="quick-actions">
+    <h3>Quick Actions</h3>
+
+    @if (string.IsNullOrEmpty(SelectedRepository))
+    {
+        <div class="no-repository">
+            <p>Select a repository to perform actions</p>
+        </div>
+    }
+    else
+    {
+        <div class="action-grid">
+            <div class="action-group">
+                <h4>Development</h4>
+                <button class="action-button" @onclick="@(() => QueueTask("git status"))">
+                    Git Status
+                </button>
+                <button class="action-button" @onclick="@(() => QueueTask("git pull"))">
+                    Git Pull
+                </button>
+                <button class="action-button" @onclick="@(() => QueueTask("dotnet build"))">
+                    Build
+                </button>
+                <button class="action-button" @onclick="@(() => QueueTask("dotnet test"))">
+                    Run Tests
+                </button>
+            </div>
+
+            <div class="action-group">
+                <h4>Analysis</h4>
+                <button class="action-button" @onclick="@(() => QueueTask("Analyze code quality and suggest improvements"))">
+                    Code Review
+                </button>
+                <button class="action-button" @onclick="@(() => QueueTask("Find and fix potential security issues"))">
+                    Security Scan
+                </button>
+                <button class="action-button" @onclick="@(() => QueueTask("Identify performance bottlenecks"))">
+                    Performance Check
+                </button>
+            </div>
+
+            <div class="action-group">
+                <h4>Documentation</h4>
+                <button class="action-button" @onclick="@(() => QueueTask("Update README.md with current project state"))">
+                    Update README
+                </button>
+                <button class="action-button" @onclick="@(() => QueueTask("Generate API documentation"))">
+                    API Docs
+                </button>
+                <button class="action-button" @onclick="@(() => QueueTask("Add missing code comments"))">
+                    Add Comments
+                </button>
+            </div>
+        </div>
+
+        <div class="custom-task">
+            <h4>Custom Task</h4>
+            <div class="custom-task-input">
+                <input type="text" @bind="_customCommand" placeholder="Enter custom command or task..."
+                       @onkeypress="HandleKeyPress" class="task-input" />
+                <select @bind="_selectedPriority" class="priority-select">
+                    <option value="@TaskPriority.Normal">Normal</option>
+                    <option value="@TaskPriority.High">High</option>
+                    <option value="@TaskPriority.Critical">Critical</option>
+                    <option value="@TaskPriority.Low">Low</option>
+                </select>
+                <button class="queue-button" @onclick="QueueCustomTask" disabled="@(string.IsNullOrWhiteSpace(_customCommand))">
+                    Queue Task
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_lastResult))
+    {
+        <div class="result-message @(_lastSuccess ? "success" : "error")">
+            @_lastResult
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? SelectedRepository { get; set; }
+    [Parameter] public string? RepositoryPath { get; set; }
+    [Parameter] public EventCallback OnTaskQueued { get; set; }
+
+    private string _customCommand = "";
+    private TaskPriority _selectedPriority = TaskPriority.Normal;
+    private string? _lastResult;
+    private bool _lastSuccess;
+
+    private async Task QueueTask(string command, TaskPriority priority = TaskPriority.Normal)
+    {
+        if (string.IsNullOrEmpty(RepositoryPath))
+        {
+            _lastResult = "No repository path available";
+            _lastSuccess = false;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            var success = await OrchestratorService.QueueTaskAsync(command, RepositoryPath, priority);
+
+            if (success)
+            {
+                _lastResult = $"Task queued: {command}";
+                _lastSuccess = true;
+                await OnTaskQueued.InvokeAsync();
+            }
+            else
+            {
+                _lastResult = "Failed to queue task";
+                _lastSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _lastResult = $"Error: {ex.Message}";
+            _lastSuccess = false;
+        }
+
+        StateHasChanged();
+
+        // Clear result after 3 seconds
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            _lastResult = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task QueueCustomTask()
+    {
+        if (!string.IsNullOrWhiteSpace(_customCommand))
+        {
+            await QueueTask(_customCommand, _selectedPriority);
+            _customCommand = "";
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_customCommand))
+        {
+            await QueueCustomTask();
+        }
+    }
+}
+

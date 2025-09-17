@@ -14,7 +14,11 @@
       "Bash(test_decode.exe)",
       "Bash(git commit:*)",
       "Bash(findstr:*)",
-      "Bash(dir \"C:\\Users\\mrred\\RiderProjects\\Elly2-2\")"
+      "Bash(dir \"C:\\Users\\mrred\\RiderProjects\\Elly2-2\")",
+      "Bash(find:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dir:*)",
+      "Bash(dotnet:*)"
     ],
     "deny": [],
     "ask": []

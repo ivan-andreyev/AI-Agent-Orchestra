@@ -1,0 +1,109 @@
+@using Orchestra.Web.Services
+@inject OrchestratorService OrchestratorService
+
+<div class="debug-panel">
+    <h3>Debug & API Connection</h3>
+    <div class="debug-controls">
+        <div class="connection-status">
+            <span class="status-indicator @(_isConnected ? "connected" : "disconnected")"></span>
+            <span class="status-text">@(_isConnected ? "Connected" : "Disconnected")</span>
+            <span class="last-updated">Last checked: @_lastChecked.ToString("HH:mm:ss")</span>
+        </div>
+        <div class="debug-actions">
+            <button class="debug-button" @onclick="CheckConnection" disabled="@_isChecking">
+                @if (_isChecking)
+                {
+                    <span class="spinner"></span>
+                }
+                Check Connection
+            </button>
+            <button class="debug-button" @onclick="RefreshData" disabled="@_isRefreshing">
+                @if (_isRefreshing)
+                {
+                    <span class="spinner"></span>
+                }
+                Refresh Data
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_lastError))
+    {
+        <div class="error-message">
+            <strong>Error:</strong> @_lastError
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback OnDataRefresh { get; set; }
+
+    private bool _isConnected = false;
+    private bool _isChecking = false;
+    private bool _isRefreshing = false;
+    private DateTime _lastChecked = DateTime.Now;
+    private string? _lastError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckConnection();
+    }
+
+    private async Task CheckConnection()
+    {
+        _isChecking = true;
+        _lastError = null;
+        StateHasChanged();
+
+        try
+        {
+            _isConnected = await OrchestratorService.PingAsync();
+            _lastChecked = DateTime.Now;
+
+            if (!_isConnected)
+            {
+                _lastError = "Failed to connect to orchestrator API";
+            }
+        }
+        catch (Exception ex)
+        {
+            _isConnected = false;
+            _lastError = ex.Message;
+        }
+        finally
+        {
+            _isChecking = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        _isRefreshing = true;
+        _lastError = null;
+        StateHasChanged();
+
+        try
+        {
+            var success = await OrchestratorService.RefreshAgentsAsync();
+            if (success)
+            {
+                await OnDataRefresh.InvokeAsync();
+            }
+            else
+            {
+                _lastError = "Failed to refresh data";
+            }
+        }
+        catch (Exception ex)
+        {
+            _lastError = ex.Message;
+        }
+        finally
+        {
+            _isRefreshing = false;
+            StateHasChanged();
+        }
+    }
+}
+

@@ -1,0 +1,491 @@
+@using Orchestra.Web.Models
+@using Orchestra.Web.Services
+@inject OrchestratorService OrchestratorService
+@implements IDisposable
+
+<div class="task-queue">
+    <div class="queue-header">
+        <h3>Task Queue</h3>
+        <div class="queue-controls">
+            <button class="refresh-button" @onclick="RefreshQueue" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span class="spinner"></span>
+                }
+                else
+                {
+                    <span>🔄</span>
+                }
+                Refresh
+            </button>
+            <div class="auto-refresh-toggle">
+                <input type="checkbox" id="queue-auto-refresh" @bind="_autoRefresh" @bind:after="ToggleAutoRefresh" />
+                <label for="queue-auto-refresh">Auto-refresh</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="queue-content">
+        @if (string.IsNullOrEmpty(SelectedRepository))
+        {
+            <div class="no-selection">
+                <p>Select a repository to view its task queue</p>
+            </div>
+        }
+        else if (_isLoading && (_tasks == null || !_tasks.Any()))
+        {
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading tasks...</p>
+            </div>
+        }
+        else if (_tasks != null && _tasks.Any())
+        {
+            <div class="task-stats">
+                <div class="stat">
+                    <span class="stat-label">Total:</span>
+                    <span class="stat-value">@_tasks.Count</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">High Priority:</span>
+                    <span class="stat-value high">@_tasks.Count(t => t.Priority == TaskPriority.High || t.Priority == TaskPriority.Critical)</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Normal:</span>
+                    <span class="stat-value">@_tasks.Count(t => t.Priority == TaskPriority.Normal)</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Low:</span>
+                    <span class="stat-value low">@_tasks.Count(t => t.Priority == TaskPriority.Low)</span>
+                </div>
+            </div>
+
+            <div class="task-list">
+                @foreach (var task in _tasks.Take(10)) // Show first 10 tasks
+                {
+                    <div class="task-item @GetPriorityClass(task.Priority)">
+                        <div class="task-header">
+                            <div class="task-priority">
+                                @GetPriorityIcon(task.Priority)
+                                <span class="priority-text">@task.Priority</span>
+                            </div>
+                            <div class="task-time">@GetTimeAgo(task.CreatedAt)</div>
+                        </div>
+                        <div class="task-command" title="@task.Command">
+                            @GetShortCommand(task.Command)
+                        </div>
+                        <div class="task-details">
+                            <div class="task-id">ID: @task.Id[..8]...</div>
+                            @if (!string.IsNullOrEmpty(task.AgentId))
+                            {
+                                <div class="assigned-agent">Assigned to: @task.AgentId[..8]...</div>
+                            }
+                            else
+                            {
+                                <div class="unassigned">Unassigned</div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (_tasks.Count > 10)
+                {
+                    <div class="more-tasks">
+                        <p>...and @(_tasks.Count - 10) more tasks</p>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="no-tasks">
+                <p>No tasks in queue for this repository</p>
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="error-message">
+            <strong>Error:</strong> @_errorMessage
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? SelectedRepository { get; set; }
+    [Parameter] public string? RepositoryPath { get; set; }
+
+    private List<TaskRequest> _tasks = new();
+    private bool _isLoading = false;
+    private bool _autoRefresh = false;
+    private string? _errorMessage;
+    private string? _lastRepository;
+    private Timer? _refreshTimer;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SelectedRepository != _lastRepository)
+        {
+            _lastRepository = SelectedRepository;
+            await LoadTasks();
+        }
+    }
+
+    private async Task LoadTasks()
+    {
+        if (string.IsNullOrEmpty(SelectedRepository) || string.IsNullOrEmpty(RepositoryPath))
+        {
+            _tasks = new List<TaskRequest>();
+            return;
+        }
+
+        _isLoading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var state = await OrchestratorService.GetStateAsync();
+            if (state?.TaskQueue != null)
+            {
+                // Filter tasks for the selected repository
+                _tasks = state.TaskQueue
+                    .Where(t => t.RepositoryPath == RepositoryPath)
+                    .OrderBy(t => GetPriorityValue(t.Priority))
+                    .ThenBy(t => t.CreatedAt)
+                    .ToList();
+            }
+            else
+            {
+                _tasks = new List<TaskRequest>();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _tasks = new List<TaskRequest>();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshQueue()
+    {
+        await LoadTasks();
+    }
+
+    private void ToggleAutoRefresh()
+    {
+        if (_autoRefresh)
+        {
+            // Start auto-refresh every 3 seconds
+            _refreshTimer = new Timer(async _ =>
+            {
+                await InvokeAsync(async () => await LoadTasks());
+            }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+        }
+        else
+        {
+            // Stop auto-refresh
+            _refreshTimer?.Dispose();
+            _refreshTimer = null;
+        }
+    }
+
+    private static int GetPriorityValue(TaskPriority priority)
+    {
+        return priority switch
+        {
+            TaskPriority.Critical => 1,
+            TaskPriority.High => 2,
+            TaskPriority.Normal => 3,
+            TaskPriority.Low => 4,
+            _ => 5
+        };
+    }
+
+    private static string GetPriorityClass(TaskPriority priority) => priority.ToString().ToLower();
+
+    private static string GetPriorityIcon(TaskPriority priority)
+    {
+        return priority switch
+        {
+            TaskPriority.Critical => "🚨",
+            TaskPriority.High => "🔴",
+            TaskPriority.Normal => "🟡",
+            TaskPriority.Low => "🟢",
+            _ => "❓"
+        };
+    }
+
+    private static string GetShortCommand(string command)
+    {
+        const int maxLength = 80;
+        if (command.Length <= maxLength) return command;
+        return command[..maxLength] + "...";
+    }
+
+    private static string GetTimeAgo(DateTime createdAt)
+    {
+        var timeSpan = DateTime.Now - createdAt;
+
+        return timeSpan.TotalMinutes switch
+        {
+            < 1 => "Just now",
+            < 60 => $"{(int)timeSpan.TotalMinutes}m ago",
+            < 1440 => $"{(int)timeSpan.TotalHours}h ago",
+            _ => $"{(int)timeSpan.TotalDays}d ago"
+        };
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}
+
+<style>
+    .task-queue {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-primary);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    .queue-header {
+        padding: 15px;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .queue-header h3 {
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 1.1rem;
+    }
+
+    .queue-controls {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .refresh-button {
+        padding: 6px 12px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        color: var(--text-primary);
+        cursor: pointer;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .refresh-button:hover:not(:disabled) {
+        background: var(--bg-hover);
+        border-color: var(--border-hover);
+    }
+
+    .refresh-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .auto-refresh-toggle {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .auto-refresh-toggle input[type="checkbox"] {
+        accent-color: var(--accent-color, #007acc);
+    }
+
+    .queue-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+    }
+
+    .no-selection, .no-tasks, .loading {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+
+    .loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border-color);
+        border-top: 2px solid var(--text-primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .task-stats {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 15px;
+        padding: 10px;
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+
+    .stat {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+    }
+
+    .stat-value {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .stat-value.high {
+        color: var(--status-error);
+    }
+
+    .stat-value.low {
+        color: var(--status-working);
+    }
+
+    .task-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .task-item {
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+        border-left: 3px solid transparent;
+    }
+
+    .task-item.critical {
+        border-left-color: #ff3b30;
+    }
+
+    .task-item.high {
+        border-left-color: #ff9500;
+    }
+
+    .task-item.normal {
+        border-left-color: #ffcc00;
+    }
+
+    .task-item.low {
+        border-left-color: #34c759;
+    }
+
+    .task-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+    }
+
+    .task-priority {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .priority-text {
+        font-weight: 600;
+        color: var(--text-primary);
+        text-transform: capitalize;
+    }
+
+    .task-time {
+        color: var(--text-secondary);
+        font-family: monospace;
+    }
+
+    .task-command {
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        line-height: 1.4;
+        margin-bottom: 8px;
+        word-wrap: break-word;
+        font-family: monospace;
+        background: var(--bg-primary);
+        padding: 6px 8px;
+        border-radius: 4px;
+    }
+
+    .task-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .task-id {
+        font-family: monospace;
+    }
+
+    .assigned-agent {
+        color: var(--status-working);
+        font-weight: 500;
+    }
+
+    .unassigned {
+        color: var(--status-idle);
+        font-style: italic;
+    }
+
+    .more-tasks {
+        text-align: center;
+        padding: 15px;
+        color: var(--text-secondary);
+        font-style: italic;
+        font-size: 0.9rem;
+    }
+
+    .error-message {
+        margin: 15px;
+        padding: 10px;
+        background: rgba(255, 69, 58, 0.1);
+        border: 1px solid rgba(255, 69, 58, 0.3);
+        border-radius: 6px;
+        color: var(--status-error);
+        font-size: 0.9rem;
+    }
+</style>

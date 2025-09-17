@@ -1,0 +1,51 @@
+@using Orchestra.Web.Models
+
+<div class="repository-selector">
+    <h2>Repository Context</h2>
+    <div class="repository-tabs">
+        @if (Repositories != null)
+        {
+            @foreach (var repo in Repositories)
+            {
+                <button class="tab-button @(SelectedRepository == repo.Key ? "active" : "")"
+                        @onclick="() => OnRepositorySelected(repo.Key)">
+                    @repo.Key (@repo.Value.Agents.Count)
+                </button>
+            }
+        }
+        <button class="refresh-button" @onclick="OnRefresh">🔄 Refresh</button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(SelectedRepository) && Repositories != null && Repositories.ContainsKey(SelectedRepository))
+    {
+        var activeRepo = Repositories[SelectedRepository];
+        <div class="repository-info">
+            <div class="repository-header">
+                <h3>@activeRepo.Name Repository</h3>
+                <div class="repo-stats">
+                    🟢 @activeRepo.IdleCount
+                    🟡 @activeRepo.WorkingCount
+                    🔴 @activeRepo.ErrorCount
+                    ⚫ @activeRepo.OfflineCount
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Dictionary<string, RepositoryInfo>? Repositories { get; set; }
+    [Parameter] public string? SelectedRepository { get; set; }
+    [Parameter] public EventCallback<string> OnRepositoryChanged { get; set; }
+    [Parameter] public EventCallback OnRefreshRequested { get; set; }
+
+    private async Task OnRepositorySelected(string repositoryName)
+    {
+        await OnRepositoryChanged.InvokeAsync(repositoryName);
+    }
+
+    private async Task OnRefresh()
+    {
+        await OnRefreshRequested.InvokeAsync();
+    }
+}

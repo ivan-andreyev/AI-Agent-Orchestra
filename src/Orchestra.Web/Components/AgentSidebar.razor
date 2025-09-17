@@ -1,0 +1,169 @@
+@using Orchestra.Web.Models
+
+<div class="agent-sidebar">
+    <div class="sidebar-header">
+        <h3>Agents</h3>
+        <div class="agent-filters">
+            <select @bind="_statusFilter" @bind:after="FilterAgents" class="status-filter">
+                <option value="">All (@_totalCount)</option>
+                <option value="Working">Working (@_workingCount)</option>
+                <option value="Idle">Idle (@_idleCount)</option>
+                <option value="Error">Error (@_errorCount)</option>
+                <option value="Offline">Offline (@_offlineCount)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="agent-list">
+        @if (_filteredAgents != null && _filteredAgents.Any())
+        {
+            @foreach (var agent in _filteredAgents)
+            {
+                <div class="sidebar-agent @(SelectedAgentId == agent.Id ? "selected" : "") @GetStatusClass(agent.Status)"
+                     @onclick="() => SelectAgent(agent.Id)">
+                    <div class="agent-header">
+                        <div class="agent-name" title="@agent.Name">
+                            @GetShortName(agent.Name)
+                        </div>
+                        <div class="agent-status @GetStatusClass(agent.Status)">
+                            @GetStatusIcon(agent.Status)
+                        </div>
+                    </div>
+                    <div class="agent-details">
+                        <div class="agent-type">@agent.Type</div>
+                        <div class="last-ping">@GetTimeAgo(agent.LastPing)</div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(agent.CurrentTask))
+                    {
+                        <div class="current-task" title="@agent.CurrentTask">
+                            @GetShortTask(agent.CurrentTask)
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else if (Agents != null && Agents.Any())
+        {
+            <div class="no-agents">
+                <p>No agents match the current filter</p>
+            </div>
+        }
+        else
+        {
+            <div class="no-agents">
+                <p>No agents available in this repository</p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<AgentInfo>? Agents { get; set; }
+    [Parameter] public string? SelectedAgentId { get; set; }
+    [Parameter] public EventCallback<string> OnAgentSelected { get; set; }
+
+    private string _statusFilter = "";
+    private List<AgentInfo> _filteredAgents = new();
+    private int _totalCount, _workingCount, _idleCount, _errorCount, _offlineCount;
+
+    protected override void OnParametersSet()
+    {
+        UpdateCounts();
+        FilterAgents();
+    }
+
+    private void UpdateCounts()
+    {
+        if (Agents == null) return;
+
+        _totalCount = Agents.Count;
+        _workingCount = Agents.Count(a => a.Status == AgentStatus.Working);
+        _idleCount = Agents.Count(a => a.Status == AgentStatus.Idle);
+        _errorCount = Agents.Count(a => a.Status == AgentStatus.Error);
+        _offlineCount = Agents.Count(a => a.Status == AgentStatus.Offline);
+    }
+
+    private void FilterAgents()
+    {
+        if (Agents == null)
+        {
+            _filteredAgents = new List<AgentInfo>();
+            return;
+        }
+
+        var filtered = Agents.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_statusFilter))
+        {
+            if (Enum.TryParse<AgentStatus>(_statusFilter, out var status))
+            {
+                filtered = filtered.Where(a => a.Status == status);
+            }
+        }
+
+        _filteredAgents = filtered
+            .OrderBy(a => GetStatusPriority(a.Status))
+            .ThenByDescending(a => a.LastPing)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    private async Task SelectAgent(string agentId)
+    {
+        await OnAgentSelected.InvokeAsync(agentId);
+    }
+
+    private static int GetStatusPriority(AgentStatus status)
+    {
+        switch (status)
+        {
+            case AgentStatus.Working: return 1;
+            case AgentStatus.Idle: return 2;
+            case AgentStatus.Error: return 3;
+            case AgentStatus.Offline: return 4;
+            default: return 5;
+        }
+    }
+
+    private static string GetStatusClass(AgentStatus status)
+    {
+        return status.ToString().ToLower();
+    }
+
+    private static string GetStatusIcon(AgentStatus status)
+    {
+        switch (status)
+        {
+            case AgentStatus.Working: return "🟢";
+            case AgentStatus.Idle: return "🟡";
+            case AgentStatus.Error: return "🔴";
+            case AgentStatus.Offline: return "⚫";
+            default: return "❓";
+        }
+    }
+
+    private static string GetShortName(string name)
+    {
+        const int maxLength = 25;
+        if (name.Length <= maxLength) return name;
+        return name[..maxLength] + "...";
+    }
+
+    private static string GetShortTask(string task)
+    {
+        const int maxLength = 30;
+        if (task.Length <= maxLength) return task;
+        return task[..maxLength] + "...";
+    }
+
+    private static string GetTimeAgo(DateTime lastPing)
+    {
+        var timeSpan = DateTime.Now - lastPing;
+
+        if (timeSpan.TotalMinutes < 1) return "Just now";
+        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h ago";
+        return $"{(int)timeSpan.TotalDays}d ago";
+    }
+}

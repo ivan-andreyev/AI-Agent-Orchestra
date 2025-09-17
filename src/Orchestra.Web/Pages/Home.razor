@@ -1,6 +1,7 @@
 ﻿@page "/"
 @using Orchestra.Web.Models
 @using Orchestra.Web.Services
+@using Orchestra.Web.Components
 @inject OrchestratorService OrchestratorService
 @implements IDisposable
 
@@ -46,196 +47,34 @@
             </div>
         </div>
 
-        <div class="debug-section" style="margin-bottom: 20px; padding: 15px; background: #2d1b1b; border-radius: 8px;">
-            <h3>Debug API Connection</h3>
-            <button @onclick="TestConnection" class="test-button" style="margin-right: 10px;">Test API Connection</button>
-            <span>@_debugMessage</span>
-        </div>
+        <RepositorySelector Repositories="_repositories"
+                           SelectedRepository="_selectedRepository"
+                           OnRepositoryChanged="OnRepositoryChanged"
+                           OnRefreshRequested="OnRefreshRequested" />
 
-        <div class="quick-actions">
-            <h2>Quick Actions</h2>
-            <div class="action-form">
-                <input @bind="_newTaskCommand" placeholder="Enter task command..." class="task-input" />
-                <select @bind="_newTaskRepo" class="repo-select">
-                    <option value="">Select repository...</option>
-                    @if (_repositories != null)
-                    {
-                        @foreach (var repo in _repositories)
-                        {
-                            <option value="@repo.Value.Path">@repo.Key</option>
-                        }
-                    }
-                </select>
-                <select @bind="_newTaskPriority" class="priority-select">
-                    <option value="Low">Low</option>
-                    <option value="Normal">Normal</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                </select>
-                <button @onclick="AddTask" disabled="@_isAddingTask" class="add-button">
-                    @(_isAddingTask ? "Adding..." : "Add Task")
-                </button>
-            </div>
-        </div>
+        <DebugPanel OnDataRefresh="OnDataRefreshRequested" />
+
+        <QuickActions SelectedRepository="_selectedRepository"
+                     RepositoryPath="@GetSelectedRepositoryPath()"
+                     OnTaskQueued="OnTaskQueued" />
 
         <div class="main-layout">
             <div class="sidebar">
-                <h3>Agents</h3>
-                <div class="agent-list">
-                    @if (_repositories != null)
-                    {
-                        @foreach (var repo in _repositories)
-                        {
-                            @foreach (var agent in repo.Value.Agents)
-                            {
-                                <div class="sidebar-agent @(_selectedAgentId == agent.Id ? "selected" : "") @agent.Status.ToString().ToLower()"
-                                     @onclick="() => SelectAgent(agent.Id)">
-                                    <div class="sidebar-agent-status">@GetStatusIcon(agent.Status)</div>
-                                    <div class="sidebar-agent-info">
-                                        <div class="sidebar-agent-name">@agent.Name.Split('(')[0].Trim()</div>
-                                        <div class="sidebar-agent-repo">@repo.Key</div>
-                                    </div>
-                                </div>
-                            }
-                        }
-                    }
-                </div>
+                <AgentSidebar Agents="@GetSelectedRepositoryAgents()"
+                             SelectedAgentId="_selectedAgentId"
+                             OnAgentSelected="OnAgentSelected" />
             </div>
 
-            <div class="main-content-area">
-                @if (!string.IsNullOrEmpty(_selectedAgentId) && _agentHistory != null)
-                {
-                    <div class="agent-history">
-                        <h3>Agent History: @(_selectedAgent?.Name ?? "Unknown")</h3>
-                        <div class="history-container">
-                            @foreach (var entry in _agentHistory)
-                            {
-                                <div class="history-entry @entry.Type">
-                                    <div class="history-timestamp">@entry.Timestamp.ToString("HH:mm:ss")</div>
-                                    <div class="history-content">@entry.Content</div>
-                                </div>
-                            }
-                        </div>
+            <div class="main-content">
+                <div class="content-panels">
+                    <div class="history-panel">
+                        <AgentHistory SelectedAgentId="@GetSelectedAgentSessionId()" />
                     </div>
-                }
-                else
-                {
-                    <div class="repository-tabs">
-            @if (_repositories != null)
-            {
-                @foreach (var repo in _repositories)
-                {
-                    <button class="tab-button @(_activeTab == repo.Key ? "active" : "")"
-                            @onclick="() => _activeTab = repo.Key">
-                        @repo.Key (@repo.Value.Agents.Count)
-                    </button>
-                }
-            }
-            <button class="refresh-button" @onclick="RefreshAgents">🔄 Refresh</button>
-        </div>
-
-        @if (!string.IsNullOrEmpty(_activeTab) && _repositories != null && _repositories.ContainsKey(_activeTab))
-        {
-            var activeRepo = _repositories[_activeTab];
-            <div class="repository-content">
-                <div class="repository-header">
-                    <h2>@activeRepo.Name Repository</h2>
-                    <div class="repo-stats">
-                        🟢 @activeRepo.IdleCount
-                        🟡 @activeRepo.WorkingCount
-                        🔴 @activeRepo.ErrorCount
-                        ⚫ @activeRepo.OfflineCount
+                    <div class="queue-panel">
+                        <TaskQueue SelectedRepository="_selectedRepository"
+                                  RepositoryPath="@GetSelectedRepositoryPath()" />
                     </div>
                 </div>
-
-                <div class="agents-section">
-                    <div class="agents-controls">
-                        <div class="filter-controls">
-                            <label for="statusFilter">Filter by status:</label>
-                            <select id="statusFilter" @bind="_statusFilter" class="status-filter">
-                                <option value="">All</option>
-                                <option value="Working">🟡 Working</option>
-                                <option value="Idle">🟢 Idle</option>
-                                <option value="Error">🔴 Error</option>
-                                <option value="Offline">⚫ Offline</option>
-                            </select>
-                        </div>
-                        <div class="sort-controls">
-                            <label for="sortBy">Sort by:</label>
-                            <select id="sortBy" @bind="_sortBy" class="sort-select">
-                                <option value="Status">Status (Active first)</option>
-                                <option value="LastPing">Last activity</option>
-                                <option value="Name">Name</option>
-                            </select>
-                        </div>
-                    </div>
-                    @if (GetFilteredAndSortedAgents(activeRepo.Agents).Any())
-                    {
-                        <div class="agents-grid">
-                            @foreach (var agent in GetFilteredAndSortedAgents(activeRepo.Agents))
-                            {
-                                <div class="agent-card @agent.Status.ToString().ToLower()">
-                                    <div class="agent-header">
-                                        <span class="agent-name">@agent.Name</span>
-                                        <span class="agent-status">@GetStatusIcon(agent.Status) @agent.Status</span>
-                                    </div>
-                                    <div class="agent-details">
-                                        <div class="agent-type">@agent.Type</div>
-                                        @if (!string.IsNullOrEmpty(agent.SessionId))
-                                        {
-                                            <div class="agent-session">Session: @agent.SessionId[..8]...</div>
-                                        }
-                                        @if (!string.IsNullOrEmpty(agent.CurrentTask))
-                                        {
-                                            <div class="agent-task">⚡ @agent.CurrentTask</div>
-                                        }
-                                        <div class="agent-ping">Last ping: @agent.LastPing.ToString("HH:mm:ss")</div>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="empty-state">
-                            @if (string.IsNullOrEmpty(_statusFilter))
-                            {
-                                <span>No agents found in this repository</span>
-                            }
-                            else
-                            {
-                                <span>No @_statusFilter.ToLower() agents found in this repository</span>
-                            }
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-
-                    @if (_state?.TaskQueue.Any() == true)
-                    {
-                        <div class="tasks-section">
-                            <h2>Task Queue</h2>
-                            <div class="tasks-list">
-                                @foreach (var task in _state.TaskQueue.Take(5))
-                                {
-                                    <div class="task-item priority-@task.Priority.ToString().ToLower()">
-                                        <div class="task-command">@task.Command</div>
-                                        <div class="task-meta">
-                                            <span class="task-agent">→ @task.AgentId</span>
-                                            <span class="task-priority">@task.Priority</span>
-                                            <span class="task-time">@task.CreatedAt.ToString("HH:mm:ss")</span>
-                                        </div>
-                                    </div>
-                                }
-                                @if (_state.TaskQueue.Count > 5)
-                                {
-                                    <div class="more-tasks">... and @(_state.TaskQueue.Count - 5) more tasks</div>
-                                }
-                            </div>
-                        </div>
-                    }
-                }
             </div>
         </div>
     }
@@ -250,21 +89,8 @@
     private Dictionary<string, RepositoryInfo>? _repositories;
     private bool _isConnected = false;
     private Timer? _refreshTimer;
-    private string _activeTab = "";
-
-    private string _newTaskCommand = "";
-    private string _newTaskRepo = "";
-    private TaskPriority _newTaskPriority = TaskPriority.Normal;
-    private bool _isAddingTask = false;
-    private string _debugMessage = "";
-
-    // Filtering and sorting
-    private string _statusFilter = "";
-    private string _sortBy = "Status";
+    private string _selectedRepository = "";
     private string _selectedAgentId = "";
-    private AgentInfo? _selectedAgent;
-    private List<AgentHistoryEntry>? _agentHistory;
-    private Timer? _historyRefreshTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -280,10 +106,10 @@
             _repositories = await OrchestratorService.GetRepositoriesAsync();
             _isConnected = _state != null && _repositories != null;
 
-            // Set first repository as active tab if none selected
-            if (string.IsNullOrEmpty(_activeTab) && _repositories?.Count > 0)
+            // Set first repository as selected if none selected
+            if (string.IsNullOrEmpty(_selectedRepository) && _repositories?.Count > 0)
             {
-                _activeTab = _repositories.Keys.First();
+                _selectedRepository = _repositories.Keys.First();
             }
         }
         catch
@@ -293,162 +119,68 @@
         StateHasChanged();
     }
 
-    private async Task AddTask()
+    private async Task OnRepositoryChanged(string repositoryName)
     {
-        if (string.IsNullOrWhiteSpace(_newTaskCommand) || string.IsNullOrWhiteSpace(_newTaskRepo))
-            return;
-
-        _isAddingTask = true;
-        var success = await OrchestratorService.QueueTaskAsync(_newTaskCommand, _newTaskRepo, _newTaskPriority);
-
-        if (success)
-        {
-            _newTaskCommand = "";
-            _newTaskRepo = "";
-            _newTaskPriority = TaskPriority.Normal;
-            await RefreshData();
-        }
-
-        _isAddingTask = false;
-    }
-
-    private string GetStatusIcon(AgentStatus status) => status switch
-    {
-        AgentStatus.Idle => "🟢",
-        AgentStatus.Working => "🟡",
-        AgentStatus.Error => "🔴",
-        AgentStatus.Offline => "⚫",
-        _ => "❓"
-    };
-
-    private async Task TestConnection()
-    {
-        _debugMessage = "Testing connection...";
-        StateHasChanged();
-
-        try
-        {
-            var ping = await OrchestratorService.PingAsync();
-            if (ping)
-            {
-                _debugMessage = "✅ API connection successful!";
-                await RefreshData();
-            }
-            else
-            {
-                _debugMessage = "❌ API connection failed - no response";
-            }
-        }
-        catch (Exception ex)
-        {
-            _debugMessage = $"❌ Connection error: {ex.Message}";
-        }
-
+        _selectedRepository = repositoryName;
+        _selectedAgentId = ""; // Clear selected agent when repository changes
         StateHasChanged();
     }
 
-    private async Task RefreshAgents()
+    private async Task OnRefreshRequested()
     {
-        _debugMessage = "Refreshing agents...";
-        StateHasChanged();
-
-        try
-        {
-            var success = await OrchestratorService.RefreshAgentsAsync();
-            if (success)
-            {
-                _debugMessage = "✅ Agents refreshed successfully!";
-                await RefreshData();
-            }
-            else
-            {
-                _debugMessage = "❌ Failed to refresh agents";
-            }
-        }
-        catch (Exception ex)
-        {
-            _debugMessage = $"❌ Error refreshing agents: {ex.Message}";
-        }
-
-        StateHasChanged();
+        await RefreshData();
     }
 
-    private List<AgentInfo> GetFilteredAndSortedAgents(List<AgentInfo> agents)
+    private async Task OnDataRefreshRequested()
     {
-        // Apply filter
-        var filtered = agents;
-        if (!string.IsNullOrEmpty(_statusFilter))
-        {
-            if (Enum.TryParse<AgentStatus>(_statusFilter, out var status))
-            {
-                filtered = agents.Where(a => a.Status == status).ToList();
-            }
-        }
-
-        // Apply sorting
-        return _sortBy switch
-        {
-            "Status" => filtered.OrderBy(a => GetStatusPriority(a.Status)).ThenByDescending(a => a.LastPing).ToList(),
-            "LastPing" => filtered.OrderByDescending(a => a.LastPing).ToList(),
-            "Name" => filtered.OrderBy(a => a.Name).ToList(),
-            _ => filtered.OrderBy(a => GetStatusPriority(a.Status)).ThenByDescending(a => a.LastPing).ToList()
-        };
+        await RefreshData();
     }
 
-    private int GetStatusPriority(AgentStatus status) => status switch
+    private async Task OnTaskQueued()
     {
-        AgentStatus.Working => 1,
-        AgentStatus.Idle => 2,
-        AgentStatus.Error => 3,
-        AgentStatus.Offline => 4,
-        _ => 5
-    };
+        await RefreshData();
+    }
 
-
-    private async Task SelectAgent(string agentId)
+    private async Task OnAgentSelected(string agentId)
     {
         _selectedAgentId = agentId;
-        _selectedAgent = _repositories?.Values
-            .SelectMany(r => r.Agents)
-            .FirstOrDefault(a => a.Id == agentId);
-
-        if (_selectedAgent != null)
-        {
-            await LoadAgentHistory();
-
-            // Start history refresh timer
-            _historyRefreshTimer?.Dispose();
-            _historyRefreshTimer = new Timer(async _ =>
-            {
-                await InvokeAsync(async () =>
-                {
-                    await LoadAgentHistory();
-                    StateHasChanged();
-                });
-            }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
-        }
-
         StateHasChanged();
     }
 
-    private async Task LoadAgentHistory()
+    private List<AgentInfo>? GetSelectedRepositoryAgents()
     {
-        if (string.IsNullOrEmpty(_selectedAgentId) || _selectedAgent == null)
-            return;
+        if (string.IsNullOrEmpty(_selectedRepository) || _repositories == null)
+            return null;
 
-        try
-        {
-            _agentHistory = await OrchestratorService.GetAgentHistoryAsync(_selectedAgent.SessionId ?? "", 50);
-        }
-        catch
-        {
-            _agentHistory = new List<AgentHistoryEntry>();
-        }
+        return _repositories.ContainsKey(_selectedRepository)
+            ? _repositories[_selectedRepository].Agents
+            : null;
+    }
+
+    private string? GetSelectedRepositoryPath()
+    {
+        if (string.IsNullOrEmpty(_selectedRepository) || _repositories == null)
+            return null;
+
+        return _repositories.ContainsKey(_selectedRepository)
+            ? _repositories[_selectedRepository].Path
+            : null;
+    }
+
+    private string? GetSelectedAgentSessionId()
+    {
+        if (string.IsNullOrEmpty(_selectedAgentId) || _repositories == null)
+            return null;
+
+        var agent = _repositories.Values
+            .SelectMany(r => r.Agents)
+            .FirstOrDefault(a => a.Id == _selectedAgentId);
+
+        return agent?.SessionId;
     }
 
     public void Dispose()
     {
         _refreshTimer?.Dispose();
-        _historyRefreshTimer?.Dispose();
     }
 }
