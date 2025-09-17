@@ -525,8 +525,8 @@
       "Name": "Claude Code - AI-Agent-Orchestra (18c44589)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "Status": 3,
-      "LastPing": "2025-09-17T23:56:13.9712707+04:00",
+      "Status": 1,
+      "LastPing": "2025-09-18T01:04:17.0812366+04:00",
       "CurrentTask": null,
       "SessionId": "18c44589-035a-4c59-8596-e146c353e0c9"
     },
@@ -2211,17 +2211,8 @@
       "SessionId": "fe868c27-26ff-4aaa-a6f0-f8e5ba6ea65b"
     }
   },
-  "TaskQueue": [
-    {
-      "Id": "9f0f5e63-75f5-4a08-bf6f-c64997550772",
-      "AgentId": "",
-      "Command": "Test",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "CreatedAt": "2025-09-18T00:11:08.7855597+04:00",
-      "Priority": 1
-    }
-  ],
-  "LastUpdate": "2025-09-18T00:13:16.4277308+04:00",
+  "TaskQueue": [],
+  "LastUpdate": "2025-09-18T01:04:19.0440622+04:00",
   "Repositories": {
     "DaersTools": {
       "Name": "DaersTools",
@@ -2272,7 +2263,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 4,
-      "LastUpdate": "2025-09-18T00:13:16.427719+04:00"
+      "LastUpdate": "2025-09-18T01:04:19.0440495+04:00"
     },
     "ServiceTerminal": {
       "Name": "ServiceTerminal",
@@ -2293,7 +2284,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 1,
-      "LastUpdate": "2025-09-18T00:13:16.4277196+04:00"
+      "LastUpdate": "2025-09-18T01:04:19.0440501+04:00"
     },
     "DigitalMe": {
       "Name": "DigitalMe",
@@ -2754,7 +2745,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 45,
-      "LastUpdate": "2025-09-18T00:13:16.4277208+04:00"
+      "LastUpdate": "2025-09-18T01:04:19.0440513+04:00"
     },
     "SharedWorkspace": {
       "Name": "SharedWorkspace",
@@ -2785,7 +2776,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-18T00:13:16.4277211+04:00"
+      "LastUpdate": "2025-09-18T01:04:19.0440515+04:00"
     },
     "AI-Agent-Orchestra": {
       "Name": "AI-Agent-Orchestra",
@@ -2796,8 +2787,8 @@
           "Name": "Claude Code - AI-Agent-Orchestra (18c44589)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-          "Status": 3,
-          "LastPing": "2025-09-17T23:56:13.9712707+04:00",
+          "Status": 1,
+          "LastPing": "2025-09-18T01:04:17.0812366+04:00",
           "CurrentTask": null,
           "SessionId": "18c44589-035a-4c59-8596-e146c353e0c9"
         },
@@ -2833,10 +2824,10 @@
         }
       ],
       "IdleCount": 0,
-      "WorkingCount": 0,
+      "WorkingCount": 1,
       "ErrorCount": 0,
-      "OfflineCount": 4,
-      "LastUpdate": "2025-09-18T00:13:16.4277223+04:00"
+      "OfflineCount": 3,
+      "LastUpdate": "2025-09-18T01:04:19.044053+04:00"
     },
     "Elly": {
       "Name": "Elly",
@@ -2867,7 +2858,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-18T00:13:16.4277228+04:00"
+      "LastUpdate": "2025-09-18T01:04:19.0440576+04:00"
     },
     "Elly2": {
       "Name": "Elly2",
@@ -3418,7 +3409,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 54,
-      "LastUpdate": "2025-09-18T00:13:16.4277253+04:00"
+      "LastUpdate": "2025-09-18T01:04:19.044059+04:00"
     },
     "Galactic-Idlers": {
       "Name": "Galactic-Idlers",
@@ -4519,7 +4510,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 109,
-      "LastUpdate": "2025-09-18T00:13:16.4277301+04:00"
+      "LastUpdate": "2025-09-18T01:04:19.0440615+04:00"
     }
   }
 }
