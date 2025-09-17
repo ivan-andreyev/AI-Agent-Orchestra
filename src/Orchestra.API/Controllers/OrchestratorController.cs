@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Orchestra.Core;
+using Orchestra.Core.Models;
 
 namespace Orchestra.API.Controllers;
 
@@ -68,6 +69,13 @@ public class OrchestratorController : ControllerBase
     {
         _orchestrator.RefreshAgents();
         return Ok("Agents refreshed");
+    }
+
+    [HttpGet("agents/{sessionId}/history")]
+    public ActionResult<List<AgentHistoryEntry>> GetAgentHistory(string sessionId, [FromQuery] int maxEntries = 50)
+    {
+        var history = _orchestrator.GetAgentHistory(sessionId, maxEntries);
+        return Ok(history);
     }
 }
 

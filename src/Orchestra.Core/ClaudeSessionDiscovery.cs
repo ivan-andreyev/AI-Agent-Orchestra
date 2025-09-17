@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.IO;
 using System.Linq;
+using Orchestra.Core.Models;
 
 namespace Orchestra.Core;
 
@@ -83,7 +84,20 @@ public class ClaudeSessionDiscovery
                 // Join first 3 parts as directories and rest as project name
                 var directoryParts = string.Join("\\", parts.Take(3));
                 var projectName = string.Join("-", parts.Skip(3));
-                return drivePrefix + directoryParts + "\\" + projectName;
+                var decodedPath = drivePrefix + directoryParts + "\\" + projectName;
+
+                // If the path doesn't exist, try with underscores instead of hyphens
+                if (!Directory.Exists(decodedPath))
+                {
+                    var projectNameWithUnderscores = string.Join("_", parts.Skip(3));
+                    var alternativePath = drivePrefix + directoryParts + "\\" + projectNameWithUnderscores;
+                    if (Directory.Exists(alternativePath))
+                    {
+                        return alternativePath;
+                    }
+                }
+
+                return decodedPath;
             }
             else if (parts.Length >= 3)
             {
@@ -183,5 +197,115 @@ public class ClaudeSessionDiscovery
         }
 
         return repositories;
+    }
+
+    public List<AgentHistoryEntry> GetAgentHistory(string sessionId, int maxEntries = 50)
+    {
+        var history = new List<AgentHistoryEntry>();
+
+        if (string.IsNullOrEmpty(sessionId))
+            return history;
+
+        // Find the JSONL file for this session
+        var projectDirectories = Directory.GetDirectories(_claudeProjectsPath);
+        string? sessionFilePath = null;
+
+        foreach (var projectDir in projectDirectories)
+        {
+            var sessionFile = Path.Combine(projectDir, $"{sessionId}.jsonl");
+            if (File.Exists(sessionFile))
+            {
+                sessionFilePath = sessionFile;
+                break;
+            }
+        }
+
+        if (sessionFilePath == null)
+            return history;
+
+        try
+        {
+            var lastLines = ReadLastLines(sessionFilePath, maxEntries * 2); // Get more lines to filter properly
+
+            foreach (var line in lastLines.TakeLast(maxEntries))
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                try
+                {
+                    using var document = JsonDocument.Parse(line);
+                    var root = document.RootElement;
+
+                    if (root.TryGetProperty("timestamp", out var timestampProp) &&
+                        root.TryGetProperty("type", out var typeProp) &&
+                        root.TryGetProperty("content", out var contentProp))
+                    {
+                        var timestamp = DateTime.TryParse(timestampProp.GetString(), out var dt) ? dt : DateTime.Now;
+                        var type = typeProp.GetString() ?? "unknown";
+                        var content = contentProp.GetString() ?? "";
+
+                        // For assistant messages, try to get the text content
+                        if (type == "assistant" && root.TryGetProperty("content", out var assistantContent))
+                        {
+                            if (assistantContent.ValueKind == JsonValueKind.Array)
+                            {
+                                var textParts = new List<string>();
+                                foreach (var item in assistantContent.EnumerateArray())
+                                {
+                                    if (item.TryGetProperty("type", out var itemType) &&
+                                        itemType.GetString() == "text" &&
+                                        item.TryGetProperty("text", out var textProp))
+                                    {
+                                        textParts.Add(textProp.GetString() ?? "");
+                                    }
+                                }
+                                content = string.Join(" ", textParts);
+                            }
+                        }
+                        // For human messages
+                        else if (type == "human" && root.TryGetProperty("content", out var humanContent))
+                        {
+                            if (humanContent.ValueKind == JsonValueKind.String)
+                            {
+                                content = humanContent.GetString() ?? "";
+                            }
+                            else if (humanContent.ValueKind == JsonValueKind.Array)
+                            {
+                                var textParts = new List<string>();
+                                foreach (var item in humanContent.EnumerateArray())
+                                {
+                                    if (item.TryGetProperty("type", out var itemType) &&
+                                        itemType.GetString() == "text" &&
+                                        item.TryGetProperty("text", out var textProp))
+                                    {
+                                        textParts.Add(textProp.GetString() ?? "");
+                                    }
+                                }
+                                content = string.Join(" ", textParts);
+                            }
+                        }
+
+                        // Truncate very long content
+                        if (content.Length > 500)
+                        {
+                            content = content.Substring(0, 500) + "...";
+                        }
+
+                        history.Add(new AgentHistoryEntry(timestamp, type, content));
+                    }
+                }
+                catch
+                {
+                    // Skip malformed JSON lines
+                }
+            }
+        }
+        catch
+        {
+            // Return empty history on file read errors
+        }
+
+        return history.OrderBy(h => h.Timestamp).ToList();
     }
 }

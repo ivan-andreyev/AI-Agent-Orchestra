@@ -1,3 +1,5 @@
+using Orchestra.Core.Models;
+
 namespace Orchestra.Core;
 
 public class SimpleOrchestrator
@@ -123,6 +125,11 @@ public class SimpleOrchestrator
     {
         var repositories = _sessionDiscovery.GroupAgentsByRepository(_agents.Values.ToList());
         return new OrchestratorState(_agents, _taskQueue, DateTime.Now, repositories);
+    }
+
+    public List<AgentHistoryEntry> GetAgentHistory(string sessionId, int maxEntries = 50)
+    {
+        return _sessionDiscovery.GetAgentHistory(sessionId, maxEntries);
     }
 
     private AgentInfo? FindAvailableAgent(string repositoryPath)

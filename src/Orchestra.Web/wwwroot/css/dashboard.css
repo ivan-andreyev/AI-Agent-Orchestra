@@ -12,6 +12,8 @@
     --accent-yellow: #d29922;
     --accent-red: #f85149;
     --accent-purple: #a5a5ff;
+    --card-bg: var(--bg-secondary);
+    --input-bg: var(--bg-tertiary);
 }
 
 body {
@@ -536,6 +538,205 @@ body {
 
     .status-filter, .sort-select {
         min-width: 120px;
+    }
+}
+
+/* Sidebar layout for agents */
+.main-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.sidebar {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    height: fit-content;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.sidebar h3 {
+    margin: 0 0 15px 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.agent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sidebar-agent {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sidebar-agent:hover {
+    background-color: var(--bg-primary);
+    border-color: var(--accent-blue);
+}
+
+.sidebar-agent.selected {
+    background-color: var(--accent-blue);
+    color: white;
+    border-color: var(--accent-blue);
+}
+
+.sidebar-agent.selected .sidebar-agent-repo,
+.sidebar-agent.selected .sidebar-agent-name {
+    color: white !important;
+}
+
+.sidebar-agent.working {
+    border-left: 3px solid var(--accent-yellow);
+}
+
+.sidebar-agent.idle {
+    border-left: 3px solid var(--accent-green);
+}
+
+.sidebar-agent.error {
+    border-left: 3px solid var(--accent-red);
+}
+
+.sidebar-agent.offline {
+    border-left: 3px solid var(--text-secondary);
+}
+
+.sidebar-agent-status {
+    margin-right: 10px;
+    font-size: 1.1rem;
+}
+
+.sidebar-agent-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-agent-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+.sidebar-agent-repo {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.main-content-area {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 400px;
+}
+
+/* Agent history display */
+.agent-history {
+    height: 100%;
+}
+
+.agent-history h3 {
+    margin: 0 0 20px 0;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.history-container {
+    max-height: 500px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 10px;
+}
+
+.history-entry {
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 3px solid var(--border-color);
+    background-color: var(--bg-tertiary);
+}
+
+.history-entry.human {
+    border-left-color: var(--accent-blue);
+    background-color: rgba(88, 166, 255, 0.1);
+}
+
+.history-entry.assistant {
+    border-left-color: var(--accent-green);
+    background-color: rgba(63, 185, 80, 0.1);
+}
+
+.history-timestamp {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+    font-family: monospace;
+}
+
+.history-content {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+/* Responsive design for sidebar */
+@media (max-width: 1024px) {
+    .main-layout {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .sidebar {
+        order: 2;
+        max-height: 300px;
+    }
+
+    .main-content-area {
+        order: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-layout {
+        gap: 15px;
+    }
+
+    .sidebar {
+        padding: 15px;
+    }
+
+    .main-content-area {
+        padding: 15px;
+    }
+
+    .history-container {
+        max-height: 400px;
     }
 }
 

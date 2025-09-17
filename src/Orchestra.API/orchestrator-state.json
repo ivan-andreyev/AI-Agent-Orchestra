@@ -476,7 +476,7 @@
       "Type": "claude-code",
       "RepositoryPath": "C:\\Sources\\DigitalMe",
       "Status": 1,
-      "LastPing": "2025-09-17T16:45:34.1896728+04:00",
+      "LastPing": "2025-09-17T17:29:06.9664383+04:00",
       "CurrentTask": null,
       "SessionId": "e74f6f99-448b-4339-9e5d-30f1cbda9b98"
     },
@@ -516,7 +516,7 @@
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
       "Status": 1,
-      "LastPing": "2025-09-17T16:45:33.6731472+04:00",
+      "LastPing": "2025-09-17T17:29:23.5063773+04:00",
       "CurrentTask": null,
       "SessionId": "2ee68d94-dde4-4789-8fe6-8422b2beea8b"
     },
@@ -1219,6 +1219,576 @@
       "LastPing": "2025-08-26T15:06:06.9824306+04:00",
       "CurrentTask": null,
       "SessionId": "fdcc8784-dbcf-4161-a5db-c0f0cb347cfe"
+    },
+    "Elly2_2_039673b6-b5ad-4a73-b03c-6de267913d6c": {
+      "Id": "Elly2_2_039673b6-b5ad-4a73-b03c-6de267913d6c",
+      "Name": "Claude Code - Elly2_2 (039673b6)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-24T15:56:46.8552545+04:00",
+      "CurrentTask": null,
+      "SessionId": "039673b6-b5ad-4a73-b03c-6de267913d6c"
+    },
+    "Elly2_2_05b5086a-c649-486f-8d0b-a3facb3b6563": {
+      "Id": "Elly2_2_05b5086a-c649-486f-8d0b-a3facb3b6563",
+      "Name": "Claude Code - Elly2_2 (05b5086a)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-09-03T21:31:40.0606658+04:00",
+      "CurrentTask": null,
+      "SessionId": "05b5086a-c649-486f-8d0b-a3facb3b6563"
+    },
+    "Elly2_2_0faf2e7b-6aa6-435e-b975-1756a20014d7": {
+      "Id": "Elly2_2_0faf2e7b-6aa6-435e-b975-1756a20014d7",
+      "Name": "Claude Code - Elly2_2 (0faf2e7b)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-09-14T23:22:22.39245+04:00",
+      "CurrentTask": null,
+      "SessionId": "0faf2e7b-6aa6-435e-b975-1756a20014d7"
+    },
+    "Elly2_2_262c281f-bf41-472a-bf64-301c704b6e1b": {
+      "Id": "Elly2_2_262c281f-bf41-472a-bf64-301c704b6e1b",
+      "Name": "Claude Code - Elly2_2 (262c281f)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-29T15:18:38.4894984+04:00",
+      "CurrentTask": null,
+      "SessionId": "262c281f-bf41-472a-bf64-301c704b6e1b"
+    },
+    "Elly2_2_283d35c4-bc1a-46a1-835b-af1f94014319": {
+      "Id": "Elly2_2_283d35c4-bc1a-46a1-835b-af1f94014319",
+      "Name": "Claude Code - Elly2_2 (283d35c4)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-18T15:49:13.8581011+04:00",
+      "CurrentTask": null,
+      "SessionId": "283d35c4-bc1a-46a1-835b-af1f94014319"
+    },
+    "Elly2_2_37a7eb88-b40b-47f1-aef5-f5c664b466d6": {
+      "Id": "Elly2_2_37a7eb88-b40b-47f1-aef5-f5c664b466d6",
+      "Name": "Claude Code - Elly2_2 (37a7eb88)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-24T22:56:58.4640766+04:00",
+      "CurrentTask": null,
+      "SessionId": "37a7eb88-b40b-47f1-aef5-f5c664b466d6"
+    },
+    "Elly2_2_3b4e5c9a-bbb4-4023-82aa-8b1a1e17c09f": {
+      "Id": "Elly2_2_3b4e5c9a-bbb4-4023-82aa-8b1a1e17c09f",
+      "Name": "Claude Code - Elly2_2 (3b4e5c9a)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-24T14:47:20.9849817+04:00",
+      "CurrentTask": null,
+      "SessionId": "3b4e5c9a-bbb4-4023-82aa-8b1a1e17c09f"
+    },
+    "Elly2_2_4126f735-f507-441c-b726-de8eea187e5b": {
+      "Id": "Elly2_2_4126f735-f507-441c-b726-de8eea187e5b",
+      "Name": "Claude Code - Elly2_2 (4126f735)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-22T20:02:43.3697893+04:00",
+      "CurrentTask": null,
+      "SessionId": "4126f735-f507-441c-b726-de8eea187e5b"
+    },
+    "Elly2_2_450f4bf8-e25f-4ab6-9d77-edc38f6668e9": {
+      "Id": "Elly2_2_450f4bf8-e25f-4ab6-9d77-edc38f6668e9",
+      "Name": "Claude Code - Elly2_2 (450f4bf8)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-28T02:47:56.7042594+04:00",
+      "CurrentTask": null,
+      "SessionId": "450f4bf8-e25f-4ab6-9d77-edc38f6668e9"
+    },
+    "Elly2_2_4ad3f127-9eba-4b0e-b59e-9b1ce8e5bf18": {
+      "Id": "Elly2_2_4ad3f127-9eba-4b0e-b59e-9b1ce8e5bf18",
+      "Name": "Claude Code - Elly2_2 (4ad3f127)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-23T20:17:38.6312619+04:00",
+      "CurrentTask": null,
+      "SessionId": "4ad3f127-9eba-4b0e-b59e-9b1ce8e5bf18"
+    },
+    "Elly2_2_52ec6466-5070-47ea-8865-723f638bcb63": {
+      "Id": "Elly2_2_52ec6466-5070-47ea-8865-723f638bcb63",
+      "Name": "Claude Code - Elly2_2 (52ec6466)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-09-01T15:53:03.0452709+04:00",
+      "CurrentTask": null,
+      "SessionId": "52ec6466-5070-47ea-8865-723f638bcb63"
+    },
+    "Elly2_2_544cf4d8-722c-4caa-9355-77b31270ed8d": {
+      "Id": "Elly2_2_544cf4d8-722c-4caa-9355-77b31270ed8d",
+      "Name": "Claude Code - Elly2_2 (544cf4d8)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-25T21:43:00.0239617+04:00",
+      "CurrentTask": null,
+      "SessionId": "544cf4d8-722c-4caa-9355-77b31270ed8d"
+    },
+    "Elly2_2_681cd134-682e-4888-9094-792baab87dfb": {
+      "Id": "Elly2_2_681cd134-682e-4888-9094-792baab87dfb",
+      "Name": "Claude Code - Elly2_2 (681cd134)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-23T17:29:02.8035169+04:00",
+      "CurrentTask": null,
+      "SessionId": "681cd134-682e-4888-9094-792baab87dfb"
+    },
+    "Elly2_2_83eb7a2b-a275-4b49-9671-3a90005f97b5": {
+      "Id": "Elly2_2_83eb7a2b-a275-4b49-9671-3a90005f97b5",
+      "Name": "Claude Code - Elly2_2 (83eb7a2b)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-18T19:40:20.3291778+04:00",
+      "CurrentTask": null,
+      "SessionId": "83eb7a2b-a275-4b49-9671-3a90005f97b5"
+    },
+    "Elly2_2_8c80812d-b2ac-4fe6-8d8e-dd891babfad0": {
+      "Id": "Elly2_2_8c80812d-b2ac-4fe6-8d8e-dd891babfad0",
+      "Name": "Claude Code - Elly2_2 (8c80812d)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-24T00:35:25.9028042+04:00",
+      "CurrentTask": null,
+      "SessionId": "8c80812d-b2ac-4fe6-8d8e-dd891babfad0"
+    },
+    "Elly2_2_9cee8eae-897a-4162-afde-01b006e136bc": {
+      "Id": "Elly2_2_9cee8eae-897a-4162-afde-01b006e136bc",
+      "Name": "Claude Code - Elly2_2 (9cee8eae)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-26T00:49:48.3423174+04:00",
+      "CurrentTask": null,
+      "SessionId": "9cee8eae-897a-4162-afde-01b006e136bc"
+    },
+    "Elly2_2_9eeb0eac-4227-4b22-83b2-c05c7c74d6eb": {
+      "Id": "Elly2_2_9eeb0eac-4227-4b22-83b2-c05c7c74d6eb",
+      "Name": "Claude Code - Elly2_2 (9eeb0eac)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-09-15T20:40:44.1063444+04:00",
+      "CurrentTask": null,
+      "SessionId": "9eeb0eac-4227-4b22-83b2-c05c7c74d6eb"
+    },
+    "Elly2_2_9fa37af5-e8d0-452f-8739-fd8cfd03ffef": {
+      "Id": "Elly2_2_9fa37af5-e8d0-452f-8739-fd8cfd03ffef",
+      "Name": "Claude Code - Elly2_2 (9fa37af5)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-09-03T17:16:15.1717478+04:00",
+      "CurrentTask": null,
+      "SessionId": "9fa37af5-e8d0-452f-8739-fd8cfd03ffef"
+    },
+    "Elly2_2_a11b246d-d62e-43a5-b473-544364bfa205": {
+      "Id": "Elly2_2_a11b246d-d62e-43a5-b473-544364bfa205",
+      "Name": "Claude Code - Elly2_2 (a11b246d)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-20T20:51:53.7939842+04:00",
+      "CurrentTask": null,
+      "SessionId": "a11b246d-d62e-43a5-b473-544364bfa205"
+    },
+    "Elly2_2_a21ef604-0fde-458b-a915-3b35892c4b73": {
+      "Id": "Elly2_2_a21ef604-0fde-458b-a915-3b35892c4b73",
+      "Name": "Claude Code - Elly2_2 (a21ef604)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-20T14:42:50.0213921+04:00",
+      "CurrentTask": null,
+      "SessionId": "a21ef604-0fde-458b-a915-3b35892c4b73"
+    },
+    "Elly2_2_aba065e9-17dd-442d-852e-7e5501b22544": {
+      "Id": "Elly2_2_aba065e9-17dd-442d-852e-7e5501b22544",
+      "Name": "Claude Code - Elly2_2 (aba065e9)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-09-03T18:21:29.8685887+04:00",
+      "CurrentTask": null,
+      "SessionId": "aba065e9-17dd-442d-852e-7e5501b22544"
+    },
+    "Elly2_2_ca307fe0-9a52-4ca9-83b9-d5df3ded4265": {
+      "Id": "Elly2_2_ca307fe0-9a52-4ca9-83b9-d5df3ded4265",
+      "Name": "Claude Code - Elly2_2 (ca307fe0)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-20T00:58:59.2169613+04:00",
+      "CurrentTask": null,
+      "SessionId": "ca307fe0-9a52-4ca9-83b9-d5df3ded4265"
+    },
+    "Elly2_2_ccff5251-2574-43e0-a98c-fb5da8ca317c": {
+      "Id": "Elly2_2_ccff5251-2574-43e0-a98c-fb5da8ca317c",
+      "Name": "Claude Code - Elly2_2 (ccff5251)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-24T04:59:08.4674986+04:00",
+      "CurrentTask": null,
+      "SessionId": "ccff5251-2574-43e0-a98c-fb5da8ca317c"
+    },
+    "Elly2_2_d1e8c5ae-ba88-4845-9ee9-86767c6c0e0a": {
+      "Id": "Elly2_2_d1e8c5ae-ba88-4845-9ee9-86767c6c0e0a",
+      "Name": "Claude Code - Elly2_2 (d1e8c5ae)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-24T04:50:49.3425699+04:00",
+      "CurrentTask": null,
+      "SessionId": "d1e8c5ae-ba88-4845-9ee9-86767c6c0e0a"
+    },
+    "Elly2_2_dbfb81c5-afb4-48c5-a224-230917883e9a": {
+      "Id": "Elly2_2_dbfb81c5-afb4-48c5-a224-230917883e9a",
+      "Name": "Claude Code - Elly2_2 (dbfb81c5)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-23T03:01:30.9580048+04:00",
+      "CurrentTask": null,
+      "SessionId": "dbfb81c5-afb4-48c5-a224-230917883e9a"
+    },
+    "Elly2_2_e0a36ad4-75d9-4c0a-9d53-6c32966b43ca": {
+      "Id": "Elly2_2_e0a36ad4-75d9-4c0a-9d53-6c32966b43ca",
+      "Name": "Claude Code - Elly2_2 (e0a36ad4)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 1,
+      "LastPing": "2025-09-17T17:26:17.3909603+04:00",
+      "CurrentTask": null,
+      "SessionId": "e0a36ad4-75d9-4c0a-9d53-6c32966b43ca"
+    },
+    "Elly2_2_f4e041df-a0fe-43e5-bc0f-75a1a8834e32": {
+      "Id": "Elly2_2_f4e041df-a0fe-43e5-bc0f-75a1a8834e32",
+      "Name": "Claude Code - Elly2_2 (f4e041df)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-19T22:01:12.7279708+04:00",
+      "CurrentTask": null,
+      "SessionId": "f4e041df-a0fe-43e5-bc0f-75a1a8834e32"
+    },
+    "Elly2_2_f5e694d5-5163-4cfa-a09e-eb63b9b5b100": {
+      "Id": "Elly2_2_f5e694d5-5163-4cfa-a09e-eb63b9b5b100",
+      "Name": "Claude Code - Elly2_2 (f5e694d5)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-09-03T17:30:03.0334319+04:00",
+      "CurrentTask": null,
+      "SessionId": "f5e694d5-5163-4cfa-a09e-eb63b9b5b100"
+    },
+    "Elly2_2_f8d81a8d-3a5f-43b2-b867-866bfe44214f": {
+      "Id": "Elly2_2_f8d81a8d-3a5f-43b2-b867-866bfe44214f",
+      "Name": "Claude Code - Elly2_2 (f8d81a8d)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-24T04:44:24.1012137+04:00",
+      "CurrentTask": null,
+      "SessionId": "f8d81a8d-3a5f-43b2-b867-866bfe44214f"
+    },
+    "Elly2_2_fbd98095-5dd6-44fa-8a26-514e27d1fbad": {
+      "Id": "Elly2_2_fbd98095-5dd6-44fa-8a26-514e27d1fbad",
+      "Name": "Claude Code - Elly2_2 (fbd98095)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-18T19:31:42.2938613+04:00",
+      "CurrentTask": null,
+      "SessionId": "fbd98095-5dd6-44fa-8a26-514e27d1fbad"
+    },
+    "Elly2_2_fc3cbc28-18fe-4e98-bbfe-dc65ed7f7c31": {
+      "Id": "Elly2_2_fc3cbc28-18fe-4e98-bbfe-dc65ed7f7c31",
+      "Name": "Claude Code - Elly2_2 (fc3cbc28)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Status": 3,
+      "LastPing": "2025-08-19T13:26:20.4635865+04:00",
+      "CurrentTask": null,
+      "SessionId": "fc3cbc28-18fe-4e98-bbfe-dc65ed7f7c31"
+    },
+    "Elly2_3_020c9030-3743-4eff-a507-5bbf53bc256e": {
+      "Id": "Elly2_3_020c9030-3743-4eff-a507-5bbf53bc256e",
+      "Name": "Claude Code - Elly2_3 (020c9030)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-29T22:34:23.7819039+04:00",
+      "CurrentTask": null,
+      "SessionId": "020c9030-3743-4eff-a507-5bbf53bc256e"
+    },
+    "Elly2_3_0a46d587-a31e-4198-8289-9617fe06874a": {
+      "Id": "Elly2_3_0a46d587-a31e-4198-8289-9617fe06874a",
+      "Name": "Claude Code - Elly2_3 (0a46d587)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-29T19:26:09.4921879+04:00",
+      "CurrentTask": null,
+      "SessionId": "0a46d587-a31e-4198-8289-9617fe06874a"
+    },
+    "Elly2_3_16f4eb8d-33d4-4aa9-9dc7-accd5cc1cc3b": {
+      "Id": "Elly2_3_16f4eb8d-33d4-4aa9-9dc7-accd5cc1cc3b",
+      "Name": "Claude Code - Elly2_3 (16f4eb8d)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-04T19:11:46.3193492+04:00",
+      "CurrentTask": null,
+      "SessionId": "16f4eb8d-33d4-4aa9-9dc7-accd5cc1cc3b"
+    },
+    "Elly2_3_2ea2acff-9983-4f75-a3c6-3a38f10c8e52": {
+      "Id": "Elly2_3_2ea2acff-9983-4f75-a3c6-3a38f10c8e52",
+      "Name": "Claude Code - Elly2_3 (2ea2acff)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-19T16:05:52.6110197+04:00",
+      "CurrentTask": null,
+      "SessionId": "2ea2acff-9983-4f75-a3c6-3a38f10c8e52"
+    },
+    "Elly2_3_30c2014d-e7bc-4129-bcd0-42a0bd076669": {
+      "Id": "Elly2_3_30c2014d-e7bc-4129-bcd0-42a0bd076669",
+      "Name": "Claude Code - Elly2_3 (30c2014d)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-20T01:30:25.3622386+04:00",
+      "CurrentTask": null,
+      "SessionId": "30c2014d-e7bc-4129-bcd0-42a0bd076669"
+    },
+    "Elly2_3_34dc724e-324a-432a-8cf3-484dbf35ba7e": {
+      "Id": "Elly2_3_34dc724e-324a-432a-8cf3-484dbf35ba7e",
+      "Name": "Claude Code - Elly2_3 (34dc724e)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-03T21:47:13.5013996+04:00",
+      "CurrentTask": null,
+      "SessionId": "34dc724e-324a-432a-8cf3-484dbf35ba7e"
+    },
+    "Elly2_3_4459101e-f83e-42d2-ba7c-5519ee698786": {
+      "Id": "Elly2_3_4459101e-f83e-42d2-ba7c-5519ee698786",
+      "Name": "Claude Code - Elly2_3 (4459101e)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-16T19:06:09.2524021+04:00",
+      "CurrentTask": null,
+      "SessionId": "4459101e-f83e-42d2-ba7c-5519ee698786"
+    },
+    "Elly2_3_4ac498dc-7747-48c3-911b-e38c4cf84631": {
+      "Id": "Elly2_3_4ac498dc-7747-48c3-911b-e38c4cf84631",
+      "Name": "Claude Code - Elly2_3 (4ac498dc)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-19T22:02:50.8583162+04:00",
+      "CurrentTask": null,
+      "SessionId": "4ac498dc-7747-48c3-911b-e38c4cf84631"
+    },
+    "Elly2_3_596c38fe-b50a-4987-acac-00a0f8688651": {
+      "Id": "Elly2_3_596c38fe-b50a-4987-acac-00a0f8688651",
+      "Name": "Claude Code - Elly2_3 (596c38fe)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-18T16:57:17.219907+04:00",
+      "CurrentTask": null,
+      "SessionId": "596c38fe-b50a-4987-acac-00a0f8688651"
+    },
+    "Elly2_3_5cd5ddc3-937b-4d81-a45c-fb5fbc9657bb": {
+      "Id": "Elly2_3_5cd5ddc3-937b-4d81-a45c-fb5fbc9657bb",
+      "Name": "Claude Code - Elly2_3 (5cd5ddc3)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-19T16:01:06.8996429+04:00",
+      "CurrentTask": null,
+      "SessionId": "5cd5ddc3-937b-4d81-a45c-fb5fbc9657bb"
+    },
+    "Elly2_3_5d124ed5-dd83-49f6-984d-3fd3cfeb3483": {
+      "Id": "Elly2_3_5d124ed5-dd83-49f6-984d-3fd3cfeb3483",
+      "Name": "Claude Code - Elly2_3 (5d124ed5)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-04T14:26:00.3855645+04:00",
+      "CurrentTask": null,
+      "SessionId": "5d124ed5-dd83-49f6-984d-3fd3cfeb3483"
+    },
+    "Elly2_3_62b7f80e-0d6c-43e7-bde6-86d4f6aa8913": {
+      "Id": "Elly2_3_62b7f80e-0d6c-43e7-bde6-86d4f6aa8913",
+      "Name": "Claude Code - Elly2_3 (62b7f80e)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-04T15:03:26.214109+04:00",
+      "CurrentTask": null,
+      "SessionId": "62b7f80e-0d6c-43e7-bde6-86d4f6aa8913"
+    },
+    "Elly2_3_7270b425-3480-40e1-b92c-4998c1c83304": {
+      "Id": "Elly2_3_7270b425-3480-40e1-b92c-4998c1c83304",
+      "Name": "Claude Code - Elly2_3 (7270b425)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-12T13:48:09.3383104+04:00",
+      "CurrentTask": null,
+      "SessionId": "7270b425-3480-40e1-b92c-4998c1c83304"
+    },
+    "Elly2_3_7c389f3b-e0e3-46f6-9777-b7f9177961f5": {
+      "Id": "Elly2_3_7c389f3b-e0e3-46f6-9777-b7f9177961f5",
+      "Name": "Claude Code - Elly2_3 (7c389f3b)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-04T19:31:30.2452863+04:00",
+      "CurrentTask": null,
+      "SessionId": "7c389f3b-e0e3-46f6-9777-b7f9177961f5"
+    },
+    "Elly2_3_8e3489b0-c763-4bce-af48-613dae8f84a3": {
+      "Id": "Elly2_3_8e3489b0-c763-4bce-af48-613dae8f84a3",
+      "Name": "Claude Code - Elly2_3 (8e3489b0)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-04T20:41:23.0716884+04:00",
+      "CurrentTask": null,
+      "SessionId": "8e3489b0-c763-4bce-af48-613dae8f84a3"
+    },
+    "Elly2_3_99dbdc4c-0530-4d76-a6e2-63983117ef4e": {
+      "Id": "Elly2_3_99dbdc4c-0530-4d76-a6e2-63983117ef4e",
+      "Name": "Claude Code - Elly2_3 (99dbdc4c)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-04T19:41:00.4000554+04:00",
+      "CurrentTask": null,
+      "SessionId": "99dbdc4c-0530-4d76-a6e2-63983117ef4e"
+    },
+    "Elly2_3_99dc3c04-178d-43b2-82e4-27a72fefd97d": {
+      "Id": "Elly2_3_99dc3c04-178d-43b2-82e4-27a72fefd97d",
+      "Name": "Claude Code - Elly2_3 (99dc3c04)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-30T00:47:39.5337608+04:00",
+      "CurrentTask": null,
+      "SessionId": "99dc3c04-178d-43b2-82e4-27a72fefd97d"
+    },
+    "Elly2_3_ac279f3e-2640-4ee7-a41a-a86981f92864": {
+      "Id": "Elly2_3_ac279f3e-2640-4ee7-a41a-a86981f92864",
+      "Name": "Claude Code - Elly2_3 (ac279f3e)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-12T13:36:22.7663464+04:00",
+      "CurrentTask": null,
+      "SessionId": "ac279f3e-2640-4ee7-a41a-a86981f92864"
+    },
+    "Elly2_3_b78e2931-ad51-4bbc-9e81-faba7f031d5b": {
+      "Id": "Elly2_3_b78e2931-ad51-4bbc-9e81-faba7f031d5b",
+      "Name": "Claude Code - Elly2_3 (b78e2931)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-03T15:17:23.3611768+04:00",
+      "CurrentTask": null,
+      "SessionId": "b78e2931-ad51-4bbc-9e81-faba7f031d5b"
+    },
+    "Elly2_3_bd661e66-6443-4bb9-acb7-58b8573b7503": {
+      "Id": "Elly2_3_bd661e66-6443-4bb9-acb7-58b8573b7503",
+      "Name": "Claude Code - Elly2_3 (bd661e66)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-04T13:06:07.3385364+04:00",
+      "CurrentTask": null,
+      "SessionId": "bd661e66-6443-4bb9-acb7-58b8573b7503"
+    },
+    "Elly2_3_cc9bbfd5-2840-470c-a502-449fb8ef7849": {
+      "Id": "Elly2_3_cc9bbfd5-2840-470c-a502-449fb8ef7849",
+      "Name": "Claude Code - Elly2_3 (cc9bbfd5)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-17T04:14:28.0007597+04:00",
+      "CurrentTask": null,
+      "SessionId": "cc9bbfd5-2840-470c-a502-449fb8ef7849"
+    },
+    "Elly2_3_de508be7-542c-4097-b573-5e360f75dd03": {
+      "Id": "Elly2_3_de508be7-542c-4097-b573-5e360f75dd03",
+      "Name": "Claude Code - Elly2_3 (de508be7)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-30T13:44:11.1001942+04:00",
+      "CurrentTask": null,
+      "SessionId": "de508be7-542c-4097-b573-5e360f75dd03"
+    },
+    "Elly2_3_e59e73c9-598e-4ff7-8422-2dc7d624972e": {
+      "Id": "Elly2_3_e59e73c9-598e-4ff7-8422-2dc7d624972e",
+      "Name": "Claude Code - Elly2_3 (e59e73c9)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-18T23:20:02.2382474+04:00",
+      "CurrentTask": null,
+      "SessionId": "e59e73c9-598e-4ff7-8422-2dc7d624972e"
+    },
+    "Elly2_3_ec70a78e-5baf-4424-8786-875a68a1d82b": {
+      "Id": "Elly2_3_ec70a78e-5baf-4424-8786-875a68a1d82b",
+      "Name": "Claude Code - Elly2_3 (ec70a78e)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-08T23:53:57.573383+04:00",
+      "CurrentTask": null,
+      "SessionId": "ec70a78e-5baf-4424-8786-875a68a1d82b"
+    },
+    "Elly2_3_f144d0b8-14df-4d36-a912-f8f9cf8aa543": {
+      "Id": "Elly2_3_f144d0b8-14df-4d36-a912-f8f9cf8aa543",
+      "Name": "Claude Code - Elly2_3 (f144d0b8)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-09-09T15:12:21.3425387+04:00",
+      "CurrentTask": null,
+      "SessionId": "f144d0b8-14df-4d36-a912-f8f9cf8aa543"
+    },
+    "Elly2_3_f570af7e-9c15-4b4d-8a06-6757683ea4ff": {
+      "Id": "Elly2_3_f570af7e-9c15-4b4d-8a06-6757683ea4ff",
+      "Name": "Claude Code - Elly2_3 (f570af7e)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Status": 3,
+      "LastPing": "2025-08-22T21:23:27.1255135+04:00",
+      "CurrentTask": null,
+      "SessionId": "f570af7e-9c15-4b4d-8a06-6757683ea4ff"
     },
     "Galactic-Idlers_00775f94-8cf6-4989-b968-c671c36254a9": {
       "Id": "Galactic-Idlers_00775f94-8cf6-4989-b968-c671c36254a9",
@@ -2312,7 +2882,7 @@
     }
   },
   "TaskQueue": [],
-  "LastUpdate": "2025-09-17T16:45:34.6305244+04:00",
+  "LastUpdate": "2025-09-17T17:29:23.5916789+04:00",
   "Repositories": {
     "DaersTools": {
       "Name": "DaersTools",
@@ -2363,7 +2933,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 4,
-      "LastUpdate": "2025-09-17T16:45:34.6305157+04:00"
+      "LastUpdate": "2025-09-17T17:29:23.59167+04:00"
     },
     "ServiceTerminal": {
       "Name": "ServiceTerminal",
@@ -2384,7 +2954,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 1,
-      "LastUpdate": "2025-09-17T16:45:34.6305163+04:00"
+      "LastUpdate": "2025-09-17T17:29:23.5916709+04:00"
     },
     "DigitalMe": {
       "Name": "DigitalMe",
@@ -2816,7 +3386,7 @@
           "Type": "claude-code",
           "RepositoryPath": "C:\\Sources\\DigitalMe",
           "Status": 1,
-          "LastPing": "2025-09-17T16:45:34.1896728+04:00",
+          "LastPing": "2025-09-17T17:29:06.9664383+04:00",
           "CurrentTask": null,
           "SessionId": "e74f6f99-448b-4339-9e5d-30f1cbda9b98"
         },
@@ -2835,7 +3405,7 @@
       "WorkingCount": 1,
       "ErrorCount": 0,
       "OfflineCount": 43,
-      "LastUpdate": "2025-09-17T16:45:34.6305173+04:00"
+      "LastUpdate": "2025-09-17T17:29:23.5916718+04:00"
     },
     "SharedWorkspace": {
       "Name": "SharedWorkspace",
@@ -2866,7 +3436,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-17T16:45:34.6305176+04:00"
+      "LastUpdate": "2025-09-17T17:29:23.591672+04:00"
     },
     "AI-Agent-Orchestra": {
       "Name": "AI-Agent-Orchestra",
@@ -2878,7 +3448,7 @@
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
           "Status": 1,
-          "LastPing": "2025-09-17T16:45:33.6731472+04:00",
+          "LastPing": "2025-09-17T17:29:23.5063773+04:00",
           "CurrentTask": null,
           "SessionId": "2ee68d94-dde4-4789-8fe6-8422b2beea8b"
         },
@@ -2897,7 +3467,7 @@
       "WorkingCount": 1,
       "ErrorCount": 0,
       "OfflineCount": 1,
-      "LastUpdate": "2025-09-17T16:45:34.6305182+04:00"
+      "LastUpdate": "2025-09-17T17:29:23.5916732+04:00"
     },
     "Elly": {
       "Name": "Elly",
@@ -2928,7 +3498,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-17T16:45:34.6305185+04:00"
+      "LastUpdate": "2025-09-17T17:29:23.5916733+04:00"
     },
     "Elly2": {
       "Name": "Elly2",
@@ -3609,7 +4179,599 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 67,
-      "LastUpdate": "2025-09-17T16:45:34.6305201+04:00"
+      "LastUpdate": "2025-09-17T17:29:23.5916746+04:00"
+    },
+    "Elly2_2": {
+      "Name": "Elly2_2",
+      "Path": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+      "Agents": [
+        {
+          "Id": "Elly2_2_039673b6-b5ad-4a73-b03c-6de267913d6c",
+          "Name": "Claude Code - Elly2_2 (039673b6)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-24T15:56:46.8552545+04:00",
+          "CurrentTask": null,
+          "SessionId": "039673b6-b5ad-4a73-b03c-6de267913d6c"
+        },
+        {
+          "Id": "Elly2_2_05b5086a-c649-486f-8d0b-a3facb3b6563",
+          "Name": "Claude Code - Elly2_2 (05b5086a)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-09-03T21:31:40.0606658+04:00",
+          "CurrentTask": null,
+          "SessionId": "05b5086a-c649-486f-8d0b-a3facb3b6563"
+        },
+        {
+          "Id": "Elly2_2_0faf2e7b-6aa6-435e-b975-1756a20014d7",
+          "Name": "Claude Code - Elly2_2 (0faf2e7b)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-09-14T23:22:22.39245+04:00",
+          "CurrentTask": null,
+          "SessionId": "0faf2e7b-6aa6-435e-b975-1756a20014d7"
+        },
+        {
+          "Id": "Elly2_2_262c281f-bf41-472a-bf64-301c704b6e1b",
+          "Name": "Claude Code - Elly2_2 (262c281f)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-29T15:18:38.4894984+04:00",
+          "CurrentTask": null,
+          "SessionId": "262c281f-bf41-472a-bf64-301c704b6e1b"
+        },
+        {
+          "Id": "Elly2_2_283d35c4-bc1a-46a1-835b-af1f94014319",
+          "Name": "Claude Code - Elly2_2 (283d35c4)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-18T15:49:13.8581011+04:00",
+          "CurrentTask": null,
+          "SessionId": "283d35c4-bc1a-46a1-835b-af1f94014319"
+        },
+        {
+          "Id": "Elly2_2_37a7eb88-b40b-47f1-aef5-f5c664b466d6",
+          "Name": "Claude Code - Elly2_2 (37a7eb88)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-24T22:56:58.4640766+04:00",
+          "CurrentTask": null,
+          "SessionId": "37a7eb88-b40b-47f1-aef5-f5c664b466d6"
+        },
+        {
+          "Id": "Elly2_2_3b4e5c9a-bbb4-4023-82aa-8b1a1e17c09f",
+          "Name": "Claude Code - Elly2_2 (3b4e5c9a)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-24T14:47:20.9849817+04:00",
+          "CurrentTask": null,
+          "SessionId": "3b4e5c9a-bbb4-4023-82aa-8b1a1e17c09f"
+        },
+        {
+          "Id": "Elly2_2_4126f735-f507-441c-b726-de8eea187e5b",
+          "Name": "Claude Code - Elly2_2 (4126f735)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-22T20:02:43.3697893+04:00",
+          "CurrentTask": null,
+          "SessionId": "4126f735-f507-441c-b726-de8eea187e5b"
+        },
+        {
+          "Id": "Elly2_2_450f4bf8-e25f-4ab6-9d77-edc38f6668e9",
+          "Name": "Claude Code - Elly2_2 (450f4bf8)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-28T02:47:56.7042594+04:00",
+          "CurrentTask": null,
+          "SessionId": "450f4bf8-e25f-4ab6-9d77-edc38f6668e9"
+        },
+        {
+          "Id": "Elly2_2_4ad3f127-9eba-4b0e-b59e-9b1ce8e5bf18",
+          "Name": "Claude Code - Elly2_2 (4ad3f127)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-23T20:17:38.6312619+04:00",
+          "CurrentTask": null,
+          "SessionId": "4ad3f127-9eba-4b0e-b59e-9b1ce8e5bf18"
+        },
+        {
+          "Id": "Elly2_2_52ec6466-5070-47ea-8865-723f638bcb63",
+          "Name": "Claude Code - Elly2_2 (52ec6466)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-09-01T15:53:03.0452709+04:00",
+          "CurrentTask": null,
+          "SessionId": "52ec6466-5070-47ea-8865-723f638bcb63"
+        },
+        {
+          "Id": "Elly2_2_544cf4d8-722c-4caa-9355-77b31270ed8d",
+          "Name": "Claude Code - Elly2_2 (544cf4d8)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-25T21:43:00.0239617+04:00",
+          "CurrentTask": null,
+          "SessionId": "544cf4d8-722c-4caa-9355-77b31270ed8d"
+        },
+        {
+          "Id": "Elly2_2_681cd134-682e-4888-9094-792baab87dfb",
+          "Name": "Claude Code - Elly2_2 (681cd134)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-23T17:29:02.8035169+04:00",
+          "CurrentTask": null,
+          "SessionId": "681cd134-682e-4888-9094-792baab87dfb"
+        },
+        {
+          "Id": "Elly2_2_83eb7a2b-a275-4b49-9671-3a90005f97b5",
+          "Name": "Claude Code - Elly2_2 (83eb7a2b)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-18T19:40:20.3291778+04:00",
+          "CurrentTask": null,
+          "SessionId": "83eb7a2b-a275-4b49-9671-3a90005f97b5"
+        },
+        {
+          "Id": "Elly2_2_8c80812d-b2ac-4fe6-8d8e-dd891babfad0",
+          "Name": "Claude Code - Elly2_2 (8c80812d)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-24T00:35:25.9028042+04:00",
+          "CurrentTask": null,
+          "SessionId": "8c80812d-b2ac-4fe6-8d8e-dd891babfad0"
+        },
+        {
+          "Id": "Elly2_2_9cee8eae-897a-4162-afde-01b006e136bc",
+          "Name": "Claude Code - Elly2_2 (9cee8eae)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-26T00:49:48.3423174+04:00",
+          "CurrentTask": null,
+          "SessionId": "9cee8eae-897a-4162-afde-01b006e136bc"
+        },
+        {
+          "Id": "Elly2_2_9eeb0eac-4227-4b22-83b2-c05c7c74d6eb",
+          "Name": "Claude Code - Elly2_2 (9eeb0eac)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-09-15T20:40:44.1063444+04:00",
+          "CurrentTask": null,
+          "SessionId": "9eeb0eac-4227-4b22-83b2-c05c7c74d6eb"
+        },
+        {
+          "Id": "Elly2_2_9fa37af5-e8d0-452f-8739-fd8cfd03ffef",
+          "Name": "Claude Code - Elly2_2 (9fa37af5)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-09-03T17:16:15.1717478+04:00",
+          "CurrentTask": null,
+          "SessionId": "9fa37af5-e8d0-452f-8739-fd8cfd03ffef"
+        },
+        {
+          "Id": "Elly2_2_a11b246d-d62e-43a5-b473-544364bfa205",
+          "Name": "Claude Code - Elly2_2 (a11b246d)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-20T20:51:53.7939842+04:00",
+          "CurrentTask": null,
+          "SessionId": "a11b246d-d62e-43a5-b473-544364bfa205"
+        },
+        {
+          "Id": "Elly2_2_a21ef604-0fde-458b-a915-3b35892c4b73",
+          "Name": "Claude Code - Elly2_2 (a21ef604)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-20T14:42:50.0213921+04:00",
+          "CurrentTask": null,
+          "SessionId": "a21ef604-0fde-458b-a915-3b35892c4b73"
+        },
+        {
+          "Id": "Elly2_2_aba065e9-17dd-442d-852e-7e5501b22544",
+          "Name": "Claude Code - Elly2_2 (aba065e9)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-09-03T18:21:29.8685887+04:00",
+          "CurrentTask": null,
+          "SessionId": "aba065e9-17dd-442d-852e-7e5501b22544"
+        },
+        {
+          "Id": "Elly2_2_ca307fe0-9a52-4ca9-83b9-d5df3ded4265",
+          "Name": "Claude Code - Elly2_2 (ca307fe0)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-20T00:58:59.2169613+04:00",
+          "CurrentTask": null,
+          "SessionId": "ca307fe0-9a52-4ca9-83b9-d5df3ded4265"
+        },
+        {
+          "Id": "Elly2_2_ccff5251-2574-43e0-a98c-fb5da8ca317c",
+          "Name": "Claude Code - Elly2_2 (ccff5251)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-24T04:59:08.4674986+04:00",
+          "CurrentTask": null,
+          "SessionId": "ccff5251-2574-43e0-a98c-fb5da8ca317c"
+        },
+        {
+          "Id": "Elly2_2_d1e8c5ae-ba88-4845-9ee9-86767c6c0e0a",
+          "Name": "Claude Code - Elly2_2 (d1e8c5ae)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-24T04:50:49.3425699+04:00",
+          "CurrentTask": null,
+          "SessionId": "d1e8c5ae-ba88-4845-9ee9-86767c6c0e0a"
+        },
+        {
+          "Id": "Elly2_2_dbfb81c5-afb4-48c5-a224-230917883e9a",
+          "Name": "Claude Code - Elly2_2 (dbfb81c5)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-23T03:01:30.9580048+04:00",
+          "CurrentTask": null,
+          "SessionId": "dbfb81c5-afb4-48c5-a224-230917883e9a"
+        },
+        {
+          "Id": "Elly2_2_e0a36ad4-75d9-4c0a-9d53-6c32966b43ca",
+          "Name": "Claude Code - Elly2_2 (e0a36ad4)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 1,
+          "LastPing": "2025-09-17T17:26:17.3909603+04:00",
+          "CurrentTask": null,
+          "SessionId": "e0a36ad4-75d9-4c0a-9d53-6c32966b43ca"
+        },
+        {
+          "Id": "Elly2_2_f4e041df-a0fe-43e5-bc0f-75a1a8834e32",
+          "Name": "Claude Code - Elly2_2 (f4e041df)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-19T22:01:12.7279708+04:00",
+          "CurrentTask": null,
+          "SessionId": "f4e041df-a0fe-43e5-bc0f-75a1a8834e32"
+        },
+        {
+          "Id": "Elly2_2_f5e694d5-5163-4cfa-a09e-eb63b9b5b100",
+          "Name": "Claude Code - Elly2_2 (f5e694d5)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-09-03T17:30:03.0334319+04:00",
+          "CurrentTask": null,
+          "SessionId": "f5e694d5-5163-4cfa-a09e-eb63b9b5b100"
+        },
+        {
+          "Id": "Elly2_2_f8d81a8d-3a5f-43b2-b867-866bfe44214f",
+          "Name": "Claude Code - Elly2_2 (f8d81a8d)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-24T04:44:24.1012137+04:00",
+          "CurrentTask": null,
+          "SessionId": "f8d81a8d-3a5f-43b2-b867-866bfe44214f"
+        },
+        {
+          "Id": "Elly2_2_fbd98095-5dd6-44fa-8a26-514e27d1fbad",
+          "Name": "Claude Code - Elly2_2 (fbd98095)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-18T19:31:42.2938613+04:00",
+          "CurrentTask": null,
+          "SessionId": "fbd98095-5dd6-44fa-8a26-514e27d1fbad"
+        },
+        {
+          "Id": "Elly2_2_fc3cbc28-18fe-4e98-bbfe-dc65ed7f7c31",
+          "Name": "Claude Code - Elly2_2 (fc3cbc28)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_2",
+          "Status": 3,
+          "LastPing": "2025-08-19T13:26:20.4635865+04:00",
+          "CurrentTask": null,
+          "SessionId": "fc3cbc28-18fe-4e98-bbfe-dc65ed7f7c31"
+        }
+      ],
+      "IdleCount": 0,
+      "WorkingCount": 1,
+      "ErrorCount": 0,
+      "OfflineCount": 30,
+      "LastUpdate": "2025-09-17T17:29:23.5916755+04:00"
+    },
+    "Elly2_3": {
+      "Name": "Elly2_3",
+      "Path": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+      "Agents": [
+        {
+          "Id": "Elly2_3_020c9030-3743-4eff-a507-5bbf53bc256e",
+          "Name": "Claude Code - Elly2_3 (020c9030)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-29T22:34:23.7819039+04:00",
+          "CurrentTask": null,
+          "SessionId": "020c9030-3743-4eff-a507-5bbf53bc256e"
+        },
+        {
+          "Id": "Elly2_3_0a46d587-a31e-4198-8289-9617fe06874a",
+          "Name": "Claude Code - Elly2_3 (0a46d587)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-29T19:26:09.4921879+04:00",
+          "CurrentTask": null,
+          "SessionId": "0a46d587-a31e-4198-8289-9617fe06874a"
+        },
+        {
+          "Id": "Elly2_3_16f4eb8d-33d4-4aa9-9dc7-accd5cc1cc3b",
+          "Name": "Claude Code - Elly2_3 (16f4eb8d)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-04T19:11:46.3193492+04:00",
+          "CurrentTask": null,
+          "SessionId": "16f4eb8d-33d4-4aa9-9dc7-accd5cc1cc3b"
+        },
+        {
+          "Id": "Elly2_3_2ea2acff-9983-4f75-a3c6-3a38f10c8e52",
+          "Name": "Claude Code - Elly2_3 (2ea2acff)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-19T16:05:52.6110197+04:00",
+          "CurrentTask": null,
+          "SessionId": "2ea2acff-9983-4f75-a3c6-3a38f10c8e52"
+        },
+        {
+          "Id": "Elly2_3_30c2014d-e7bc-4129-bcd0-42a0bd076669",
+          "Name": "Claude Code - Elly2_3 (30c2014d)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-20T01:30:25.3622386+04:00",
+          "CurrentTask": null,
+          "SessionId": "30c2014d-e7bc-4129-bcd0-42a0bd076669"
+        },
+        {
+          "Id": "Elly2_3_34dc724e-324a-432a-8cf3-484dbf35ba7e",
+          "Name": "Claude Code - Elly2_3 (34dc724e)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-03T21:47:13.5013996+04:00",
+          "CurrentTask": null,
+          "SessionId": "34dc724e-324a-432a-8cf3-484dbf35ba7e"
+        },
+        {
+          "Id": "Elly2_3_4459101e-f83e-42d2-ba7c-5519ee698786",
+          "Name": "Claude Code - Elly2_3 (4459101e)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-16T19:06:09.2524021+04:00",
+          "CurrentTask": null,
+          "SessionId": "4459101e-f83e-42d2-ba7c-5519ee698786"
+        },
+        {
+          "Id": "Elly2_3_4ac498dc-7747-48c3-911b-e38c4cf84631",
+          "Name": "Claude Code - Elly2_3 (4ac498dc)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-19T22:02:50.8583162+04:00",
+          "CurrentTask": null,
+          "SessionId": "4ac498dc-7747-48c3-911b-e38c4cf84631"
+        },
+        {
+          "Id": "Elly2_3_596c38fe-b50a-4987-acac-00a0f8688651",
+          "Name": "Claude Code - Elly2_3 (596c38fe)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-18T16:57:17.219907+04:00",
+          "CurrentTask": null,
+          "SessionId": "596c38fe-b50a-4987-acac-00a0f8688651"
+        },
+        {
+          "Id": "Elly2_3_5cd5ddc3-937b-4d81-a45c-fb5fbc9657bb",
+          "Name": "Claude Code - Elly2_3 (5cd5ddc3)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-19T16:01:06.8996429+04:00",
+          "CurrentTask": null,
+          "SessionId": "5cd5ddc3-937b-4d81-a45c-fb5fbc9657bb"
+        },
+        {
+          "Id": "Elly2_3_5d124ed5-dd83-49f6-984d-3fd3cfeb3483",
+          "Name": "Claude Code - Elly2_3 (5d124ed5)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-04T14:26:00.3855645+04:00",
+          "CurrentTask": null,
+          "SessionId": "5d124ed5-dd83-49f6-984d-3fd3cfeb3483"
+        },
+        {
+          "Id": "Elly2_3_62b7f80e-0d6c-43e7-bde6-86d4f6aa8913",
+          "Name": "Claude Code - Elly2_3 (62b7f80e)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-04T15:03:26.214109+04:00",
+          "CurrentTask": null,
+          "SessionId": "62b7f80e-0d6c-43e7-bde6-86d4f6aa8913"
+        },
+        {
+          "Id": "Elly2_3_7270b425-3480-40e1-b92c-4998c1c83304",
+          "Name": "Claude Code - Elly2_3 (7270b425)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-12T13:48:09.3383104+04:00",
+          "CurrentTask": null,
+          "SessionId": "7270b425-3480-40e1-b92c-4998c1c83304"
+        },
+        {
+          "Id": "Elly2_3_7c389f3b-e0e3-46f6-9777-b7f9177961f5",
+          "Name": "Claude Code - Elly2_3 (7c389f3b)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-04T19:31:30.2452863+04:00",
+          "CurrentTask": null,
+          "SessionId": "7c389f3b-e0e3-46f6-9777-b7f9177961f5"
+        },
+        {
+          "Id": "Elly2_3_8e3489b0-c763-4bce-af48-613dae8f84a3",
+          "Name": "Claude Code - Elly2_3 (8e3489b0)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-04T20:41:23.0716884+04:00",
+          "CurrentTask": null,
+          "SessionId": "8e3489b0-c763-4bce-af48-613dae8f84a3"
+        },
+        {
+          "Id": "Elly2_3_99dbdc4c-0530-4d76-a6e2-63983117ef4e",
+          "Name": "Claude Code - Elly2_3 (99dbdc4c)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-04T19:41:00.4000554+04:00",
+          "CurrentTask": null,
+          "SessionId": "99dbdc4c-0530-4d76-a6e2-63983117ef4e"
+        },
+        {
+          "Id": "Elly2_3_99dc3c04-178d-43b2-82e4-27a72fefd97d",
+          "Name": "Claude Code - Elly2_3 (99dc3c04)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-30T00:47:39.5337608+04:00",
+          "CurrentTask": null,
+          "SessionId": "99dc3c04-178d-43b2-82e4-27a72fefd97d"
+        },
+        {
+          "Id": "Elly2_3_ac279f3e-2640-4ee7-a41a-a86981f92864",
+          "Name": "Claude Code - Elly2_3 (ac279f3e)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-12T13:36:22.7663464+04:00",
+          "CurrentTask": null,
+          "SessionId": "ac279f3e-2640-4ee7-a41a-a86981f92864"
+        },
+        {
+          "Id": "Elly2_3_b78e2931-ad51-4bbc-9e81-faba7f031d5b",
+          "Name": "Claude Code - Elly2_3 (b78e2931)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-03T15:17:23.3611768+04:00",
+          "CurrentTask": null,
+          "SessionId": "b78e2931-ad51-4bbc-9e81-faba7f031d5b"
+        },
+        {
+          "Id": "Elly2_3_bd661e66-6443-4bb9-acb7-58b8573b7503",
+          "Name": "Claude Code - Elly2_3 (bd661e66)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-04T13:06:07.3385364+04:00",
+          "CurrentTask": null,
+          "SessionId": "bd661e66-6443-4bb9-acb7-58b8573b7503"
+        },
+        {
+          "Id": "Elly2_3_cc9bbfd5-2840-470c-a502-449fb8ef7849",
+          "Name": "Claude Code - Elly2_3 (cc9bbfd5)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-17T04:14:28.0007597+04:00",
+          "CurrentTask": null,
+          "SessionId": "cc9bbfd5-2840-470c-a502-449fb8ef7849"
+        },
+        {
+          "Id": "Elly2_3_de508be7-542c-4097-b573-5e360f75dd03",
+          "Name": "Claude Code - Elly2_3 (de508be7)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-30T13:44:11.1001942+04:00",
+          "CurrentTask": null,
+          "SessionId": "de508be7-542c-4097-b573-5e360f75dd03"
+        },
+        {
+          "Id": "Elly2_3_e59e73c9-598e-4ff7-8422-2dc7d624972e",
+          "Name": "Claude Code - Elly2_3 (e59e73c9)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-18T23:20:02.2382474+04:00",
+          "CurrentTask": null,
+          "SessionId": "e59e73c9-598e-4ff7-8422-2dc7d624972e"
+        },
+        {
+          "Id": "Elly2_3_ec70a78e-5baf-4424-8786-875a68a1d82b",
+          "Name": "Claude Code - Elly2_3 (ec70a78e)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-08T23:53:57.573383+04:00",
+          "CurrentTask": null,
+          "SessionId": "ec70a78e-5baf-4424-8786-875a68a1d82b"
+        },
+        {
+          "Id": "Elly2_3_f144d0b8-14df-4d36-a912-f8f9cf8aa543",
+          "Name": "Claude Code - Elly2_3 (f144d0b8)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-09-09T15:12:21.3425387+04:00",
+          "CurrentTask": null,
+          "SessionId": "f144d0b8-14df-4d36-a912-f8f9cf8aa543"
+        },
+        {
+          "Id": "Elly2_3_f570af7e-9c15-4b4d-8a06-6757683ea4ff",
+          "Name": "Claude Code - Elly2_3 (f570af7e)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2_3",
+          "Status": 3,
+          "LastPing": "2025-08-22T21:23:27.1255135+04:00",
+          "CurrentTask": null,
+          "SessionId": "f570af7e-9c15-4b4d-8a06-6757683ea4ff"
+        }
+      ],
+      "IdleCount": 0,
+      "WorkingCount": 0,
+      "ErrorCount": 0,
+      "OfflineCount": 26,
+      "LastUpdate": "2025-09-17T17:29:23.5916762+04:00"
     },
     "Galactic-Idlers": {
       "Name": "Galactic-Idlers",
@@ -4710,7 +5872,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 109,
-      "LastUpdate": "2025-09-17T16:45:34.6305242+04:00"
+      "LastUpdate": "2025-09-17T17:29:23.5916788+04:00"
     }
   }
 }

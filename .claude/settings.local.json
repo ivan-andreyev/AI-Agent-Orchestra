@@ -12,7 +12,9 @@
       "Read(//c/Users/mrred/.claude/projects/**)",
       "Bash(csc:*)",
       "Bash(test_decode.exe)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(findstr:*)",
+      "Bash(dir \"C:\\Users\\mrred\\RiderProjects\\Elly2-2\")"
     ],
     "deny": [],
     "ask": []

@@ -144,4 +144,22 @@ public class OrchestratorService
             return false;
         }
     }
+
+    public async Task<List<AgentHistoryEntry>?> GetAgentHistoryAsync(string sessionId, int maxEntries = 50)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"/agents/{sessionId}/history?maxEntries={maxEntries}");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<AgentHistoryEntry>>(json, _jsonOptions);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting agent history: {ex.Message}");
+        }
+        return new List<AgentHistoryEntry>();
+    }
 }

@@ -46,7 +46,81 @@
             </div>
         </div>
 
-        <div class="repository-tabs">
+        <div class="debug-section" style="margin-bottom: 20px; padding: 15px; background: #2d1b1b; border-radius: 8px;">
+            <h3>Debug API Connection</h3>
+            <button @onclick="TestConnection" class="test-button" style="margin-right: 10px;">Test API Connection</button>
+            <span>@_debugMessage</span>
+        </div>
+
+        <div class="quick-actions">
+            <h2>Quick Actions</h2>
+            <div class="action-form">
+                <input @bind="_newTaskCommand" placeholder="Enter task command..." class="task-input" />
+                <select @bind="_newTaskRepo" class="repo-select">
+                    <option value="">Select repository...</option>
+                    @if (_repositories != null)
+                    {
+                        @foreach (var repo in _repositories)
+                        {
+                            <option value="@repo.Value.Path">@repo.Key</option>
+                        }
+                    }
+                </select>
+                <select @bind="_newTaskPriority" class="priority-select">
+                    <option value="Low">Low</option>
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                </select>
+                <button @onclick="AddTask" disabled="@_isAddingTask" class="add-button">
+                    @(_isAddingTask ? "Adding..." : "Add Task")
+                </button>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <div class="sidebar">
+                <h3>Agents</h3>
+                <div class="agent-list">
+                    @if (_repositories != null)
+                    {
+                        @foreach (var repo in _repositories)
+                        {
+                            @foreach (var agent in repo.Value.Agents)
+                            {
+                                <div class="sidebar-agent @(_selectedAgentId == agent.Id ? "selected" : "") @agent.Status.ToString().ToLower()"
+                                     @onclick="() => SelectAgent(agent.Id)">
+                                    <div class="sidebar-agent-status">@GetStatusIcon(agent.Status)</div>
+                                    <div class="sidebar-agent-info">
+                                        <div class="sidebar-agent-name">@agent.Name.Split('(')[0].Trim()</div>
+                                        <div class="sidebar-agent-repo">@repo.Key</div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="main-content-area">
+                @if (!string.IsNullOrEmpty(_selectedAgentId) && _agentHistory != null)
+                {
+                    <div class="agent-history">
+                        <h3>Agent History: @(_selectedAgent?.Name ?? "Unknown")</h3>
+                        <div class="history-container">
+                            @foreach (var entry in _agentHistory)
+                            {
+                                <div class="history-entry @entry.Type">
+                                    <div class="history-timestamp">@entry.Timestamp.ToString("HH:mm:ss")</div>
+                                    <div class="history-content">@entry.Content</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="repository-tabs">
             @if (_repositories != null)
             {
                 @foreach (var repo in _repositories)
@@ -78,7 +152,7 @@
                     <div class="agents-controls">
                         <div class="filter-controls">
                             <label for="statusFilter">Filter by status:</label>
-                            <select id="statusFilter" @bind="_statusFilter" @onchange="OnStatusFilterChanged" class="status-filter">
+                            <select id="statusFilter" @bind="_statusFilter" class="status-filter">
                                 <option value="">All</option>
                                 <option value="Working">🟡 Working</option>
                                 <option value="Idle">🟢 Idle</option>
@@ -88,7 +162,7 @@
                         </div>
                         <div class="sort-controls">
                             <label for="sortBy">Sort by:</label>
-                            <select id="sortBy" @bind="_sortBy" @onchange="OnSortChanged" class="sort-select">
+                            <select id="sortBy" @bind="_sortBy" class="sort-select">
                                 <option value="Status">Status (Active first)</option>
                                 <option value="LastPing">Last activity</option>
                                 <option value="Name">Name</option>
@@ -138,59 +212,30 @@
             </div>
         }
 
-        @if (_state?.TaskQueue.Any() == true)
-        {
-            <div class="tasks-section">
-                <h2>Task Queue</h2>
-                <div class="tasks-list">
-                    @foreach (var task in _state.TaskQueue.Take(5))
+                    @if (_state?.TaskQueue.Any() == true)
                     {
-                        <div class="task-item priority-@task.Priority.ToString().ToLower()">
-                            <div class="task-command">@task.Command</div>
-                            <div class="task-meta">
-                                <span class="task-agent">→ @task.AgentId</span>
-                                <span class="task-priority">@task.Priority</span>
-                                <span class="task-time">@task.CreatedAt.ToString("HH:mm:ss")</span>
+                        <div class="tasks-section">
+                            <h2>Task Queue</h2>
+                            <div class="tasks-list">
+                                @foreach (var task in _state.TaskQueue.Take(5))
+                                {
+                                    <div class="task-item priority-@task.Priority.ToString().ToLower()">
+                                        <div class="task-command">@task.Command</div>
+                                        <div class="task-meta">
+                                            <span class="task-agent">→ @task.AgentId</span>
+                                            <span class="task-priority">@task.Priority</span>
+                                            <span class="task-time">@task.CreatedAt.ToString("HH:mm:ss")</span>
+                                        </div>
+                                    </div>
+                                }
+                                @if (_state.TaskQueue.Count > 5)
+                                {
+                                    <div class="more-tasks">... and @(_state.TaskQueue.Count - 5) more tasks</div>
+                                }
                             </div>
                         </div>
                     }
-                    @if (_state.TaskQueue.Count > 5)
-                    {
-                        <div class="more-tasks">... and @(_state.TaskQueue.Count - 5) more tasks</div>
-                    }
-                </div>
-            </div>
-        }
-
-        <div class="debug-section" style="margin-bottom: 20px; padding: 15px; background: #2d1b1b; border-radius: 8px;">
-            <h3>Debug API Connection</h3>
-            <button @onclick="TestConnection" class="test-button" style="margin-right: 10px;">Test API Connection</button>
-            <span>@_debugMessage</span>
-        </div>
-
-        <div class="quick-actions">
-            <h2>Quick Actions</h2>
-            <div class="action-form">
-                <input @bind="_newTaskCommand" placeholder="Enter task command..." class="task-input" />
-                <select @bind="_newTaskRepo" class="repo-select">
-                    <option value="">Select repository...</option>
-                    @if (_repositories != null)
-                    {
-                        @foreach (var repo in _repositories)
-                        {
-                            <option value="@repo.Value.Path">@repo.Key</option>
-                        }
-                    }
-                </select>
-                <select @bind="_newTaskPriority" class="priority-select">
-                    <option value="Low">Low</option>
-                    <option value="Normal">Normal</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                </select>
-                <button @onclick="AddTask" disabled="@_isAddingTask" class="add-button">
-                    @(_isAddingTask ? "Adding..." : "Add Task")
-                </button>
+                }
             </div>
         </div>
     }
@@ -216,6 +261,10 @@
     // Filtering and sorting
     private string _statusFilter = "";
     private string _sortBy = "Status";
+    private string _selectedAgentId = "";
+    private AgentInfo? _selectedAgent;
+    private List<AgentHistoryEntry>? _agentHistory;
+    private Timer? _historyRefreshTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -355,20 +404,51 @@
         _ => 5
     };
 
-    private async Task OnStatusFilterChanged(ChangeEventArgs e)
+
+    private async Task SelectAgent(string agentId)
     {
-        _statusFilter = e.Value?.ToString() ?? "";
+        _selectedAgentId = agentId;
+        _selectedAgent = _repositories?.Values
+            .SelectMany(r => r.Agents)
+            .FirstOrDefault(a => a.Id == agentId);
+
+        if (_selectedAgent != null)
+        {
+            await LoadAgentHistory();
+
+            // Start history refresh timer
+            _historyRefreshTimer?.Dispose();
+            _historyRefreshTimer = new Timer(async _ =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadAgentHistory();
+                    StateHasChanged();
+                });
+            }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+        }
+
         StateHasChanged();
     }
 
-    private async Task OnSortChanged(ChangeEventArgs e)
+    private async Task LoadAgentHistory()
     {
-        _sortBy = e.Value?.ToString() ?? "Status";
-        StateHasChanged();
+        if (string.IsNullOrEmpty(_selectedAgentId) || _selectedAgent == null)
+            return;
+
+        try
+        {
+            _agentHistory = await OrchestratorService.GetAgentHistoryAsync(_selectedAgent.SessionId ?? "", 50);
+        }
+        catch
+        {
+            _agentHistory = new List<AgentHistoryEntry>();
+        }
     }
 
     public void Dispose()
     {
         _refreshTimer?.Dispose();
+        _historyRefreshTimer?.Dispose();
     }
 }

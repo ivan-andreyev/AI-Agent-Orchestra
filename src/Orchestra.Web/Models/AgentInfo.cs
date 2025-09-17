@@ -56,3 +56,9 @@ public record OrchestratorState(
 
 public record QueueTaskRequest(string Command, string RepositoryPath, TaskPriority Priority);
 public record RegisterAgentRequest(string Id, string Name, string Type, string RepositoryPath);
+
+public record AgentHistoryEntry(
+    DateTime Timestamp,
+    string Type,
+    string Content
+);
