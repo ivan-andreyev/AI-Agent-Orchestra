@@ -256,7 +256,7 @@ body {
     align-items: center;
 }
 
-.task-input, .repo-input, .priority-select {
+.task-input, .repo-input, .priority-select, .repo-select {
     padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
@@ -265,7 +265,7 @@ body {
     font-size: 0.9rem;
 }
 
-.task-input:focus, .repo-input:focus, .priority-select:focus {
+.task-input:focus, .repo-input:focus, .priority-select:focus, .repo-select:focus {
     outline: none;
     border-color: var(--accent-blue);
 }
@@ -336,3 +336,88 @@ body {
         gap: 15px;
     }
 }
+
+/* Repository tabs */
+.repository-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.tab-button {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.tab-button:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.tab-button.active {
+    background: var(--accent-blue);
+    color: white;
+    border-color: var(--accent-blue);
+}
+
+.refresh-button {
+    background: var(--accent-green);
+    border: 1px solid var(--accent-green);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    margin-left: auto;
+}
+
+.refresh-button:hover {
+    background: #2ea043;
+    border-color: #2ea043;
+}
+
+/* Repository content */
+.repository-content {
+    margin-bottom: 30px;
+}
+
+.repository-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.repository-header h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+}
+
+.repo-stats {
+    display: flex;
+    gap: 15px;
+    font-size: 1rem;
+}
+
+/* Agent session info */
+.agent-session {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+

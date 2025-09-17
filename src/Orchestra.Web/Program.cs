@@ -8,7 +8,7 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // Настраиваем HttpClient для API
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5000") });
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5002") });
 builder.Services.AddScoped<OrchestratorService>();
 
 await builder.Build().RunAsync();

@@ -3,7 +3,7 @@
 
 param(
     [int]$IntervalSeconds = 30,
-    [string]$OrchestratorUrl = "http://localhost:5000",
+    [string]$OrchestratorUrl = "http://localhost:5002",
     [string]$ConfigPath = "agent-config.json"
 )
 

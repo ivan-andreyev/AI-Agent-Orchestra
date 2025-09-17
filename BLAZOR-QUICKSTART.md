@@ -6,7 +6,7 @@
 
 ```bash
 cd src/Orchestra.API
-dotnet run --urls "http://localhost:5000"
+dotnet run --urls "http://localhost:5002"
 ```
 
 ### 2. Запуск Web UI

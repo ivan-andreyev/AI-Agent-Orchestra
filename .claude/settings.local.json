@@ -1,13 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch",
-      "Bash",
-      "Bash(dotnet run:*)",
-      "Bash(taskkill:*)",
-      "Bash(curl:*)",
-      "Bash(dotnet new:*)",
-      "Bash(dotnet sln add:*)"
+      "*",
+      "WebFetch(domain:docs.claude.com)",
+      "Bash(dotnet test:*)",
+      "Bash(pwsh scripts/test-api.ps1)",
+      "Bash(scripts/test-api.sh:*)",
+      "Bash(tasklist:*)",
+      "Bash(powershell:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

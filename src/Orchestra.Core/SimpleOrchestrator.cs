@@ -5,10 +5,12 @@ public class SimpleOrchestrator
     private readonly Dictionary<string, AgentInfo> _agents = new();
     private readonly Queue<TaskRequest> _taskQueue = new();
     private readonly string _stateFilePath;
+    private readonly ClaudeSessionDiscovery _sessionDiscovery;
 
     public SimpleOrchestrator(string stateFilePath = "orchestrator-state.json")
     {
         _stateFilePath = stateFilePath;
+        _sessionDiscovery = new ClaudeSessionDiscovery();
         LoadState();
     }
 
@@ -70,9 +72,30 @@ public class SimpleOrchestrator
 
     public List<AgentInfo> GetAllAgents() => _agents.Values.ToList();
 
+    public void RefreshAgents()
+    {
+        var discoveredAgents = _sessionDiscovery.DiscoverActiveSessions();
+
+        // Clear current agents and add discovered ones
+        _agents.Clear();
+        foreach (var agent in discoveredAgents)
+        {
+            _agents[agent.Id] = agent;
+        }
+
+        SaveState();
+    }
+
+    public Dictionary<string, RepositoryInfo> GetRepositories()
+    {
+        RefreshAgents();
+        return _sessionDiscovery.GroupAgentsByRepository(_agents.Values.ToList());
+    }
+
     public OrchestratorState GetCurrentState()
     {
-        return new OrchestratorState(_agents, _taskQueue, DateTime.Now);
+        var repositories = _sessionDiscovery.GroupAgentsByRepository(_agents.Values.ToList());
+        return new OrchestratorState(_agents, _taskQueue, DateTime.Now, repositories);
     }
 
     private AgentInfo? FindAvailableAgent(string repositoryPath)
@@ -89,7 +112,8 @@ public class SimpleOrchestrator
 
     private void SaveState()
     {
-        var state = GetCurrentState();
+        var repositories = _sessionDiscovery.GroupAgentsByRepository(_agents.Values.ToList());
+        var state = new OrchestratorState(_agents, _taskQueue, DateTime.Now, repositories);
         var json = System.Text.Json.JsonSerializer.Serialize(state, new System.Text.Json.JsonSerializerOptions
         {
             WriteIndented = true

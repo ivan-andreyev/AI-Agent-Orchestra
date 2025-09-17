@@ -7,7 +7,8 @@ public record AgentInfo(
     string RepositoryPath,
     AgentStatus Status,
     DateTime LastPing,
-    string? CurrentTask = null
+    string? CurrentTask = null,
+    string? SessionId = null
 );
 
 public enum AgentStatus
@@ -35,10 +36,22 @@ public enum TaskPriority
     Critical
 }
 
+public record RepositoryInfo(
+    string Name,
+    string Path,
+    List<AgentInfo> Agents,
+    int IdleCount,
+    int WorkingCount,
+    int ErrorCount,
+    int OfflineCount,
+    DateTime LastUpdate
+);
+
 public record OrchestratorState(
     Dictionary<string, AgentInfo> Agents,
     Queue<TaskRequest> TaskQueue,
-    DateTime LastUpdate
+    DateTime LastUpdate,
+    Dictionary<string, RepositoryInfo>? Repositories = null
 );
 
 public record QueueTaskRequest(string Command, string RepositoryPath, TaskPriority Priority);

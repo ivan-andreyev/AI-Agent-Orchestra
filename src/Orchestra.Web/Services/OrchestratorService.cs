@@ -14,8 +14,7 @@ public class OrchestratorService
         _httpClient = httpClient;
         _jsonOptions = new JsonSerializerOptions
         {
-            PropertyNameCaseInsensitive = true,
-            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+            PropertyNameCaseInsensitive = true
         };
     }
 
@@ -23,16 +22,26 @@ public class OrchestratorService
     {
         try
         {
+            Console.WriteLine($"Attempting to connect to: {_httpClient.BaseAddress}/state");
             var response = await _httpClient.GetAsync("/state");
+            Console.WriteLine($"Response status: {response.StatusCode}");
+
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Received JSON: {json}");
                 return JsonSerializer.Deserialize<OrchestratorState>(json, _jsonOptions);
+            }
+            else
+            {
+                Console.WriteLine($"Error response: {response.StatusCode} - {response.ReasonPhrase}");
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error getting state: {ex.Message}");
+            Console.WriteLine($"Exception type: {ex.GetType().Name}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
         }
         return null;
     }
@@ -59,7 +68,7 @@ public class OrchestratorService
     {
         try
         {
-            var request = new QueueTaskRequest(command, repositoryPath, priority);
+            var request = new { Command = command, RepositoryPath = repositoryPath, Priority = (int)priority };
             var json = JsonSerializer.Serialize(request, _jsonOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -77,7 +86,7 @@ public class OrchestratorService
     {
         try
         {
-            var request = new RegisterAgentRequest(id, name, type, repositoryPath);
+            var request = new { Id = id, Name = name, Type = type, RepositoryPath = repositoryPath };
             var json = JsonSerializer.Serialize(request, _jsonOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -87,6 +96,38 @@ public class OrchestratorService
         catch (Exception ex)
         {
             Console.WriteLine($"Error registering agent: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<Dictionary<string, RepositoryInfo>?> GetRepositoriesAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync("/repositories");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<Dictionary<string, RepositoryInfo>>(json, _jsonOptions);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting repositories: {ex.Message}");
+        }
+        return new Dictionary<string, RepositoryInfo>();
+    }
+
+    public async Task<bool> RefreshAgentsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync("/refresh", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing agents: {ex.Message}");
             return false;
         }
     }

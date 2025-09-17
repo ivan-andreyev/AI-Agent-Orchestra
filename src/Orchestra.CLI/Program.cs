@@ -15,7 +15,7 @@ static class JsonHelper
 class Program
 {
     private static readonly HttpClient _httpClient = new();
-    private static string _orchestratorUrl = "http://localhost:5000";
+    private static string _orchestratorUrl = "http://localhost:5002";
 
     static async Task Main(string[] args)
     {
