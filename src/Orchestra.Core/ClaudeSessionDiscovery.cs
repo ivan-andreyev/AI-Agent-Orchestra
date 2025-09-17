@@ -19,7 +19,9 @@ public class ClaudeSessionDiscovery
         var agents = new List<AgentInfo>();
 
         if (!Directory.Exists(_claudeProjectsPath))
+        {
             return agents;
+        }
 
         var projectDirectories = Directory.GetDirectories(_claudeProjectsPath);
 
@@ -29,7 +31,9 @@ public class ClaudeSessionDiscovery
             var repositoryPath = DecodeProjectPath(projectName);
 
             if (string.IsNullOrEmpty(repositoryPath) || !Directory.Exists(repositoryPath))
+            {
                 continue;
+            }
 
             var sessionFiles = Directory.GetFiles(projectDir, "*.jsonl");
 
@@ -64,7 +68,9 @@ public class ClaudeSessionDiscovery
     private string DecodeProjectPath(string encodedPath)
     {
         if (string.IsNullOrEmpty(encodedPath))
+        {
             return encodedPath;
+        }
 
         // First handle drive letter replacement (e.g., "C--" -> "C:\" or "c--" -> "C:\")
         if (encodedPath.Length >= 3 && char.IsLetter(encodedPath[0]) && encodedPath[1] == '-' && encodedPath[2] == '-')
@@ -86,36 +92,85 @@ public class ClaudeSessionDiscovery
                 var projectName = string.Join("-", parts.Skip(3));
                 var decodedPath = drivePrefix + directoryParts + "\\" + projectName;
 
-                // If the path doesn't exist, try with underscores instead of hyphens
-                if (!Directory.Exists(decodedPath))
-                {
-                    var projectNameWithUnderscores = string.Join("_", parts.Skip(3));
-                    var alternativePath = drivePrefix + directoryParts + "\\" + projectNameWithUnderscores;
-                    if (Directory.Exists(alternativePath))
-                    {
-                        return alternativePath;
-                    }
-                }
-
                 return decodedPath;
             }
             else if (parts.Length >= 3)
             {
-                // For other paths like D:\Projects\My-Project
+                // For other paths like D:\Projects\My-Project or C:\Users\user-name\Documents\My-Super-Project
                 // Special handling for paths with project names containing dashes
                 if (parts.Length >= 3 && (remainingPath.Contains("Project") || remainingPath.Contains("project")))
                 {
-                    // For paths like "Projects-My-Project", keep project name with dashes
-                    var directoryParts = string.Join("\\", parts.Take(parts.Length - 2));
-                    var projectName = string.Join("-", parts.Skip(parts.Length - 2));
-                    return drivePrefix + directoryParts + "\\" + projectName;
+                    // For paths like "Users-user-name-Documents-My-Super-Project"
+                    // Special handling for username patterns and known directories
+                    var rebuiltParts = new List<string>();
+                    var i = 0;
+
+                    while (i < parts.Length)
+                    {
+                        var currentPart = parts[i];
+
+                        // Handle special case: Users followed by username that might contain dashes
+                        if (currentPart.Equals("Users", StringComparison.OrdinalIgnoreCase) &&
+                            i + 1 < parts.Length)
+                        {
+                            rebuiltParts.Add(currentPart);
+                            i++;
+
+                            // Collect username parts until we hit a known directory
+                            var usernameParts = new List<string>();
+                            var knownDirs = new[] { "Documents", "Desktop", "Downloads", "Pictures", "Music", "Videos", "Projects" };
+
+                            while (i < parts.Length &&
+                                   !knownDirs.Any(dir => parts[i].Equals(dir, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                usernameParts.Add(parts[i]);
+                                i++;
+                            }
+
+                            // Join username parts with dashes
+                            if (usernameParts.Count > 0)
+                            {
+                                rebuiltParts.Add(string.Join("-", usernameParts));
+                            }
+                        }
+                        else
+                        {
+                            rebuiltParts.Add(currentPart);
+                            i++;
+                        }
+                    }
+
+                    // Now find where project starts - typically after Documents, Desktop, etc.
+                    var knownDirectories = new[] { "Documents", "Projects", "Desktop", "Downloads", "Pictures", "Music", "Videos" };
+                    int projectStartIndex = -1;
+
+                    for (int j = 0; j < rebuiltParts.Count; j++)
+                    {
+                        if (knownDirectories.Any(dir => rebuiltParts[j].Equals(dir, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            projectStartIndex = j + 1;
+                            break;
+                        }
+                    }
+
+                    if (projectStartIndex > 0 && projectStartIndex < rebuiltParts.Count)
+                    {
+                        var directoryParts = string.Join("\\", rebuiltParts.Take(projectStartIndex));
+                        var projectName = string.Join("-", rebuiltParts.Skip(projectStartIndex));
+                        return drivePrefix + directoryParts + "\\" + projectName;
+                    }
+                    else
+                    {
+                        // Fallback: assume last 2 parts are project name
+                        var directoryParts = string.Join("\\", rebuiltParts.Take(rebuiltParts.Count - 2));
+                        var projectName = string.Join("-", rebuiltParts.Skip(rebuiltParts.Count - 2));
+                        return drivePrefix + directoryParts + "\\" + projectName;
+                    }
                 }
                 else
                 {
-                    // Join first N-1 parts as directories and last part as file/folder name
-                    var directoryParts = string.Join("\\", parts.Take(parts.Length - 1));
-                    var lastName = parts.Last();
-                    return drivePrefix + directoryParts + "\\" + lastName;
+                    // Simple case: replace all dashes with backslashes
+                    return drivePrefix + remainingPath.Replace("-", "\\");
                 }
             }
             else
@@ -134,16 +189,22 @@ public class ClaudeSessionDiscovery
         var timeSinceLastUpdate = DateTime.Now - lastWriteTime;
 
         if (timeSinceLastUpdate > TimeSpan.FromMinutes(10))
+        {
             return AgentStatus.Offline;
+        }
 
         if (timeSinceLastUpdate > TimeSpan.FromMinutes(5))
+        {
             return AgentStatus.Idle;
+        }
 
         try
         {
             var lastLines = ReadLastLines(sessionFile, 5);
             if (lastLines.Any(line => line.Contains("\"type\":\"assistant\"")))
+            {
                 return AgentStatus.Working;
+            }
         }
         catch
         {
@@ -157,23 +218,35 @@ public class ClaudeSessionDiscovery
     {
         var lines = new List<string>();
 
-        try
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            using var reader = new StreamReader(filePath);
-            var allLines = new List<string>();
-
-            string? line;
-            while ((line = reader.ReadLine()) != null)
+            try
             {
-                allLines.Add(line);
-            }
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var reader = new StreamReader(stream);
+                var allLines = new List<string>();
 
-            return allLines.TakeLast(lineCount).ToList();
+                string? line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    allLines.Add(line);
+                }
+
+                return allLines.TakeLast(lineCount).ToList();
+            }
+            catch (IOException) when (attempt < 2)
+            {
+                // File is temporarily locked, wait and retry
+                Thread.Sleep(50 * (attempt + 1)); // Exponential backoff: 50ms, 100ms
+            }
+            catch
+            {
+                // Other exceptions, return empty list
+                break;
+            }
         }
-        catch
-        {
-            return lines;
-        }
+
+        return lines;
     }
 
     public Dictionary<string, RepositoryInfo> GroupAgentsByRepository(List<AgentInfo> agents)
@@ -214,89 +287,109 @@ public class ClaudeSessionDiscovery
     {
         var history = new List<AgentHistoryEntry>();
 
+        Console.WriteLine($"GetAgentHistory called with sessionId: {sessionId}, maxEntries: {maxEntries}");
+
         if (string.IsNullOrEmpty(sessionId))
-            return history;
-
-        // Find the JSONL file for this session
-        var projectDirectories = Directory.GetDirectories(_claudeProjectsPath);
-        string? sessionFilePath = null;
-
-        foreach (var projectDir in projectDirectories)
         {
-            var sessionFile = Path.Combine(projectDir, $"{sessionId}.jsonl");
-            if (File.Exists(sessionFile))
-            {
-                sessionFilePath = sessionFile;
-                break;
-            }
+            Console.WriteLine("SessionId is null or empty, returning empty history");
+            return history;
         }
 
-        if (sessionFilePath == null)
-            return history;
+        // Find the JSONL file for this session by searching recursively
+        string? sessionFilePath = null;
+
+        Console.WriteLine($"Searching for session file in: {_claudeProjectsPath}");
 
         try
         {
-            var lastLines = ReadLastLines(sessionFilePath, maxEntries * 2); // Get more lines to filter properly
+            var sessionFiles = Directory.GetFiles(_claudeProjectsPath, $"{sessionId}.jsonl", SearchOption.AllDirectories);
+            Console.WriteLine($"Found {sessionFiles.Length} session files matching pattern {sessionId}.jsonl");
 
-            foreach (var line in lastLines.TakeLast(maxEntries))
+            if (sessionFiles.Length > 0)
+            {
+                sessionFilePath = sessionFiles[0];
+                Console.WriteLine($"Using session file: {sessionFilePath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching for session file: {ex.Message}");
+            return history;
+        }
+
+        if (sessionFilePath == null)
+        {
+            Console.WriteLine("No session file found, returning empty history");
+            return history;
+        }
+
+        try
+        {
+            Console.WriteLine($"Attempting to read last {maxEntries * 2} lines from file");
+            var lastLines = ReadLastLines(sessionFilePath, maxEntries * 2); // Get more lines to filter properly
+            Console.WriteLine($"Read {lastLines.Count} lines from file");
+
+            var processedLines = lastLines.TakeLast(maxEntries);
+            Console.WriteLine($"Processing {processedLines.Count()} lines");
+
+            foreach (var line in processedLines)
             {
                 if (string.IsNullOrWhiteSpace(line))
+                {
                     continue;
+                }
 
                 try
                 {
                     using var document = JsonDocument.Parse(line);
                     var root = document.RootElement;
 
-                    if (root.TryGetProperty("timestamp", out var timestampProp) &&
-                        root.TryGetProperty("type", out var typeProp) &&
-                        root.TryGetProperty("content", out var contentProp))
+                    // Extract timestamp and type from root level
+                    if (!root.TryGetProperty("timestamp", out var timestampProp) ||
+                        !root.TryGetProperty("type", out var typeProp))
                     {
-                        var timestamp = DateTime.TryParse(timestampProp.GetString(), out var dt) ? dt : DateTime.Now;
-                        var type = typeProp.GetString() ?? "unknown";
-                        var content = contentProp.GetString() ?? "";
+                        continue;
+                    }
 
-                        // For assistant messages, try to get the text content
-                        if (type == "assistant" && root.TryGetProperty("content", out var assistantContent))
+                    var timestamp = DateTime.TryParse(timestampProp.GetString(), out var dt) ? dt : DateTime.Now;
+                    var type = typeProp.GetString() ?? "unknown";
+                    string content = "";
+
+                    // Extract content from the message object
+                    if (root.TryGetProperty("message", out var messageProp))
+                    {
+                        if (messageProp.TryGetProperty("content", out var contentProp))
                         {
-                            if (assistantContent.ValueKind == JsonValueKind.Array)
+                            if (contentProp.ValueKind == JsonValueKind.Array)
                             {
                                 var textParts = new List<string>();
-                                foreach (var item in assistantContent.EnumerateArray())
+                                foreach (var item in contentProp.EnumerateArray())
                                 {
-                                    if (item.TryGetProperty("type", out var itemType) &&
-                                        itemType.GetString() == "text" &&
-                                        item.TryGetProperty("text", out var textProp))
+                                    if (item.TryGetProperty("type", out var itemType))
                                     {
-                                        textParts.Add(textProp.GetString() ?? "");
+                                        var itemTypeStr = itemType.GetString();
+                                        if (itemTypeStr == "text" && item.TryGetProperty("text", out var textProp))
+                                        {
+                                            textParts.Add(textProp.GetString() ?? "");
+                                        }
+                                        else if (itemTypeStr == "tool_use" && item.TryGetProperty("name", out var nameProp))
+                                        {
+                                            textParts.Add($"[Tool: {nameProp.GetString()}]");
+                                        }
                                     }
                                 }
                                 content = string.Join(" ", textParts);
                             }
-                        }
-                        // For human messages
-                        else if (type == "human" && root.TryGetProperty("content", out var humanContent))
-                        {
-                            if (humanContent.ValueKind == JsonValueKind.String)
+                            else if (contentProp.ValueKind == JsonValueKind.String)
                             {
-                                content = humanContent.GetString() ?? "";
-                            }
-                            else if (humanContent.ValueKind == JsonValueKind.Array)
-                            {
-                                var textParts = new List<string>();
-                                foreach (var item in humanContent.EnumerateArray())
-                                {
-                                    if (item.TryGetProperty("type", out var itemType) &&
-                                        itemType.GetString() == "text" &&
-                                        item.TryGetProperty("text", out var textProp))
-                                    {
-                                        textParts.Add(textProp.GetString() ?? "");
-                                    }
-                                }
-                                content = string.Join(" ", textParts);
+                                content = contentProp.GetString() ?? "";
                             }
                         }
+                    }
 
+                    // Add to history if we have valid content
+                    if (!string.IsNullOrWhiteSpace(content))
+                    {
                         // Truncate very long content
                         if (content.Length > 500)
                         {

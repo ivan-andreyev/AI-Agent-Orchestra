@@ -6,7 +6,8 @@ public class SimpleOrchestratorTests
 {
     private SimpleOrchestrator CreateOrchestrator()
     {
-        return new SimpleOrchestrator("test-state-unit.json");
+        var testFileName = $"test-state-unit-{Guid.NewGuid()}.json";
+        return new SimpleOrchestrator(testFileName);
     }
 
     [Fact]

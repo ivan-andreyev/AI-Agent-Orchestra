@@ -18,7 +18,13 @@
       "Bash(find:*)",
       "Bash(dotnet build:*)",
       "Bash(dir:*)",
-      "Bash(dotnet:*)"
+      "Bash(dotnet:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(sort:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(pkill:*)",
+      "Bash(del nul)"
     ],
     "deny": [],
     "ask": []

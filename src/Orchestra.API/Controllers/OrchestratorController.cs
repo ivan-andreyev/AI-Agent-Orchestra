@@ -53,7 +53,9 @@ public class OrchestratorController : ControllerBase
     {
         var task = _orchestrator.GetNextTaskForAgent(agentId);
         if (task == null)
+        {
             return NoContent();
+        }
 
         return Ok(task);
     }

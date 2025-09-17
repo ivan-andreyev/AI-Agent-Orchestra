@@ -259,7 +259,9 @@ public class EndToEndTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await _client.GetAsync($"/agents/{agentId}/next-task");
 
         if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+        {
             return null;
+        }
 
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();

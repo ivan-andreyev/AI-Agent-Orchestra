@@ -25,16 +25,18 @@ public class SimpleOrchestrator
 
     public void UpdateAgentStatus(string agentId, AgentStatus status, string? currentTask = null)
     {
-        if (_agents.TryGetValue(agentId, out var agent))
+        if (!_agents.TryGetValue(agentId, out var agent))
         {
-            _agents[agentId] = agent with
-            {
-                Status = status,
-                LastPing = DateTime.Now,
-                CurrentTask = currentTask
-            };
-            SaveState();
+            return;
         }
+
+        _agents[agentId] = agent with
+        {
+            Status = status,
+            LastPing = DateTime.Now,
+            CurrentTask = currentTask
+        };
+        SaveState();
     }
 
     public void QueueTask(string command, string repositoryPath, TaskPriority priority = TaskPriority.Normal)
@@ -61,34 +63,36 @@ public class SimpleOrchestrator
         var tasksForAgent = _taskQueue.Where(t => t.AgentId == agentId).ToList();
         if (tasksForAgent.Any())
         {
-            var task = tasksForAgent.First();
-            RemoveTaskFromQueue(task.Id);
-            return task;
+            var anyTask = tasksForAgent.First();
+            RemoveTaskFromQueue(anyTask.Id);
+            return anyTask;
         }
 
         // If no assigned tasks, look for unassigned tasks that could be handled by this agent
-        var agent = _agents.TryGetValue(agentId, out var agentInfo) ? agentInfo : null;
-        if (agent != null)
+        var agent = _agents.GetValueOrDefault(agentId);
+        if (agent == null)
         {
-            var unassignedTasks = _taskQueue.Where(t => string.IsNullOrEmpty(t.AgentId) ||
-                                                     (t.RepositoryPath == agent.RepositoryPath))
-                                          .OrderByDescending(t => t.Priority)
-                                          .ThenBy(t => t.CreatedAt)
-                                          .ToList();
-
-            if (unassignedTasks.Any())
-            {
-                var task = unassignedTasks.First();
-                RemoveTaskFromQueue(task.Id);
-
-                // Update task with agent assignment
-                var assignedTask = new TaskRequest(task.Id, agentId, task.Command, task.RepositoryPath, task.CreatedAt, task.Priority);
-                SaveState();
-                return assignedTask;
-            }
+            return null;
         }
 
-        return null;
+        var unassignedTasks = _taskQueue.Where(t => string.IsNullOrEmpty(t.AgentId) ||
+                                                    (t.RepositoryPath == agent.RepositoryPath))
+            .OrderByDescending(t => t.Priority)
+            .ThenBy(t => t.CreatedAt)
+            .ToList();
+
+        if (!unassignedTasks.Any())
+        {
+            return null;
+        }
+
+        var task = unassignedTasks.First();
+        RemoveTaskFromQueue(task.Id);
+
+        // Update task with agent assignment
+        var assignedTask = task with { AgentId = agentId };
+        SaveState();
+        return assignedTask;
     }
 
     private void RemoveTaskFromQueue(string taskId)
@@ -152,6 +156,7 @@ public class SimpleOrchestrator
         {
             WriteIndented = true
         });
+
         File.WriteAllText(_stateFilePath, json);
     }
 

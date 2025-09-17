@@ -61,7 +61,9 @@ public class IntelligentOrchestrator
             .ToList();
 
         if (!availableAgents.Any())
+        {
             return null;
+        }
 
         // Приоритет агентам из того же репозитория
         var repoAgents = availableAgents.Where(a => a.RepositoryPath == repositoryPath).ToList();
@@ -91,19 +93,29 @@ public class IntelligentOrchestrator
         var lowerDesc = description.ToLowerInvariant();
 
         if (lowerDesc.Contains("test") || lowerDesc.Contains("unit") || lowerDesc.Contains("spec"))
+        {
             return TaskType.Testing;
+        }
 
         if (lowerDesc.Contains("refactor") || lowerDesc.Contains("clean") || lowerDesc.Contains("optimize"))
+        {
             return TaskType.Refactoring;
+        }
 
         if (lowerDesc.Contains("bug") || lowerDesc.Contains("fix") || lowerDesc.Contains("error"))
+        {
             return TaskType.BugFix;
+        }
 
         if (lowerDesc.Contains("feature") || lowerDesc.Contains("implement") || lowerDesc.Contains("add"))
+        {
             return TaskType.FeatureDevelopment;
+        }
 
         if (lowerDesc.Contains("doc") || lowerDesc.Contains("comment") || lowerDesc.Contains("readme"))
+        {
             return TaskType.Documentation;
+        }
 
         return TaskType.General;
     }

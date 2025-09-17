@@ -74,7 +74,10 @@
 
     private void UpdateCounts()
     {
-        if (Agents == null) return;
+        if (Agents == null)
+        {
+            return;
+        }
 
         _totalCount = Agents.Count;
         _workingCount = Agents.Count(a => a.Status == AgentStatus.Working);
@@ -146,14 +149,22 @@
     private static string GetShortName(string name)
     {
         const int maxLength = 25;
-        if (name.Length <= maxLength) return name;
+        if (name.Length <= maxLength)
+        {
+            return name;
+        }
+
         return name[..maxLength] + "...";
     }
 
     private static string GetShortTask(string task)
     {
         const int maxLength = 30;
-        if (task.Length <= maxLength) return task;
+        if (task.Length <= maxLength)
+        {
+            return task;
+        }
+
         return task[..maxLength] + "...";
     }
 
@@ -161,9 +172,21 @@
     {
         var timeSpan = DateTime.Now - lastPing;
 
-        if (timeSpan.TotalMinutes < 1) return "Just now";
-        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes}m ago";
-        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h ago";
+        if (timeSpan.TotalMinutes < 1)
+        {
+            return "Just now";
+        }
+
+        if (timeSpan.TotalMinutes < 60)
+        {
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        }
+
+        if (timeSpan.TotalHours < 24)
+        {
+            return $"{(int)timeSpan.TotalHours}h ago";
+        }
+
         return $"{(int)timeSpan.TotalDays}d ago";
     }
 }

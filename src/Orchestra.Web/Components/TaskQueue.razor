@@ -225,7 +225,11 @@
     private static string GetShortCommand(string command)
     {
         const int maxLength = 80;
-        if (command.Length <= maxLength) return command;
+        if (command.Length <= maxLength)
+        {
+            return command;
+        }
+
         return command[..maxLength] + "...";
     }
 
@@ -233,9 +237,21 @@
     {
         var timeSpan = DateTime.Now - createdAt;
 
-        if (timeSpan.TotalMinutes < 1) return "Just now";
-        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes}m ago";
-        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h ago";
+        if (timeSpan.TotalMinutes < 1)
+        {
+            return "Just now";
+        }
+
+        if (timeSpan.TotalMinutes < 60)
+        {
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        }
+
+        if (timeSpan.TotalHours < 24)
+        {
+            return $"{(int)timeSpan.TotalHours}h ago";
+        }
+
         return $"{(int)timeSpan.TotalDays}d ago";
     }
 
