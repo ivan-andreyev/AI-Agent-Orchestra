@@ -1,0 +1,188 @@
+﻿@page "/"
+@using Orchestra.Web.Models
+@using Orchestra.Web.Services
+@inject OrchestratorService OrchestratorService
+@implements IDisposable
+
+<PageTitle>AI Agent Orchestra</PageTitle>
+
+<div class="dashboard">
+    <div class="header">
+        <h1>🎼 AI Agent Orchestra</h1>
+        <div class="status-indicator @(_isConnected ? "connected" : "disconnected")">
+            @(_isConnected ? "🟢 Connected" : "🔴 Disconnected")
+        </div>
+    </div>
+
+    @if (_state != null)
+    {
+        <div class="stats-row">
+            <div class="stat-card">
+                <h3>Agents</h3>
+                <div class="stat-number">@_state.Agents.Count</div>
+                <div class="stat-detail">
+                    🟢 @_state.Agents.Values.Count(a => a.Status == AgentStatus.Idle)
+                    🟡 @_state.Agents.Values.Count(a => a.Status == AgentStatus.Working)
+                    🔴 @_state.Agents.Values.Count(a => a.Status == AgentStatus.Error)
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <h3>Tasks Queue</h3>
+                <div class="stat-number">@_state.TaskQueue.Count</div>
+                <div class="stat-detail">Pending tasks</div>
+            </div>
+
+            <div class="stat-card">
+                <h3>Last Update</h3>
+                <div class="stat-detail">@_state.LastUpdate.ToString("HH:mm:ss")</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="agents-section">
+                <h2>Active Agents</h2>
+                @if (_state.Agents.Any())
+                {
+                    <div class="agents-grid">
+                        @foreach (var agent in _state.Agents.Values)
+                        {
+                            <div class="agent-card @agent.Status.ToString().ToLower()">
+                                <div class="agent-header">
+                                    <span class="agent-name">@agent.Name</span>
+                                    <span class="agent-status">@GetStatusIcon(agent.Status) @agent.Status</span>
+                                </div>
+                                <div class="agent-details">
+                                    <div class="agent-type">@agent.Type</div>
+                                    <div class="agent-repo">📁 @System.IO.Path.GetFileName(agent.RepositoryPath)</div>
+                                    @if (!string.IsNullOrEmpty(agent.CurrentTask))
+                                    {
+                                        <div class="agent-task">⚡ @agent.CurrentTask</div>
+                                    }
+                                    <div class="agent-ping">Last ping: @agent.LastPing.ToString("HH:mm:ss")</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">No agents registered</div>
+                }
+            </div>
+
+            <div class="tasks-section">
+                <h2>Task Queue</h2>
+                @if (_state.TaskQueue.Any())
+                {
+                    <div class="tasks-list">
+                        @foreach (var task in _state.TaskQueue.Take(5))
+                        {
+                            <div class="task-item priority-@task.Priority.ToString().ToLower()">
+                                <div class="task-command">@task.Command</div>
+                                <div class="task-meta">
+                                    <span class="task-agent">→ @task.AgentId</span>
+                                    <span class="task-priority">@task.Priority</span>
+                                    <span class="task-time">@task.CreatedAt.ToString("HH:mm:ss")</span>
+                                </div>
+                            </div>
+                        }
+                        @if (_state.TaskQueue.Count > 5)
+                        {
+                            <div class="more-tasks">... and @(_state.TaskQueue.Count - 5) more tasks</div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">No pending tasks</div>
+                }
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <h2>Quick Actions</h2>
+            <div class="action-form">
+                <input @bind="_newTaskCommand" placeholder="Enter task command..." class="task-input" />
+                <input @bind="_newTaskRepo" placeholder="Repository path..." class="repo-input" />
+                <select @bind="_newTaskPriority" class="priority-select">
+                    <option value="Low">Low</option>
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                </select>
+                <button @onclick="AddTask" disabled="@_isAddingTask" class="add-button">
+                    @(_isAddingTask ? "Adding..." : "Add Task")
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="loading">Loading orchestra state...</div>
+    }
+</div>
+
+@code {
+    private OrchestratorState? _state;
+    private bool _isConnected = false;
+    private Timer? _refreshTimer;
+
+    private string _newTaskCommand = "";
+    private string _newTaskRepo = "";
+    private TaskPriority _newTaskPriority = TaskPriority.Normal;
+    private bool _isAddingTask = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshData();
+        _refreshTimer = new Timer(async _ => await InvokeAsync(RefreshData), null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
+    }
+
+    private async Task RefreshData()
+    {
+        try
+        {
+            _state = await OrchestratorService.GetStateAsync();
+            _isConnected = _state != null;
+        }
+        catch
+        {
+            _isConnected = false;
+        }
+        StateHasChanged();
+    }
+
+    private async Task AddTask()
+    {
+        if (string.IsNullOrWhiteSpace(_newTaskCommand) || string.IsNullOrWhiteSpace(_newTaskRepo))
+            return;
+
+        _isAddingTask = true;
+        var success = await OrchestratorService.QueueTaskAsync(_newTaskCommand, _newTaskRepo, _newTaskPriority);
+
+        if (success)
+        {
+            _newTaskCommand = "";
+            _newTaskRepo = "";
+            _newTaskPriority = TaskPriority.Normal;
+            await RefreshData();
+        }
+
+        _isAddingTask = false;
+    }
+
+    private string GetStatusIcon(AgentStatus status) => status switch
+    {
+        AgentStatus.Idle => "🟢",
+        AgentStatus.Working => "🟡",
+        AgentStatus.Error => "🔴",
+        AgentStatus.Offline => "⚫",
+        _ => "❓"
+    };
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}
