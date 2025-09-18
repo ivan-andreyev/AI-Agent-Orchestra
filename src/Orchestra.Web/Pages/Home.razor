@@ -18,27 +18,23 @@
                 <div class="stat-inline">
                     <span class="stat-value">@GetTotalAgentsCount()</span>
                     <span class="stat-label">Agents</span>
-                    <div class="agent-status-breakdown">
-                        <div class="status-item status-working">
-                            <span class="status-icon">🟢</span>
-                            <span class="status-count">@GetWorkingAgentsCount()</span>
-                            <span class="status-label">Working</span>
-                        </div>
-                        <div class="status-item status-idle">
-                            <span class="status-icon">🟡</span>
-                            <span class="status-count">@GetIdleAgentsCount()</span>
-                            <span class="status-label">Idle</span>
-                        </div>
-                        <div class="status-item status-error">
-                            <span class="status-icon">🔴</span>
-                            <span class="status-count">@GetErrorAgentsCount()</span>
-                            <span class="status-label">Error</span>
-                        </div>
-                        <div class="status-item status-offline">
-                            <span class="status-icon">⚫</span>
-                            <span class="status-count">@GetOfflineAgentsCount()</span>
-                            <span class="status-label">Offline</span>
-                        </div>
+                </div>
+                <div class="agent-status-breakdown">
+                    <div class="status-item status-working">
+                        <span class="status-icon">🟢</span>
+                        <span class="status-count">@GetWorkingAgentsCount()</span>
+                    </div>
+                    <div class="status-item status-idle">
+                        <span class="status-icon">🟡</span>
+                        <span class="status-count">@GetIdleAgentsCount()</span>
+                    </div>
+                    <div class="status-item status-error">
+                        <span class="status-icon">🔴</span>
+                        <span class="status-count">@GetErrorAgentsCount()</span>
+                    </div>
+                    <div class="status-item status-offline">
+                        <span class="status-icon">⚫</span>
+                        <span class="status-count">@GetOfflineAgentsCount()</span>
                     </div>
                 </div>
                 <div class="stat-inline">

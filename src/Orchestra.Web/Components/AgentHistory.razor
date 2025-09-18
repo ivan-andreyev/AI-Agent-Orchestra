@@ -6,7 +6,7 @@
 
 <div class="agent-history">
     <div class="history-header">
-        <h3>Agent History</h3>
+        <h3>Agent History @(GetSelectedAgentName())</h3>
         @if (!string.IsNullOrEmpty(SelectedAgentId))
         {
             <div class="history-controls">
@@ -217,6 +217,16 @@
             _expandedEntries.Add(entryHash);
         }
         StateHasChanged();
+    }
+
+    private string GetSelectedAgentName()
+    {
+        if (string.IsNullOrEmpty(SelectedAgentId))
+            return "";
+
+        // SelectedAgentId это sessionId, нужно найти агента по нему
+        // Пока просто показываем sessionId
+        return $"({SelectedAgentId[..8]}...)";
     }
 
 }

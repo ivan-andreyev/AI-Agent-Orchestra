@@ -466,7 +466,7 @@
       "Type": "claude-code",
       "RepositoryPath": "C:\\Sources\\DigitalMe",
       "Status": 1,
-      "LastPing": "2025-09-18T23:19:21.9645028+04:00",
+      "LastPing": "2025-09-18T23:29:52.9080081+04:00",
       "CurrentTask": null,
       "SessionId": "dd5d3680-0711-4005-b94d-469209efe85b"
     },
@@ -565,8 +565,8 @@
       "Name": "Claude Code - AI-Agent-Orchestra (44ad94f2)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "Status": 1,
-      "LastPing": "2025-09-18T23:19:38.1547209+04:00",
+      "Status": 0,
+      "LastPing": "2025-09-18T23:20:56.8452668+04:00",
       "CurrentTask": null,
       "SessionId": "44ad94f2-dbb5-48db-80cb-bc2b315e7826"
     },
@@ -2222,7 +2222,7 @@
     }
   },
   "TaskQueue": [],
-  "LastUpdate": "2025-09-18T23:19:40.7469705+04:00",
+  "LastUpdate": "2025-09-18T23:29:55.8809877+04:00",
   "Repositories": {
     "DaersTools": {
       "Name": "DaersTools",
@@ -2273,7 +2273,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 4,
-      "LastUpdate": "2025-09-18T23:19:40.7469629+04:00"
+      "LastUpdate": "2025-09-18T23:29:55.8809807+04:00"
     },
     "ServiceTerminal": {
       "Name": "ServiceTerminal",
@@ -2294,7 +2294,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 1,
-      "LastUpdate": "2025-09-18T23:19:40.7469638+04:00"
+      "LastUpdate": "2025-09-18T23:29:55.8809815+04:00"
     },
     "DigitalMe": {
       "Name": "DigitalMe",
@@ -2716,7 +2716,7 @@
           "Type": "claude-code",
           "RepositoryPath": "C:\\Sources\\DigitalMe",
           "Status": 1,
-          "LastPing": "2025-09-18T23:19:21.9645028+04:00",
+          "LastPing": "2025-09-18T23:29:52.9080081+04:00",
           "CurrentTask": null,
           "SessionId": "dd5d3680-0711-4005-b94d-469209efe85b"
         },
@@ -2775,7 +2775,7 @@
       "WorkingCount": 1,
       "ErrorCount": 0,
       "OfflineCount": 45,
-      "LastUpdate": "2025-09-18T23:19:40.7469651+04:00"
+      "LastUpdate": "2025-09-18T23:29:55.8809826+04:00"
     },
     "SharedWorkspace": {
       "Name": "SharedWorkspace",
@@ -2806,7 +2806,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-18T23:19:40.7469654+04:00"
+      "LastUpdate": "2025-09-18T23:29:55.8809829+04:00"
     },
     "AI-Agent-Orchestra": {
       "Name": "AI-Agent-Orchestra",
@@ -2837,8 +2837,8 @@
           "Name": "Claude Code - AI-Agent-Orchestra (44ad94f2)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-          "Status": 1,
-          "LastPing": "2025-09-18T23:19:38.1547209+04:00",
+          "Status": 0,
+          "LastPing": "2025-09-18T23:20:56.8452668+04:00",
           "CurrentTask": null,
           "SessionId": "44ad94f2-dbb5-48db-80cb-bc2b315e7826"
         },
@@ -2873,11 +2873,11 @@
           "SessionId": "d95053bf-5d3c-4eb2-b1ff-ec11202e1606"
         }
       ],
-      "IdleCount": 2,
-      "WorkingCount": 1,
+      "IdleCount": 3,
+      "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 3,
-      "LastUpdate": "2025-09-18T23:19:40.7469662+04:00"
+      "LastUpdate": "2025-09-18T23:29:55.8809836+04:00"
     },
     "Elly": {
       "Name": "Elly",
@@ -2908,7 +2908,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-18T23:19:40.7469664+04:00"
+      "LastUpdate": "2025-09-18T23:29:55.8809838+04:00"
     },
     "Elly2": {
       "Name": "Elly2",
@@ -3429,7 +3429,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 49,
-      "LastUpdate": "2025-09-18T23:19:40.7469679+04:00"
+      "LastUpdate": "2025-09-18T23:29:55.880985+04:00"
     },
     "Galactic-Idlers": {
       "Name": "Galactic-Idlers",
@@ -4530,7 +4530,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 109,
-      "LastUpdate": "2025-09-18T23:19:40.7469703+04:00"
+      "LastUpdate": "2025-09-18T23:29:55.8809875+04:00"
     }
   }
 }
