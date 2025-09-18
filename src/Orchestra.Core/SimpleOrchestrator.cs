@@ -154,6 +154,9 @@ public class SimpleOrchestrator : IDisposable
                 _agents[agent.Id] = agent;
             }
 
+            // After refreshing agents, try to assign any unassigned tasks
+            AssignUnassignedTasks();
+
             SaveState();
         }
     }
@@ -181,6 +184,19 @@ public class SimpleOrchestrator : IDisposable
         return _sessionDiscovery.GetAgentHistory(sessionId, maxEntries);
     }
 
+    /// <summary>
+    /// Manually triggers assignment of unassigned tasks to available agents.
+    /// Can be called from API to force assignment without full agent refresh.
+    /// </summary>
+    public void TriggerTaskAssignment()
+    {
+        lock (_lock)
+        {
+            AssignUnassignedTasks();
+            SaveState();
+        }
+    }
+
     private AgentInfo? FindAvailableAgent(string repositoryPath)
     {
         return _agents.Values
@@ -191,6 +207,51 @@ public class SimpleOrchestrator : IDisposable
                 .Where(a => a.Status == AgentStatus.Idle)
                 .OrderBy(a => a.LastPing)
                 .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Assigns unassigned tasks to available agents.
+    /// Called after agent refresh to handle tasks that were created when no agents were available.
+    /// </summary>
+    private void AssignUnassignedTasks()
+    {
+        var unassignedTasks = _taskQueue.Where(t => string.IsNullOrEmpty(t.AgentId)).ToList();
+        var tasksToUpdate = new List<(TaskRequest oldTask, TaskRequest newTask)>();
+
+        foreach (var task in unassignedTasks)
+        {
+            var availableAgent = FindAvailableAgent(task.RepositoryPath);
+            if (availableAgent != null)
+            {
+                // Create updated task with agent assignment
+                var assignedTask = task with { AgentId = availableAgent.Id };
+                tasksToUpdate.Add((task, assignedTask));
+            }
+        }
+
+        // Update the queue with assigned tasks
+        if (tasksToUpdate.Any())
+        {
+            var newQueue = new Queue<TaskRequest>();
+            foreach (var task in _taskQueue)
+            {
+                var update = tasksToUpdate.FirstOrDefault(u => u.oldTask.Id == task.Id);
+                if (update.oldTask != null)
+                {
+                    newQueue.Enqueue(update.newTask);
+                }
+                else
+                {
+                    newQueue.Enqueue(task);
+                }
+            }
+
+            _taskQueue.Clear();
+            foreach (var task in newQueue)
+            {
+                _taskQueue.Enqueue(task);
+            }
+        }
     }
 
     private void SaveState()

@@ -188,14 +188,11 @@ public class ClaudeSessionDiscovery
     {
         var timeSinceLastUpdate = DateTime.Now - lastWriteTime;
 
-        if (timeSinceLastUpdate > TimeSpan.FromMinutes(10))
+        // For discovered Claude Code sessions, we should assume they're available for work
+        // unless they're actively working or extremely old (more than 24 hours)
+        if (timeSinceLastUpdate > TimeSpan.FromHours(24))
         {
             return AgentStatus.Offline;
-        }
-
-        if (timeSinceLastUpdate > TimeSpan.FromMinutes(5))
-        {
-            return AgentStatus.Idle;
         }
 
         try
@@ -203,7 +200,12 @@ public class ClaudeSessionDiscovery
             var lastLines = ReadLastLines(sessionFile, 5);
             if (lastLines.Any(line => line.Contains("\"type\":\"assistant\"")))
             {
-                return AgentStatus.Working;
+                // Check if the recent assistant activity is very recent (within 2 minutes)
+                // to determine if the agent is actively working
+                if (timeSinceLastUpdate <= TimeSpan.FromMinutes(2))
+                {
+                    return AgentStatus.Working;
+                }
             }
         }
         catch
@@ -211,6 +213,8 @@ public class ClaudeSessionDiscovery
             // Ignore file read errors
         }
 
+        // Default to Idle for available Claude Code sessions
+        // This ensures discovered agents are available for task assignment
         return AgentStatus.Idle;
     }
 

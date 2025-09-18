@@ -75,7 +75,7 @@
       "Name": "Claude Code - DigitalMe (0f843c2d)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Sources\\DigitalMe",
-      "Status": 3,
+      "Status": 0,
       "LastPing": "2025-09-17T18:36:17.273477+04:00",
       "CurrentTask": null,
       "SessionId": "0f843c2d-75de-456d-8baf-0c4269aba082"
@@ -265,7 +265,7 @@
       "Name": "Claude Code - DigitalMe (804568f1)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Sources\\DigitalMe",
-      "Status": 3,
+      "Status": 0,
       "LastPing": "2025-09-17T19:38:22.3081736+04:00",
       "CurrentTask": null,
       "SessionId": "804568f1-685b-48b8-83ae-f9d6249e1e15"
@@ -339,6 +339,16 @@
       "LastPing": "2025-09-04T15:06:48.2734092+04:00",
       "CurrentTask": null,
       "SessionId": "b3d71982-388f-436b-a225-5e72a33f0c3e"
+    },
+    "DigitalMe_b48cf813-617f-4abc-a484-507d9e6a94bd": {
+      "Id": "DigitalMe_b48cf813-617f-4abc-a484-507d9e6a94bd",
+      "Name": "Claude Code - DigitalMe (b48cf813)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Sources\\DigitalMe",
+      "Status": 0,
+      "LastPing": "2025-09-18T12:53:01.6435168+04:00",
+      "CurrentTask": null,
+      "SessionId": "b48cf813-617f-4abc-a484-507d9e6a94bd"
     },
     "DigitalMe_b7a18007-aa76-4387-a54f-2f8bcdc12af5": {
       "Id": "DigitalMe_b7a18007-aa76-4387-a54f-2f8bcdc12af5",
@@ -485,7 +495,7 @@
       "Name": "Claude Code - DigitalMe (e74f6f99)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Sources\\DigitalMe",
-      "Status": 3,
+      "Status": 0,
       "LastPing": "2025-09-17T17:41:50.524625+04:00",
       "CurrentTask": null,
       "SessionId": "e74f6f99-448b-4339-9e5d-30f1cbda9b98"
@@ -526,7 +536,7 @@
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
       "Status": 1,
-      "LastPing": "2025-09-18T01:04:17.0812366+04:00",
+      "LastPing": "2025-09-18T12:56:39.2134017+04:00",
       "CurrentTask": null,
       "SessionId": "18c44589-035a-4c59-8596-e146c353e0c9"
     },
@@ -535,7 +545,7 @@
       "Name": "Claude Code - AI-Agent-Orchestra (2ee68d94)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "Status": 3,
+      "Status": 0,
       "LastPing": "2025-09-17T19:00:20.2665438+04:00",
       "CurrentTask": null,
       "SessionId": "2ee68d94-dde4-4789-8fe6-8422b2beea8b"
@@ -545,17 +555,27 @@
       "Name": "Claude Code - AI-Agent-Orchestra (559cc30e)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "Status": 3,
+      "Status": 0,
       "LastPing": "2025-09-17T19:43:29.8979795+04:00",
       "CurrentTask": null,
       "SessionId": "559cc30e-0123-4945-87ba-4d10929e9eb1"
+    },
+    "AI-Agent-Orchestra_b0f7f9d8-cec5-4862-b487-084a0ec46337": {
+      "Id": "AI-Agent-Orchestra_b0f7f9d8-cec5-4862-b487-084a0ec46337",
+      "Name": "Claude Code - AI-Agent-Orchestra (b0f7f9d8)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-18T02:53:12.412562+04:00",
+      "CurrentTask": null,
+      "SessionId": "b0f7f9d8-cec5-4862-b487-084a0ec46337"
     },
     "AI-Agent-Orchestra_d95053bf-5d3c-4eb2-b1ff-ec11202e1606": {
       "Id": "AI-Agent-Orchestra_d95053bf-5d3c-4eb2-b1ff-ec11202e1606",
       "Name": "Claude Code - AI-Agent-Orchestra (d95053bf)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "Status": 3,
+      "Status": 0,
       "LastPing": "2025-09-17T19:00:24.1774807+04:00",
       "CurrentTask": null,
       "SessionId": "d95053bf-5d3c-4eb2-b1ff-ec11202e1606"
@@ -820,16 +840,6 @@
       "CurrentTask": null,
       "SessionId": "788eea96-5fc5-4304-8f73-351e0e11994e"
     },
-    "Elly2_790b4c34-c201-4152-aaea-154338131be8": {
-      "Id": "Elly2_790b4c34-c201-4152-aaea-154338131be8",
-      "Name": "Claude Code - Elly2 (790b4c34)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-      "Status": 3,
-      "LastPing": "2025-08-18T21:31:38.1496644+04:00",
-      "CurrentTask": null,
-      "SessionId": "790b4c34-c201-4152-aaea-154338131be8"
-    },
     "Elly2_7efe24b6-7335-4e3c-bdb0-9ad7a06ea06e": {
       "Id": "Elly2_7efe24b6-7335-4e3c-bdb0-9ad7a06ea06e",
       "Name": "Claude Code - Elly2 (7efe24b6)",
@@ -910,15 +920,15 @@
       "CurrentTask": null,
       "SessionId": "a6b64bb3-9f4b-4ae9-9625-bd48852a9427"
     },
-    "Elly2_a78d3c54-e6b6-4fad-8253-0c83908422f5": {
-      "Id": "Elly2_a78d3c54-e6b6-4fad-8253-0c83908422f5",
-      "Name": "Claude Code - Elly2 (a78d3c54)",
+    "Elly2_aaea605a-9874-49a7-a0ca-519cfd1562a7": {
+      "Id": "Elly2_aaea605a-9874-49a7-a0ca-519cfd1562a7",
+      "Name": "Claude Code - Elly2 (aaea605a)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-      "Status": 3,
-      "LastPing": "2025-08-18T22:27:16.8256955+04:00",
+      "Status": 0,
+      "LastPing": "2025-09-18T12:53:04.6727555+04:00",
       "CurrentTask": null,
-      "SessionId": "a78d3c54-e6b6-4fad-8253-0c83908422f5"
+      "SessionId": "aaea605a-9874-49a7-a0ca-519cfd1562a7"
     },
     "Elly2_aefe9c73-9f2a-41d6-8f34-a3c243885e94": {
       "Id": "Elly2_aefe9c73-9f2a-41d6-8f34-a3c243885e94",
@@ -1050,16 +1060,6 @@
       "CurrentTask": null,
       "SessionId": "e10a61a9-7f8a-4afc-91b5-b2565ddf5208"
     },
-    "Elly2_e826c2ea-608b-474a-9ce3-ec1a664a06d0": {
-      "Id": "Elly2_e826c2ea-608b-474a-9ce3-ec1a664a06d0",
-      "Name": "Claude Code - Elly2 (e826c2ea)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-      "Status": 3,
-      "LastPing": "2025-08-18T21:28:54.8888229+04:00",
-      "CurrentTask": null,
-      "SessionId": "e826c2ea-608b-474a-9ce3-ec1a664a06d0"
-    },
     "Elly2_f0bfdeec-0e3b-4e7d-b56f-3d15a29eeecb": {
       "Id": "Elly2_f0bfdeec-0e3b-4e7d-b56f-3d15a29eeecb",
       "Name": "Claude Code - Elly2 (f0bfdeec)",
@@ -1135,7 +1135,7 @@
       "Name": "Claude Code - Galactic-Idlers (01534530)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 3,
+      "Status": 0,
       "LastPing": "2025-09-17T13:48:46.3694714+04:00",
       "CurrentTask": null,
       "SessionId": "01534530-3e7d-4a15-a279-254b396a2193"
@@ -1525,7 +1525,7 @@
       "Name": "Claude Code - Galactic-Idlers (60a14cbc)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 3,
+      "Status": 0,
       "LastPing": "2025-09-17T13:48:45.9913252+04:00",
       "CurrentTask": null,
       "SessionId": "60a14cbc-7206-48b6-8b07-a7c394aa561b"
@@ -2175,7 +2175,7 @@
       "Name": "Claude Code - Galactic-Idlers (fc6dcb8a)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 3,
+      "Status": 0,
       "LastPing": "2025-09-17T13:48:45.3155768+04:00",
       "CurrentTask": null,
       "SessionId": "fc6dcb8a-096a-48e0-9d58-678a21e0af84"
@@ -2212,7 +2212,7 @@
     }
   },
   "TaskQueue": [],
-  "LastUpdate": "2025-09-18T01:04:19.0440622+04:00",
+  "LastUpdate": "2025-09-18T12:56:41.5480125+04:00",
   "Repositories": {
     "DaersTools": {
       "Name": "DaersTools",
@@ -2263,7 +2263,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 4,
-      "LastUpdate": "2025-09-18T01:04:19.0440495+04:00"
+      "LastUpdate": "2025-09-18T12:56:41.5480058+04:00"
     },
     "ServiceTerminal": {
       "Name": "ServiceTerminal",
@@ -2284,7 +2284,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 1,
-      "LastUpdate": "2025-09-18T01:04:19.0440501+04:00"
+      "LastUpdate": "2025-09-18T12:56:41.5480067+04:00"
     },
     "DigitalMe": {
       "Name": "DigitalMe",
@@ -2315,7 +2315,7 @@
           "Name": "Claude Code - DigitalMe (0f843c2d)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Sources\\DigitalMe",
-          "Status": 3,
+          "Status": 0,
           "LastPing": "2025-09-17T18:36:17.273477+04:00",
           "CurrentTask": null,
           "SessionId": "0f843c2d-75de-456d-8baf-0c4269aba082"
@@ -2505,7 +2505,7 @@
           "Name": "Claude Code - DigitalMe (804568f1)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Sources\\DigitalMe",
-          "Status": 3,
+          "Status": 0,
           "LastPing": "2025-09-17T19:38:22.3081736+04:00",
           "CurrentTask": null,
           "SessionId": "804568f1-685b-48b8-83ae-f9d6249e1e15"
@@ -2579,6 +2579,16 @@
           "LastPing": "2025-09-04T15:06:48.2734092+04:00",
           "CurrentTask": null,
           "SessionId": "b3d71982-388f-436b-a225-5e72a33f0c3e"
+        },
+        {
+          "Id": "DigitalMe_b48cf813-617f-4abc-a484-507d9e6a94bd",
+          "Name": "Claude Code - DigitalMe (b48cf813)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Sources\\DigitalMe",
+          "Status": 0,
+          "LastPing": "2025-09-18T12:53:01.6435168+04:00",
+          "CurrentTask": null,
+          "SessionId": "b48cf813-617f-4abc-a484-507d9e6a94bd"
         },
         {
           "Id": "DigitalMe_b7a18007-aa76-4387-a54f-2f8bcdc12af5",
@@ -2725,7 +2735,7 @@
           "Name": "Claude Code - DigitalMe (e74f6f99)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Sources\\DigitalMe",
-          "Status": 3,
+          "Status": 0,
           "LastPing": "2025-09-17T17:41:50.524625+04:00",
           "CurrentTask": null,
           "SessionId": "e74f6f99-448b-4339-9e5d-30f1cbda9b98"
@@ -2741,11 +2751,11 @@
           "SessionId": "ee27fa8e-7a91-4a68-ab9f-435952249a0a"
         }
       ],
-      "IdleCount": 0,
+      "IdleCount": 4,
       "WorkingCount": 0,
       "ErrorCount": 0,
-      "OfflineCount": 45,
-      "LastUpdate": "2025-09-18T01:04:19.0440513+04:00"
+      "OfflineCount": 42,
+      "LastUpdate": "2025-09-18T12:56:41.5480078+04:00"
     },
     "SharedWorkspace": {
       "Name": "SharedWorkspace",
@@ -2776,7 +2786,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-18T01:04:19.0440515+04:00"
+      "LastUpdate": "2025-09-18T12:56:41.548008+04:00"
     },
     "AI-Agent-Orchestra": {
       "Name": "AI-Agent-Orchestra",
@@ -2788,7 +2798,7 @@
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
           "Status": 1,
-          "LastPing": "2025-09-18T01:04:17.0812366+04:00",
+          "LastPing": "2025-09-18T12:56:39.2134017+04:00",
           "CurrentTask": null,
           "SessionId": "18c44589-035a-4c59-8596-e146c353e0c9"
         },
@@ -2797,7 +2807,7 @@
           "Name": "Claude Code - AI-Agent-Orchestra (2ee68d94)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-          "Status": 3,
+          "Status": 0,
           "LastPing": "2025-09-17T19:00:20.2665438+04:00",
           "CurrentTask": null,
           "SessionId": "2ee68d94-dde4-4789-8fe6-8422b2beea8b"
@@ -2807,27 +2817,37 @@
           "Name": "Claude Code - AI-Agent-Orchestra (559cc30e)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-          "Status": 3,
+          "Status": 0,
           "LastPing": "2025-09-17T19:43:29.8979795+04:00",
           "CurrentTask": null,
           "SessionId": "559cc30e-0123-4945-87ba-4d10929e9eb1"
+        },
+        {
+          "Id": "AI-Agent-Orchestra_b0f7f9d8-cec5-4862-b487-084a0ec46337",
+          "Name": "Claude Code - AI-Agent-Orchestra (b0f7f9d8)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-18T02:53:12.412562+04:00",
+          "CurrentTask": null,
+          "SessionId": "b0f7f9d8-cec5-4862-b487-084a0ec46337"
         },
         {
           "Id": "AI-Agent-Orchestra_d95053bf-5d3c-4eb2-b1ff-ec11202e1606",
           "Name": "Claude Code - AI-Agent-Orchestra (d95053bf)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-          "Status": 3,
+          "Status": 0,
           "LastPing": "2025-09-17T19:00:24.1774807+04:00",
           "CurrentTask": null,
           "SessionId": "d95053bf-5d3c-4eb2-b1ff-ec11202e1606"
         }
       ],
-      "IdleCount": 0,
+      "IdleCount": 4,
       "WorkingCount": 1,
       "ErrorCount": 0,
-      "OfflineCount": 3,
-      "LastUpdate": "2025-09-18T01:04:19.044053+04:00"
+      "OfflineCount": 0,
+      "LastUpdate": "2025-09-18T12:56:41.5480087+04:00"
     },
     "Elly": {
       "Name": "Elly",
@@ -2858,7 +2878,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-18T01:04:19.0440576+04:00"
+      "LastUpdate": "2025-09-18T12:56:41.5480089+04:00"
     },
     "Elly2": {
       "Name": "Elly2",
@@ -3105,16 +3125,6 @@
           "SessionId": "788eea96-5fc5-4304-8f73-351e0e11994e"
         },
         {
-          "Id": "Elly2_790b4c34-c201-4152-aaea-154338131be8",
-          "Name": "Claude Code - Elly2 (790b4c34)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-          "Status": 3,
-          "LastPing": "2025-08-18T21:31:38.1496644+04:00",
-          "CurrentTask": null,
-          "SessionId": "790b4c34-c201-4152-aaea-154338131be8"
-        },
-        {
           "Id": "Elly2_7efe24b6-7335-4e3c-bdb0-9ad7a06ea06e",
           "Name": "Claude Code - Elly2 (7efe24b6)",
           "Type": "claude-code",
@@ -3195,14 +3205,14 @@
           "SessionId": "a6b64bb3-9f4b-4ae9-9625-bd48852a9427"
         },
         {
-          "Id": "Elly2_a78d3c54-e6b6-4fad-8253-0c83908422f5",
-          "Name": "Claude Code - Elly2 (a78d3c54)",
+          "Id": "Elly2_aaea605a-9874-49a7-a0ca-519cfd1562a7",
+          "Name": "Claude Code - Elly2 (aaea605a)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-          "Status": 3,
-          "LastPing": "2025-08-18T22:27:16.8256955+04:00",
+          "Status": 0,
+          "LastPing": "2025-09-18T12:53:04.6727555+04:00",
           "CurrentTask": null,
-          "SessionId": "a78d3c54-e6b6-4fad-8253-0c83908422f5"
+          "SessionId": "aaea605a-9874-49a7-a0ca-519cfd1562a7"
         },
         {
           "Id": "Elly2_aefe9c73-9f2a-41d6-8f34-a3c243885e94",
@@ -3335,16 +3345,6 @@
           "SessionId": "e10a61a9-7f8a-4afc-91b5-b2565ddf5208"
         },
         {
-          "Id": "Elly2_e826c2ea-608b-474a-9ce3-ec1a664a06d0",
-          "Name": "Claude Code - Elly2 (e826c2ea)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-          "Status": 3,
-          "LastPing": "2025-08-18T21:28:54.8888229+04:00",
-          "CurrentTask": null,
-          "SessionId": "e826c2ea-608b-474a-9ce3-ec1a664a06d0"
-        },
-        {
           "Id": "Elly2_f0bfdeec-0e3b-4e7d-b56f-3d15a29eeecb",
           "Name": "Claude Code - Elly2 (f0bfdeec)",
           "Type": "claude-code",
@@ -3405,11 +3405,11 @@
           "SessionId": "fdcc8784-dbcf-4161-a5db-c0f0cb347cfe"
         }
       ],
-      "IdleCount": 0,
+      "IdleCount": 1,
       "WorkingCount": 0,
       "ErrorCount": 0,
-      "OfflineCount": 54,
-      "LastUpdate": "2025-09-18T01:04:19.044059+04:00"
+      "OfflineCount": 51,
+      "LastUpdate": "2025-09-18T12:56:41.5480099+04:00"
     },
     "Galactic-Idlers": {
       "Name": "Galactic-Idlers",
@@ -3430,7 +3430,7 @@
           "Name": "Claude Code - Galactic-Idlers (01534530)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 3,
+          "Status": 0,
           "LastPing": "2025-09-17T13:48:46.3694714+04:00",
           "CurrentTask": null,
           "SessionId": "01534530-3e7d-4a15-a279-254b396a2193"
@@ -3820,7 +3820,7 @@
           "Name": "Claude Code - Galactic-Idlers (60a14cbc)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 3,
+          "Status": 0,
           "LastPing": "2025-09-17T13:48:45.9913252+04:00",
           "CurrentTask": null,
           "SessionId": "60a14cbc-7206-48b6-8b07-a7c394aa561b"
@@ -4470,7 +4470,7 @@
           "Name": "Claude Code - Galactic-Idlers (fc6dcb8a)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 3,
+          "Status": 0,
           "LastPing": "2025-09-17T13:48:45.3155768+04:00",
           "CurrentTask": null,
           "SessionId": "fc6dcb8a-096a-48e0-9d58-678a21e0af84"
@@ -4506,11 +4506,11 @@
           "SessionId": "fe868c27-26ff-4aaa-a6f0-f8e5ba6ea65b"
         }
       ],
-      "IdleCount": 0,
+      "IdleCount": 3,
       "WorkingCount": 0,
       "ErrorCount": 0,
-      "OfflineCount": 109,
-      "LastUpdate": "2025-09-18T01:04:19.0440615+04:00"
+      "OfflineCount": 106,
+      "LastUpdate": "2025-09-18T12:56:41.5480122+04:00"
     }
   }
 }

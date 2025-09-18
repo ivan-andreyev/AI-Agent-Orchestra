@@ -541,13 +541,7 @@ body {
     }
 }
 
-/* Sidebar layout for agents */
-.main-layout {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 20px;
-    margin-bottom: 30px;
-}
+/* Sidebar layout moved to components.css - using enhanced layout system */
 
 .sidebar {
     background-color: var(--bg-secondary);
@@ -705,12 +699,8 @@ body {
     word-break: break-word;
 }
 
-/* Responsive design for sidebar */
+/* Responsive design moved to components.css - using enhanced responsive system */
 @media (max-width: 1024px) {
-    .main-layout {
-        grid-template-columns: 1fr;
-        gap: 20px;
-    }
 
     .sidebar {
         order: 2;
@@ -723,9 +713,7 @@ body {
 }
 
 @media (max-width: 768px) {
-    .main-layout {
-        gap: 15px;
-    }
+    /* Main layout responsive rules moved to components.css */
 
     .sidebar {
         padding: 15px;

@@ -73,6 +73,13 @@ public class OrchestratorController : ControllerBase
         return Ok("Agents refreshed");
     }
 
+    [HttpPost("tasks/assign")]
+    public ActionResult TriggerTaskAssignment()
+    {
+        _orchestrator.TriggerTaskAssignment();
+        return Ok("Task assignment triggered");
+    }
+
     [HttpGet("agents/{sessionId}/history")]
     public ActionResult<List<AgentHistoryEntry>> GetAgentHistory(string sessionId, [FromQuery] int maxEntries = 50)
     {

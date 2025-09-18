@@ -24,7 +24,15 @@
       "Bash(sort:*)",
       "WebFetch(domain:localhost)",
       "Bash(pkill:*)",
-      "Bash(del nul)"
+      "Bash(del nul)",
+      "Bash(start /B dotnet run --launch-profile http)",
+      "Bash(pwsh phase0-completion.ps1)",
+      "Bash(timeout:*)",
+      "Bash(Get-Process -Name dotnet -ErrorAction SilentlyContinue)",
+      "Bash(Stop-Process -Force)",
+      "Bash(netstat:*)",
+      "Bash(wmic process where:*)",
+      "Bash(pwsh:*)"
     ],
     "deny": [],
     "ask": []

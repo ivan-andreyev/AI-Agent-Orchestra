@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orchestra Performance Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .results { background: #f5f5f5; padding: 10px; margin: 10px 0; }
+        .metric { margin: 5px 0; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .status { font-weight: bold; color: #007bff; }
+    </style>
+</head>
+<body>
+    <h1>Orchestra Performance Baseline Test</h1>
+
+    <div class="test-section">
+        <h2>Navigation Performance Test</h2>
+        <button onclick="testNavigation()">Test Navigation to Orchestra</button>
+        <div id="nav-results" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>API Response Test</h2>
+        <button onclick="testAPI()">Test API Response Time</button>
+        <div id="api-results" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Memory Usage Test</h2>
+        <button onclick="testMemory()">Test Memory Usage</button>
+        <div id="memory-results" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Comprehensive Baseline</h2>
+        <button onclick="runFullBaseline()">Run Full Baseline Test</button>
+        <div id="baseline-results" class="results"></div>
+    </div>
+
+    <script>
+        let testResults = {
+            navigation: {},
+            api: {},
+            memory: {},
+            baseline: {}
+        };
+
+        async function testNavigation() {
+            const startTime = performance.now();
+            const results = document.getElementById('nav-results');
+            results.innerHTML = '<div class="status">Testing navigation performance...</div>';
+
+            try {
+                // Test navigation timing
+                const navStart = performance.timing.navigationStart;
+                const loadComplete = performance.timing.loadEventEnd;
+                const pageLoadTime = loadComplete - navStart;
+
+                // Test iframe load of Orchestra
+                const iframe = document.createElement('iframe');
+                iframe.src = 'http://localhost:5001';
+                iframe.style.width = '1px';
+                iframe.style.height = '1px';
+                iframe.style.visibility = 'hidden';
+
+                const iframeStartTime = performance.now();
+
+                iframe.onload = () => {
+                    const iframeLoadTime = performance.now() - iframeStartTime;
+                    testResults.navigation = {
+                        pageLoadTime: pageLoadTime,
+                        iframeLoadTime: iframeLoadTime,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    results.innerHTML = `
+                        <div class="metric"><strong>Page Load Time:</strong> ${pageLoadTime}ms</div>
+                        <div class="metric"><strong>Orchestra Load Time:</strong> ${iframeLoadTime.toFixed(2)}ms</div>
+                        <div class="metric"><strong>DOM Ready:</strong> ${(performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart)}ms</div>
+                    `;
+                    document.body.removeChild(iframe);
+                };
+
+                iframe.onerror = () => {
+                    results.innerHTML = '<div style="color: red;">Orchestra not accessible at localhost:5001</div>';
+                    document.body.removeChild(iframe);
+                };
+
+                document.body.appendChild(iframe);
+
+            } catch (error) {
+                results.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testAPI() {
+            const results = document.getElementById('api-results');
+            results.innerHTML = '<div class="status">Testing API response times...</div>';
+
+            const tests = [
+                { endpoint: '/api/agents', description: 'Agent List' },
+                { endpoint: '/api/tasks', description: 'Task Queue' },
+                { endpoint: '/api/orchestrator/status', description: 'Orchestrator Status' }
+            ];
+
+            let apiResults = [];
+
+            for (const test of tests) {
+                try {
+                    const startTime = performance.now();
+                    const response = await fetch(`http://localhost:5002${test.endpoint}`);
+                    const endTime = performance.now();
+                    const responseTime = endTime - startTime;
+
+                    apiResults.push({
+                        endpoint: test.endpoint,
+                        description: test.description,
+                        responseTime: responseTime,
+                        status: response.status,
+                        success: response.ok
+                    });
+                } catch (error) {
+                    apiResults.push({
+                        endpoint: test.endpoint,
+                        description: test.description,
+                        error: error.message,
+                        success: false
+                    });
+                }
+            }
+
+            testResults.api = {
+                tests: apiResults,
+                timestamp: new Date().toISOString()
+            };
+
+            let resultsHTML = apiResults.map(result => {
+                if (result.success) {
+                    return `<div class="metric"><strong>${result.description}:</strong> ${result.responseTime.toFixed(2)}ms (${result.status})</div>`;
+                } else {
+                    return `<div class="metric" style="color: red;"><strong>${result.description}:</strong> Error - ${result.error || 'Request failed'}</div>`;
+                }
+            }).join('');
+
+            results.innerHTML = resultsHTML;
+        }
+
+        function testMemory() {
+            const results = document.getElementById('memory-results');
+            results.innerHTML = '<div class="status">Testing memory usage...</div>';
+
+            // Test memory usage if available
+            if (performance.memory) {
+                const memory = performance.memory;
+                testResults.memory = {
+                    usedJSHeapSize: memory.usedJSHeapSize,
+                    totalJSHeapSize: memory.totalJSHeapSize,
+                    jsHeapSizeLimit: memory.jsHeapSizeLimit,
+                    timestamp: new Date().toISOString()
+                };
+
+                results.innerHTML = `
+                    <div class="metric"><strong>Used JS Heap:</strong> ${(memory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB</div>
+                    <div class="metric"><strong>Total JS Heap:</strong> ${(memory.totalJSHeapSize / 1024 / 1024).toFixed(2)} MB</div>
+                    <div class="metric"><strong>JS Heap Limit:</strong> ${(memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)} MB</div>
+                `;
+            } else {
+                results.innerHTML = '<div>Memory API not available in this browser</div>';
+            }
+        }
+
+        async function runFullBaseline() {
+            const results = document.getElementById('baseline-results');
+            results.innerHTML = '<div class="status">Running comprehensive baseline test...</div>';
+
+            // Run all tests sequentially
+            await testNavigation();
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+
+            await testAPI();
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+
+            testMemory();
+
+            // Compile baseline report
+            testResults.baseline = {
+                completedAt: new Date().toISOString(),
+                summary: {
+                    navigationTested: !!testResults.navigation.pageLoadTime,
+                    apiTested: testResults.api.tests && testResults.api.tests.length > 0,
+                    memoryTested: !!testResults.memory.usedJSHeapSize
+                }
+            };
+
+            // Display summary
+            results.innerHTML = `
+                <h3>Baseline Test Complete</h3>
+                <div class="metric"><strong>Navigation Test:</strong> ${testResults.baseline.summary.navigationTested ? '✅ Complete' : '❌ Failed'}</div>
+                <div class="metric"><strong>API Test:</strong> ${testResults.baseline.summary.apiTested ? '✅ Complete' : '❌ Failed'}</div>
+                <div class="metric"><strong>Memory Test:</strong> ${testResults.baseline.summary.memoryTested ? '✅ Complete' : '❌ Failed'}</div>
+                <div class="metric"><strong>Completed At:</strong> ${testResults.baseline.completedAt}</div>
+                <button onclick="downloadResults()">Download Results JSON</button>
+            `;
+        }
+
+        function downloadResults() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(testResults, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `orchestra-baseline-${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // Auto-run baseline on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                console.log('Auto-starting baseline test...');
+                runFullBaseline();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

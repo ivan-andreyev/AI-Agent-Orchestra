@@ -2,18 +2,31 @@
 @using Orchestra.Web.Models
 @inject OrchestratorService OrchestratorService
 
-<div class="quick-actions">
+<div class="quick-actions stable-container">
     <h3>Quick Actions</h3>
 
     @if (string.IsNullOrEmpty(SelectedRepository))
     {
-        <div class="no-repository">
-            <p>Select a repository to perform actions</p>
+        <!-- Skeleton loading when no repository selected -->
+        <div class="skeleton-quick-actions">
+            <div class="skeleton-action-buttons">
+                <div class="skeleton skeleton-button"></div>
+                <div class="skeleton skeleton-button"></div>
+                <div class="skeleton skeleton-button"></div>
+            </div>
+            <div class="skeleton-custom-task">
+                <div class="skeleton skeleton-text" style="width: 40%; margin-bottom: 12px;"></div>
+                <div class="skeleton-task-input-group">
+                    <div class="skeleton skeleton-input"></div>
+                    <div class="skeleton skeleton-button"></div>
+                    <div class="skeleton skeleton-button"></div>
+                </div>
+            </div>
         </div>
     }
     else
     {
-        <div class="d-flex gap-3 mb-3 flex-wrap">
+        <div class="d-flex gap-3 mb-3 flex-wrap content-fade-in">
             <!-- Development Dropdown -->
             <div class="dropdown">
                 <button class="btn btn-outline-primary dropdown-toggle" type="button" id="developmentDropdown"

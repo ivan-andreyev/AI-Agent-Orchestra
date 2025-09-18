@@ -10,6 +10,47 @@
 <div class="dashboard">
     <div class="header">
         <h1>🎼 AI Agent Orchestra</h1>
+
+        @if (_state != null)
+        {
+            <div class="header-stats">
+                <div class="stat-inline">
+                    <span class="stat-value">@(_repositories?.Values.Sum(r => r.Agents.Count) ?? _state.Agents.Count)</span>
+                    <span class="stat-label">Agents</span>
+                    <div class="agent-status-breakdown">
+                        <div class="status-item status-working">
+                            <span class="status-icon">🟢</span>
+                            <span class="status-count">@(_repositories?.Values.Sum(r => r.WorkingCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Working))</span>
+                            <span class="status-label">Working</span>
+                        </div>
+                        <div class="status-item status-idle">
+                            <span class="status-icon">🟡</span>
+                            <span class="status-count">@(_repositories?.Values.Sum(r => r.IdleCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Idle))</span>
+                            <span class="status-label">Idle</span>
+                        </div>
+                        <div class="status-item status-error">
+                            <span class="status-icon">🔴</span>
+                            <span class="status-count">@(_repositories?.Values.Sum(r => r.ErrorCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Error))</span>
+                            <span class="status-label">Error</span>
+                        </div>
+                        <div class="status-item status-offline">
+                            <span class="status-icon">⚫</span>
+                            <span class="status-count">@(_repositories?.Values.Sum(r => r.OfflineCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Offline))</span>
+                            <span class="status-label">Offline</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-inline">
+                    <span class="stat-value">@(_repositories?.Count ?? 0)</span>
+                    <span class="stat-label">Repos</span>
+                </div>
+                <div class="stat-inline">
+                    <span class="stat-value">@(_state?.TaskQueue.Count ?? 0)</span>
+                    <span class="stat-label">Tasks</span>
+                </div>
+            </div>
+        }
+
         <div class="header-controls">
             <div class="status-indicator @(_isConnected ? "connected" : "disconnected")">
                 @(_isConnected ? "🟢 Connected" : "🔴 Disconnected")
@@ -24,58 +65,41 @@
 
     @if (_state != null)
     {
-        <div class="d-flex justify-content-between align-items-center bg-dark p-3 rounded mb-3">
-            <div class="text-center">
-                <h6 class="text-secondary mb-1">TOTAL AGENTS</h6>
-                <h3 class="text-light mb-0">@(_repositories?.Values.Sum(r => r.Agents.Count) ?? _state.Agents.Count)</h3>
-                <small class="text-muted stat-detail">
-                    <span class="stat-emoji">🟢</span>@(_repositories?.Values.Sum(r => r.IdleCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Idle))
-                    <span class="stat-emoji">🟡</span>@(_repositories?.Values.Sum(r => r.WorkingCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Working))
-                    <span class="stat-emoji">🔴</span>@(_repositories?.Values.Sum(r => r.ErrorCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Error))
-                    <span class="stat-emoji">⚫</span>@(_repositories?.Values.Sum(r => r.OfflineCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Offline))
-                </small>
-            </div>
-
-            <div class="text-center">
-                <h6 class="text-secondary mb-1">REPOSITORIES</h6>
-                <h3 class="text-light mb-0">@(_repositories?.Count ?? 0)</h3>
-                <small class="text-muted">Active repositories</small>
-            </div>
-
-            <div class="text-center">
-                <h6 class="text-secondary mb-1">TASKS QUEUE</h6>
-                <h3 class="text-light mb-0">@(_state?.TaskQueue.Count ?? 0)</h3>
-                <small class="text-muted">Pending tasks</small>
-            </div>
-
-            <div class="text-center">
-                <h6 class="text-secondary mb-1">LAST UPDATE</h6>
-                <h6 class="text-light mb-0">@(_state?.LastUpdate.ToString("HH:mm:ss") ?? "--")</h6>
-            </div>
-        </div>
-
-        <RepositorySelector Repositories="_repositories"
-                           SelectedRepository="_selectedRepository"
-                           OnRepositoryChanged="OnRepositoryChanged"
-                           OnRefreshRequested="OnRefreshRequested" />
-
-        <QuickActions SelectedRepository="_selectedRepository"
-                     RepositoryPath="@GetSelectedRepositoryPath()"
-                     OnTaskQueued="OnTaskQueued" />
 
         <div class="main-layout">
-            <div class="sidebar">
-                <AgentSidebar Agents="@GetSelectedRepositoryAgents()"
-                             SelectedAgentId="_selectedAgentId"
-                             OnAgentSelected="OnAgentSelected" />
+            <!-- Enhanced Sidebar per Design Specifications -->
+            <div class="enhanced-sidebar sidebar">
+                <!-- Repository Context Section -->
+                <div class="sidebar-section repository-context sidebar-compact">
+                    <RepositorySelector Repositories="_repositories"
+                                       SelectedRepository="_selectedRepository"
+                                       OnRepositoryChanged="OnRepositoryChanged"
+                                       OnRefreshRequested="OnRefreshRequested"
+                                       IsLoading="_isRefreshing" />
+                </div>
+
+                <!-- Quick Actions Section -->
+                <div class="sidebar-section quick-actions-section sidebar-compact">
+                    <QuickActions SelectedRepository="_selectedRepository"
+                                 RepositoryPath="@GetSelectedRepositoryPath()"
+                                 OnTaskQueued="OnTaskQueued" />
+                </div>
+
+                <!-- Agent List Section -->
+                <div class="sidebar-section agent-list-section">
+                    <AgentSidebar Agents="@GetSelectedRepositoryAgents()"
+                                 SelectedAgentId="_selectedAgentId"
+                                 OnAgentSelected="OnAgentSelected" />
+                </div>
             </div>
 
-            <div class="main-content">
+            <!-- Enhanced Main Content per Design Specifications -->
+            <div class="enhanced-main-content main-content">
                 <div class="content-panels">
-                    <div class="history-panel">
+                    <div class="content-panel history-panel">
                         <AgentHistory SelectedAgentId="@GetSelectedAgentSessionId()" />
                     </div>
-                    <div class="queue-panel">
+                    <div class="content-panel queue-panel">
                         <TaskQueue SelectedRepository="_selectedRepository"
                                   RepositoryPath="@GetSelectedRepositoryPath()" />
                     </div>
@@ -93,6 +117,7 @@
     private OrchestratorState? _state;
     private Dictionary<string, RepositoryInfo>? _repositories;
     private bool _isConnected = false;
+    private bool _isRefreshing = false;
     private Timer? _refreshTimer;
     private string _selectedRepository = "";
     private string _selectedAgentId = "";
@@ -105,6 +130,9 @@
 
     private async Task RefreshData()
     {
+        _isRefreshing = true;
+        StateHasChanged(); // Update UI to show loading state
+
         try
         {
             _state = await OrchestratorService.GetStateAsync();
@@ -121,7 +149,11 @@
         {
             _isConnected = false;
         }
-        StateHasChanged();
+        finally
+        {
+            _isRefreshing = false;
+            StateHasChanged(); // Update UI to hide loading state
+        }
     }
 
     private async Task OnRepositoryChanged(string repositoryName)
