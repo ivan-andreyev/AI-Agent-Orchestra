@@ -20,13 +20,19 @@
                         <span class="repository-selected">
                             <span class="selected-indicator">✅</span>
                             @($"{SelectedRepository} ({Repositories[SelectedRepository].Agents.Count})")
+                            @if (_isLoading)
+                            {
+                                <span class="ms-2">
+                                    <div class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true" style="width: 12px; height: 12px;"></div>
+                                </span>
+                            }
                         </span>
                     }
                     else if (_isLoading)
                     {
                         <span class="d-flex align-items-center gap-2">
-                            <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-                            <text>Loading...</text>
+                            <div class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></div>
+                            <text class="text-muted">Updating...</text>
                         </span>
                     }
                     else if (Repositories != null && Repositories.Count > 0)
@@ -35,7 +41,7 @@
                     }
                     else
                     {
-                        <text>No repositories available</text>
+                        <text class="text-muted">No repositories available</text>
                     }
                 </button>
             <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="repositoryDropdown">

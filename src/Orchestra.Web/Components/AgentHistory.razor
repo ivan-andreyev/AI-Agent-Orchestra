@@ -53,22 +53,50 @@
                             <span class="entry-time">@entry.Timestamp.ToString("HH:mm:ss")</span>
                         </div>
                         <div class="entry-content">
-                            @if (entry.Content.Length > 500)
+                            @{
+                                var entryId = entry.GetHashCode();
+                                var isExpanded = _expandedEntries.Contains(entryId);
+                                var shouldTruncate = entry.Content.Length > 300; // Reduced threshold for better UX
+                            }
+
+                            @if (shouldTruncate)
                             {
-                                @if (_expandedEntries.Contains(entry.GetHashCode()))
+                                @if (isExpanded)
                                 {
-                                    <span>@entry.Content</span>
-                                    <button class="expand-button" @onclick="() => ToggleExpand(entry.GetHashCode())">Show less</button>
+                                    <div class="content-expanded">
+                                        @if (entry.Content.Contains("[Tool:") || entry.Content.Contains("Tool Call:"))
+                                        {
+                                            <pre class="tool-output">@entry.Content</pre>
+                                        }
+                                        else
+                                        {
+                                            <div class="content-text">@entry.Content</div>
+                                        }
+                                        <button class="expand-button" @onclick="() => ToggleExpand(entryId)" @onclick:preventDefault="true">
+                                            📤 Show less
+                                        </button>
+                                    </div>
                                 }
                                 else
                                 {
-                                    <span>@(entry.Content[..500])...</span>
-                                    <button class="expand-button" @onclick="() => ToggleExpand(entry.GetHashCode())">Show more</button>
+                                    <div class="content-collapsed">
+                                        <span class="content-preview">@(entry.Content[..300])...</span>
+                                        <button class="expand-button" @onclick="() => ToggleExpand(entryId)" @onclick:preventDefault="true">
+                                            📥 Show more (@(entry.Content.Length - 300) more chars)
+                                        </button>
+                                    </div>
                                 }
                             }
                             else
                             {
-                                <span>@entry.Content</span>
+                                @if (entry.Content.Contains("[Tool:") || entry.Content.Contains("Tool Call:"))
+                                {
+                                    <pre class="tool-output">@entry.Content</pre>
+                                }
+                                else
+                                {
+                                    <div class="content-text">@entry.Content</div>
+                                }
                             }
                         </div>
                     </div>

@@ -78,7 +78,9 @@
                             <div class="task-id">ID: @task.Id[..8]...</div>
                             @if (!string.IsNullOrEmpty(task.AgentId))
                             {
-                                <div class="assigned-agent">Assigned to: @task.AgentId[..8]...</div>
+                                <div class="assigned-agent" title="@task.AgentId">
+                                    Assigned to: @GetAgentDisplayName(task.AgentId)
+                                </div>
                             }
                             else
                             {
@@ -122,6 +124,8 @@
     private string? _errorMessage;
     private string? _lastRepository;
     private Timer? _refreshTimer;
+    private Dictionary<string, AgentInfo> _allAgents = new();
+    private List<string> _taskLog = new();
 
     protected override async Task OnParametersSetAsync()
     {
@@ -149,11 +153,41 @@
             var state = await OrchestratorService.GetStateAsync();
             if (state?.TaskQueue != null)
             {
+                var previousTaskCount = _tasks.Count;
+                var previousTaskIds = _tasks.Select(t => t.Id).ToHashSet();
+
                 _tasks = state.TaskQueue
                     .Where(t => t.RepositoryPath == RepositoryPath)
                     .OrderBy(t => GetPriorityValue(t.Priority))
                     .ThenBy(t => t.CreatedAt)
                     .ToList();
+
+                // Store all agents for name lookup
+                if (state.Agents != null)
+                {
+                    _allAgents = state.Agents;
+                }
+
+                // Log task changes
+                var currentTaskIds = _tasks.Select(t => t.Id).ToHashSet();
+                var newTasks = _tasks.Where(t => !previousTaskIds.Contains(t.Id)).ToList();
+                var removedTaskIds = previousTaskIds.Except(currentTaskIds).ToList();
+
+                foreach (var task in newTasks)
+                {
+                    var agentName = GetAgentDisplayName(task.AgentId);
+                    LogMessage($"NEW TASK: {task.Command[..Math.Min(50, task.Command.Length)]}... → {agentName} (Priority: {task.Priority})");
+                }
+
+                foreach (var taskId in removedTaskIds)
+                {
+                    LogMessage($"REMOVED TASK: {taskId[..8]}... (task completed or disappeared)");
+                }
+
+                if (_tasks.Count != previousTaskCount)
+                {
+                    LogMessage($"Task count changed: {previousTaskCount} → {_tasks.Count}");
+                }
             }
             else
             {
@@ -253,6 +287,38 @@
         }
 
         return $"{(int)timeSpan.TotalDays}d ago";
+    }
+
+    private string GetAgentDisplayName(string? agentId)
+    {
+        if (string.IsNullOrEmpty(agentId))
+        {
+            return "Unassigned";
+        }
+
+        if (_allAgents.TryGetValue(agentId, out var agent))
+        {
+            return $"{agent.Name} ({agent.Type})";
+        }
+
+        // Fallback to showing a shortened ID if agent not found
+        return $"Agent {agentId[..Math.Min(8, agentId.Length)]}...";
+    }
+
+    private void LogMessage(string message)
+    {
+        var timestamp = DateTime.Now.ToString("HH:mm:ss");
+        var logEntry = $"[{timestamp}] {message}";
+        _taskLog.Insert(0, logEntry);
+
+        // Keep only last 50 log entries
+        if (_taskLog.Count > 50)
+        {
+            _taskLog = _taskLog.Take(50).ToList();
+        }
+
+        // Log to browser console for debugging
+        Console.WriteLine($"TaskQueue: {logEntry}");
     }
 
     public void Dispose()
