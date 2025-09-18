@@ -1,7 +1,8 @@
 @using Orchestra.Web.Models
 @using Orchestra.Web.Services
+@using Orchestra.Web.Components.Base
 @inject OrchestratorService OrchestratorService
-@implements IDisposable
+@inherits AutoRefreshComponent
 
 <div class="agent-history">
     <div class="history-header">
@@ -21,7 +22,7 @@
                     Refresh
                 </button>
                 <div class="auto-refresh-toggle">
-                    <input type="checkbox" id="auto-refresh" @bind="_autoRefresh" @bind:after="ToggleAutoRefresh" />
+                    <input type="checkbox" id="auto-refresh" @bind="AutoRefresh" />
                     <label for="auto-refresh">Auto-refresh</label>
                 </div>
             </div>
@@ -56,7 +57,7 @@
                             @{
                                 var entryId = entry.GetHashCode();
                                 var isExpanded = _expandedEntries.Contains(entryId);
-                                var shouldTruncate = entry.Content.Length > 300; // Reduced threshold for better UX
+                                var shouldTruncate = entry.Content.Length > ComponentConstants.History.TruncateThreshold;
                             }
 
                             @if (shouldTruncate)
@@ -80,9 +81,9 @@
                                 else
                                 {
                                     <div class="content-collapsed">
-                                        <span class="content-preview">@(entry.Content[..300])...</span>
+                                        <span class="content-preview">@(entry.Content[..ComponentConstants.History.TruncateThreshold])...</span>
                                         <button class="expand-button" @onclick="() => ToggleExpand(entryId)" @onclick:preventDefault="true">
-                                            📥 Show more (@(entry.Content.Length - 300) more chars)
+                                            📥 Show more (@(entry.Content.Length - ComponentConstants.History.TruncateThreshold) more chars)
                                         </button>
                                     </div>
                                 }
@@ -124,10 +125,8 @@
 
     private List<AgentHistoryEntry>? _history;
     private bool _isLoading = false;
-    private bool _autoRefresh = false;
     private string? _errorMessage;
     private string? _lastAgentId;
-    private Timer? _refreshTimer;
     private ElementReference _historyContainer;
     private HashSet<int> _expandedEntries = new();
 
@@ -139,6 +138,18 @@
             _expandedEntries.Clear();
             await LoadHistory();
         }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Set 5-second refresh interval for agent history
+        RefreshInterval = TimeSpan.FromSeconds(5);
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task RefreshDataAsync()
+    {
+        await LoadHistory();
     }
 
     private async Task LoadHistory()
@@ -156,7 +167,7 @@
         try
         {
             Console.WriteLine($"Loading history for agent: {SelectedAgentId}");
-            _history = await OrchestratorService.GetAgentHistoryAsync(SelectedAgentId, 50);
+            _history = await OrchestratorService.GetAgentHistoryAsync(SelectedAgentId, ComponentConstants.History.EntryLimit);
             Console.WriteLine($"Loaded {_history?.Count ?? 0} history entries");
 
             // Scroll to bottom after loading
@@ -192,25 +203,7 @@
 
     private async Task RefreshHistory()
     {
-        await LoadHistory();
-    }
-
-    private void ToggleAutoRefresh()
-    {
-        if (_autoRefresh)
-        {
-            // Start auto-refresh every 5 seconds
-            _refreshTimer = new Timer(async _ =>
-            {
-                await InvokeAsync(async () => await LoadHistory());
-            }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
-        }
-        else
-        {
-            // Stop auto-refresh
-            _refreshTimer?.Dispose();
-            _refreshTimer = null;
-        }
+        await ManualRefreshAsync();
     }
 
     private void ToggleExpand(int entryHash)
@@ -226,8 +219,4 @@
         StateHasChanged();
     }
 
-    public void Dispose()
-    {
-        _refreshTimer?.Dispose();
-    }
 }

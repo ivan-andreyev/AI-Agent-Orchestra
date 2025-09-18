@@ -32,7 +32,11 @@
       "Bash(Stop-Process -Force)",
       "Bash(netstat:*)",
       "Bash(wmic process where:*)",
-      "Bash(pwsh:*)"
+      "Bash(pwsh:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(echo:*)",
+      "Bash(start:*)"
     ],
     "deny": [],
     "ask": []

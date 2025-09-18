@@ -37,6 +37,14 @@
     --sidebar-compact-padding: 10px;
     --sidebar-section-margin: var(--gap-size);
     --enhanced-sidebar-padding: 15px;
+
+    /* Performance Monitoring Colors (Phase 0.2) */
+    --performance-bg: rgba(0, 122, 204, 0.05);
+    --performance-border: rgba(0, 122, 204, 0.2);
+    --performance-good: #28a745;
+    --performance-warning: #ffc107;
+    --performance-danger: #dc3545;
+    --performance-text: #6c757d;
 }
 
 /* Dashboard Layout */
@@ -247,17 +255,26 @@
 .main-layout {
     display: grid;
     grid-template-columns: var(--sidebar-width) 1fr;
+    grid-template-areas: "sidebar content";
     gap: var(--gap-size);
     min-height: calc(100vh - var(--header-height) - 40px); /* Allow natural expansion beyond viewport */
     margin-top: var(--gap-size);
+    /* Enhanced grid system for Phase 2.2 */
+    grid-auto-rows: minmax(min-content, max-content);
+    align-items: start;
+    justify-content: stretch;
 }
 
 .content-panels {
     display: grid;
     grid-template-rows: minmax(300px, 1fr) minmax(300px, 1fr);
+    grid-area: content;
     gap: var(--gap-size);
     height: calc(100vh - var(--header-height) - 40px); /* Optimized space utilization */
     min-height: calc(100vh - var(--header-height) - 40px);
+    /* Enhanced content grid for Phase 2.2 */
+    overflow: hidden;
+    align-content: stretch;
 }
 
 .history-panel,
@@ -312,13 +329,15 @@
     border-radius: var(--section-radius);
     padding: var(--enhanced-sidebar-padding);
     height: 100%;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: visible;
     width: var(--sidebar-width);
     position: relative;
 }
 
 /* Enhanced Sidebar Structure per Design Specs */
 .enhanced-sidebar {
+    grid-area: sidebar;
     width: var(--sidebar-width);
     padding: var(--enhanced-sidebar-padding);
     background: var(--sidebar-bg);
@@ -327,7 +346,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--gap-size);
-    overflow-x: hidden;
+    overflow-x: visible;
+    /* Enhanced grid integration for Phase 2.2 */
+    align-self: start;
+    height: fit-content;
+    min-height: calc(100vh - var(--header-height) - 60px);
 }
 
 /* Repository Selector Styles */
@@ -338,7 +361,21 @@
     padding: 20px;
     border-left: 4px solid var(--accent-color);
     min-height: 120px;
-    transition: opacity 0.3s ease;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+/* Enhanced Visual Indicators for Repository Selection */
+.repository-selector:has(.repository-active) {
+    border-left: 4px solid var(--status-working);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(40, 167, 69, 0.05) 100%);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);
+}
+
+.repository-selector:has(.repository-invalid) {
+    border-left: 4px solid var(--status-error);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(220, 53, 69, 0.05) 100%);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
 }
 
 .repository-selector .btn.loading {
@@ -358,8 +395,75 @@
     margin-right: 8px;
 }
 
+/* Enhanced Repository Selection Visual Indicators */
+.repository-selected {
+    display: flex;
+    align-items: center;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.repository-selected.repository-active {
+    color: var(--status-working);
+    animation: pulse-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-glow {
+    from {
+        text-shadow: 0 0 4px rgba(40, 167, 69, 0.4);
+    }
+    to {
+        text-shadow: 0 0 8px rgba(40, 167, 69, 0.8);
+    }
+}
+
 .repository-selected .selected-indicator {
     color: var(--status-working);
+    font-size: 1.1em;
+    margin-right: 8px;
+    filter: drop-shadow(0 0 2px rgba(40, 167, 69, 0.6));
+}
+
+.repository-selected .selected-indicator.selected-active {
+    animation: bounce-glow 1.5s ease-in-out infinite;
+    filter: drop-shadow(0 0 4px rgba(40, 167, 69, 0.8));
+}
+
+@keyframes bounce-glow {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 4px rgba(40, 167, 69, 0.8));
+    }
+    50% {
+        transform: scale(1.1);
+        filter: drop-shadow(0 0 6px rgba(40, 167, 69, 1));
+    }
+}
+
+.repository-selected.repository-invalid {
+    color: var(--status-error);
+    animation: pulse-warning 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-warning {
+    from {
+        text-shadow: 0 0 3px rgba(220, 53, 69, 0.4);
+    }
+    to {
+        text-shadow: 0 0 6px rgba(220, 53, 69, 0.8);
+    }
+}
+
+.repository-selected.repository-invalid .selected-indicator {
+    color: var(--status-error);
+    animation: shake 0.5s ease-in-out infinite;
+    filter: drop-shadow(0 0 3px rgba(220, 53, 69, 0.8));
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
 }
 
 .repository-selector h2 {
@@ -496,6 +600,89 @@
 .repository-path small {
     color: var(--text-secondary);
     font-family: monospace;
+}
+
+/* Enhanced Repository Dropdown Button Styles */
+.btn-success-enhanced {
+    background: linear-gradient(135deg, var(--status-working) 0%, rgba(40, 167, 69, 0.8) 100%);
+    border: 1px solid var(--status-working);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    transition: all 0.3s ease;
+}
+
+.btn-success-enhanced:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.9) 0%, var(--status-working) 100%);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    transform: translateY(-1px);
+}
+
+.repository-button-active {
+    position: relative;
+    overflow: hidden;
+}
+
+.repository-button-active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.btn-warning.repository-button-invalid {
+    background: linear-gradient(135deg, var(--status-error) 0%, rgba(220, 53, 69, 0.8) 100%);
+    border: 1px solid var(--status-error);
+    color: white;
+    animation: pulse-error 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-error {
+    from {
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    }
+    to {
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.6);
+    }
+}
+
+.repository-button-unselected {
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+.repository-button-unselected:hover:not(:disabled) {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    box-shadow: 0 2px 8px rgba(0, 122, 204, 0.2);
+}
+
+/* Enhanced Dropdown Menu Styling */
+.dropdown-item.repository-dropdown-active {
+    background: linear-gradient(135deg, var(--status-working) 0%, rgba(40, 167, 69, 0.9) 100%);
+    color: white;
+    font-weight: 600;
+    border-left: 3px solid rgba(255, 255, 255, 0.8);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item.repository-dropdown-active:hover {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.95) 0%, var(--status-working) 100%);
+}
+
+.dropdown-item .selected-indicator.unselected {
+    color: var(--text-secondary);
+    opacity: 0.6;
 }
 
 /* Debug Panel Styles */
@@ -850,6 +1037,12 @@
     padding: var(--section-padding);
     margin-bottom: var(--sidebar-section-margin);
     transition: all 0.2s ease;
+    /* Enhanced grid system integration for Phase 2.2 */
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    position: relative;
 }
 
 .sidebar-section:last-child {
@@ -910,6 +1103,23 @@
     border: none;
     padding: 0;
     border-left: none;
+}
+
+/* Fix refresh button layout expansion issue */
+.repository-selector .d-flex {
+    flex-wrap: nowrap;
+    max-width: 100%;
+}
+
+.repository-selector .dropdown {
+    flex: 1;
+    min-width: 0;
+}
+
+.repository-selector .btn-outline-secondary {
+    flex-shrink: 0; /* Prevent refresh button from shrinking */
+    max-width: 120px;
+    white-space: nowrap;
 }
 
 .sidebar .repository-selector h2 {
@@ -1033,11 +1243,152 @@
 
 .agent-details {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 4px;
     font-size: 0.8rem;
     color: var(--text-secondary);
+    margin-top: 8px;
+}
+
+/* Enhanced Agent Detail Statistics Styling - Phase 3.2 */
+.agent-summary-stats {
+    background: var(--performance-bg);
+    border: 1px solid var(--performance-border);
+    border-radius: var(--section-radius);
+    padding: 12px;
+    margin-bottom: 15px;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.performance-metrics {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--performance-border);
+}
+
+.metric-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+}
+
+.metric-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.metric-value {
+    font-size: 0.8rem;
+    color: var(--accent-color);
+    font-weight: 700;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.detail-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    min-width: 60px;
+}
+
+.detail-value {
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    text-align: right;
+}
+
+.agent-performance {
+    background: rgba(0, 122, 204, 0.03);
+    border: 1px solid rgba(0, 122, 204, 0.1);
+    border-radius: 4px;
+    padding: 8px;
+    margin-top: 6px;
+}
+
+.perf-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1px 0;
+}
+
+.perf-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    min-width: 80px;
+}
+
+.perf-value {
+    font-size: 0.7rem;
+    color: var(--accent-color);
+    font-weight: 600;
+    text-align: right;
+}
+
+.current-task {
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+    border-radius: 4px;
+    padding: 8px;
+    margin-top: 8px;
+}
+
+.task-header {
+    font-size: 0.7rem;
+    color: var(--status-working);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     margin-bottom: 4px;
+}
+
+.task-content {
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 4px;
+}
+
+.task-duration {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    font-style: italic;
 }
 
 .agent-type {
@@ -1557,10 +1908,99 @@
     min-height: 250px;
 }
 
-/* Prevent layout jumps during loading */
-.dropdown .btn {
-    min-width: 250px;
-    min-height: 42px;
+/* Clean Repository Selector */
+.repo-selector {
+    position: relative;
+}
+
+.repo-button {
+    width: 250px;
+    height: 42px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Override Bootstrap dropdown arrow to use our custom positioning */
+.repo-button.dropdown-toggle::after {
+    display: none;
+}
+
+.repo-button:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-hover);
+}
+
+.repo-button.active {
+    background: var(--status-working);
+    border-color: var(--status-working);
+    color: white;
+}
+
+.repo-button.warning {
+    background: var(--status-idle);
+    border-color: var(--status-idle);
+    color: black;
+}
+
+.repo-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.repo-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.repo-text {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.repo-count {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.repo-status {
+    display: flex;
+    align-items: center;
+    width: 16px;
+    height: 16px;
+    justify-content: center;
+}
+
+.dropdown-arrow {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.spinner {
+    width: 12px;
+    height: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-top: 1px solid var(--text-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .dropdown-menu {
@@ -1579,6 +2019,103 @@
 /* Prevent zoom on input focus */
 input, select, textarea {
     font-size: 16px; /* Prevents zoom on iOS */
+}
+
+/* Repository Selector Dropdown Styling */
+.repo-selector .dropdown-menu {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    min-width: 250px;
+    z-index: 1050;
+}
+
+.repo-selector .dropdown-item {
+    color: var(--text-primary);
+    background-color: transparent;
+}
+
+.repo-selector .dropdown-item:hover,
+.repo-selector .dropdown-item:focus {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.repo-selector .dropdown-item.active {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+/* Repository Info Styling */
+.repository-info h3 {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.repository-path small {
+    color: var(--text-primary) !important;
+    background: var(--bg-hover) !important;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    font-family: monospace;
+    font-size: 11px;
+    border: none !important;
+    text-decoration: none !important;
+}
+
+/* Better stats alignment */
+.repo-stats {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+
+.repo-stats .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.85rem;
+    color: #ffffff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
+}
+
+/* Status specific colors for stats */
+.repo-stats .stat-item:nth-child(1) { /* Green - Working */
+    background: rgba(40, 167, 69, 0.2);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.repo-stats .stat-item:nth-child(2) { /* Yellow - Idle */
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    color: #fff3cd;
+}
+
+.repo-stats .stat-item:nth-child(3) { /* Red - Error */
+    background: rgba(220, 53, 69, 0.2);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.repo-stats .stat-item:nth-child(4) { /* Gray - Offline */
+    background: rgba(108, 117, 125, 0.2);
+    border: 1px solid rgba(108, 117, 125, 0.3);
+}
+
+/* Ensure dropdown works properly */
+.repository-selector .dropdown-toggle::after {
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
 }
 
 /* Touch callout and selection */
@@ -1620,25 +2157,39 @@ input, select, textarea {
 
 /* Standard Desktop (1200px - 1399px) - Base styles maintained */
 
-/* Small Desktop / Large Tablet (992px - 1199px) */
+/* Small Desktop / Large Tablet (992px - 1199px) - Enhanced Phase 2.2 */
 @media (max-width: 1199px) {
     :root {
         --sidebar-width: 350px;
         --enhanced-sidebar-padding: 12px;
+        --gap-size: 16px;
     }
 
     .main-layout {
         grid-template-columns: var(--sidebar-width) 1fr;
+        grid-template-areas: "sidebar content";
+        gap: var(--gap-size);
+        /* Enhanced grid optimization for smaller screens */
+        align-items: stretch;
+        min-height: calc(100vh - var(--header-height) - 30px);
     }
 
     .enhanced-sidebar {
         width: 350px;
         padding: 12px;
+        min-height: calc(100vh - var(--header-height) - 50px);
+    }
+
+    .content-panels {
+        grid-template-rows: minmax(250px, 1fr) minmax(250px, 1fr);
+        min-height: calc(100vh - var(--header-height) - 30px);
     }
 
     .sidebar-section {
         margin-bottom: 12px;
         padding: 12px;
+        /* Optimized flex behavior for medium screens */
+        flex-shrink: 1;
     }
 
     .header-stats {
@@ -1651,8 +2202,9 @@ input, select, textarea {
     }
 
     /* Quick actions default to collapsed */
+    /* Fixed: Remove display: none to make QuickActions visible on all screen sizes */
     .sidebar-section.quick-actions-section .collapsible-content {
-        display: none;
+        display: block;
     }
 
     .sidebar-section.quick-actions-section .collapsed {
@@ -1660,7 +2212,7 @@ input, select, textarea {
     }
 }
 
-/* Tablet Portrait (768px - 991px) */
+/* Tablet Portrait (768px - 991px) - Enhanced Phase 2.2 */
 @media (max-width: 991px) {
     .dashboard {
         grid-template-columns: 1fr;
@@ -1671,8 +2223,11 @@ input, select, textarea {
 
     .main-layout {
         grid-template-columns: 1fr;
-        grid-template-areas:
-            "content";
+        grid-template-areas: "content";
+        /* Enhanced mobile grid system */
+        gap: 15px;
+        min-height: calc(100vh - var(--header-height) - 20px);
+        position: relative;
     }
 
     .enhanced-sidebar,
@@ -1758,9 +2313,11 @@ input, select, textarea {
     }
 
     .header-stats {
-        display: none; /* Move to sidebar for space */
-        gap: 20px;
+        display: flex;
+        gap: 15px;
         order: 2;
+        flex-wrap: wrap;
+        justify-content: center;
     }
 
     .header-controls {
@@ -1966,5 +2523,98 @@ input, select, textarea {
         .queue-panel {
             min-height: 200px;
         }
+    }
+}
+
+/* Performance Monitoring Styles (Phase 0.2) */
+.performance-monitoring-section {
+    background: var(--performance-bg);
+    border: 1px solid var(--performance-border);
+    border-radius: var(--section-radius);
+    padding: var(--sidebar-compact-padding);
+    margin-top: 10px;
+}
+
+.performance-monitoring-section .performance-monitor {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.performance-monitoring-section .performance-header h4 {
+    color: var(--accent-color);
+    font-size: 0.85em;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.performance-monitoring-section .performance-status.status-good {
+    color: var(--performance-good);
+}
+
+.performance-monitoring-section .performance-status.status-warning {
+    color: var(--performance-warning);
+}
+
+.performance-monitoring-section .metric-item {
+    min-width: 50px;
+}
+
+.performance-monitoring-section .metric-label {
+    color: var(--performance-text);
+    font-size: 0.65em;
+}
+
+.performance-monitoring-section .metric-value {
+    color: var(--text-primary);
+    font-size: 0.8em;
+}
+
+.performance-monitoring-section .metric-warning {
+    color: var(--performance-danger);
+}
+
+.performance-monitoring-section .details-toggle {
+    color: var(--accent-color);
+}
+
+.performance-monitoring-section .details-toggle:hover {
+    color: var(--text-primary);
+}
+
+.performance-monitoring-section .metric-regression {
+    background: rgba(220, 53, 69, 0.1);
+    border-left-color: var(--performance-danger);
+}
+
+.performance-monitoring-section .metric-time {
+    color: var(--accent-color);
+}
+
+.performance-monitoring-section .metric-threshold {
+    color: var(--performance-text);
+}
+
+/* Responsive Performance Monitor */
+@media (max-width: 768px) {
+    .performance-monitoring-section {
+        padding: 8px;
+    }
+
+    .performance-monitoring-section .metric-row {
+        gap: 8px;
+    }
+
+    .performance-monitoring-section .metric-item {
+        min-width: 40px;
+    }
+
+    .performance-monitoring-section .metric-label {
+        font-size: 0.6em;
+    }
+
+    .performance-monitoring-section .metric-value {
+        font-size: 0.75em;
     }
 }

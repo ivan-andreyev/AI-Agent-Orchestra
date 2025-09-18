@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropdown Debug</title>
+    <script>
+        // Open devtools and navigate to http://localhost:5001
+        // This script can be pasted in console to test dropdown
+
+        function testDropdown() {
+            console.log('Testing Bootstrap dropdown...');
+
+            // Check if Bootstrap is loaded
+            if (typeof bootstrap === 'undefined') {
+                console.error('❌ Bootstrap is not loaded!');
+                return;
+            }
+            console.log('✅ Bootstrap is loaded');
+
+            // Find dropdown element
+            const dropdownElement = document.getElementById('repositoryDropdown');
+            if (!dropdownElement) {
+                console.error('❌ Dropdown element not found!');
+                return;
+            }
+            console.log('✅ Dropdown element found');
+
+            // Try to initialize dropdown
+            try {
+                const dropdown = new bootstrap.Dropdown(dropdownElement);
+                console.log('✅ Bootstrap dropdown initialized successfully');
+
+                // Test toggle
+                dropdown.toggle();
+                console.log('✅ Dropdown toggled');
+
+                return true;
+            } catch (e) {
+                console.error('❌ Failed to initialize dropdown:', e);
+                return false;
+            }
+        }
+
+        // Run test when page loads
+        setTimeout(testDropdown, 2000);
+    </script>
+</head>
+<body>
+    <h1>Dropdown Debug Script</h1>
+    <p>Open developer console and navigate to <a href="http://localhost:5001" target="_blank">http://localhost:5001</a></p>
+    <p>The script will automatically test the dropdown after 2 seconds, or you can run <code>testDropdown()</code> manually.</p>
+</body>
+</html>

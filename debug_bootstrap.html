@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="http://localhost:5001/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-3">
+        <h3>TEST: Точно ли такая же структура как QuickActions</h3>
+
+        <!-- ТОЧНО ТАКАЯ ЖЕ структура как в QuickActions -->
+        <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="testDropdown"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                Test Dropdown
+            </button>
+            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="testDropdown">
+                <li><a class="dropdown-item" href="#">Action 1</a></li>
+                <li><a class="dropdown-item" href="#">Action 2</a></li>
+                <li><a class="dropdown-item" href="#">Action 3</a></li>
+            </ul>
+        </div>
+
+        <div id="debug"></div>
+    </div>
+
+    <script src="http://localhost:5001/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const debug = document.getElementById('debug');
+            debug.innerHTML = `
+                <p>Bootstrap loaded: ${typeof bootstrap !== 'undefined'}</p>
+                <p>Dropdown element found: ${!!document.getElementById('testDropdown')}</p>
+                <p>Bootstrap version: ${typeof bootstrap !== 'undefined' ? 'loaded' : 'not loaded'}</p>
+            `;
+
+            // Попытка инициализации
+            const elem = document.getElementById('testDropdown');
+            if (elem && typeof bootstrap !== 'undefined') {
+                try {
+                    new bootstrap.Dropdown(elem);
+                    debug.innerHTML += '<p style="color: green">✅ Manual initialization SUCCESS</p>';
+                } catch (e) {
+                    debug.innerHTML += '<p style="color: red">❌ Manual initialization FAILED: ' + e.message + '</p>';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

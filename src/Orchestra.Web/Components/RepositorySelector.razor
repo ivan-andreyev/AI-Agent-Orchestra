@@ -1,96 +1,66 @@
 @using Orchestra.Web.Models
-@inject IJSRuntime JSRuntime
 
 <div class="repository-selector stable-container">
     <h2>Repository Context</h2>
 
     <div class="d-flex align-items-center gap-3">
-        @if (_hasNoData && string.IsNullOrEmpty(SelectedRepository))
+        @if (Repositories == null)
         {
-            <!-- Initial skeleton loading -->
+            <!-- Skeleton loading -->
             <div class="skeleton skeleton-dropdown"></div>
             <div class="skeleton skeleton-button"></div>
         }
         else
         {
             <div class="dropdown">
-                <button class="btn btn-outline-light dropdown-toggle @(_isLoading ? "loading" : "")" type="button" id="repositoryDropdown" data-bs-toggle="dropdown" aria-expanded="false" disabled="@_isLoading">
-                    @if (!string.IsNullOrEmpty(SelectedRepository) && Repositories != null && Repositories.ContainsKey(SelectedRepository))
+                <button class="btn btn-success dropdown-toggle" type="button" id="repositoryDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false" style="width: 250px; text-align: left;">
+                    @GetRepositoryIcon() @GetRepositoryText() @GetRepositoryCount()
+                    @if (IsLoading)
                     {
-                        <span class="repository-selected">
-                            <span class="selected-indicator">✅</span>
-                            @($"{SelectedRepository} ({Repositories[SelectedRepository].Agents.Count})")
-                            @if (_isLoading)
-                            {
-                                <span class="ms-2">
-                                    <div class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true" style="width: 12px; height: 12px;"></div>
-                                </span>
-                            }
-                        </span>
+                        <span class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true"></span>
                     }
-                    else if (_isLoading)
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="repositoryDropdown">
+                    @if (Repositories.Count > 0)
                     {
-                        <span class="d-flex align-items-center gap-2">
-                            <div class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></div>
-                            <text class="text-muted">Updating...</text>
-                        </span>
-                    }
-                    else if (Repositories != null && Repositories.Count > 0)
-                    {
-                        <text>Select Repository</text>
+                        @foreach (var repo in Repositories)
+                        {
+                            <li>
+                                <a class="dropdown-item @(SelectedRepository == repo.Key ? "active" : "")"
+                                   href="#" @onclick="() => OnRepositorySelected(repo.Key)" @onclick:preventDefault="true">
+                                    @if (SelectedRepository == repo.Key)
+                                    {
+                                        <span class="me-2">🎯</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="me-2">📂</span>
+                                    }
+                                    @repo.Key (@repo.Value.Agents.Count)
+                                </a>
+                            </li>
+                        }
                     }
                     else
                     {
-                        <text class="text-muted">No repositories available</text>
-                    }
-                </button>
-            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="repositoryDropdown">
-                @if (_isLoading)
-                {
-                    <li>
-                        <span class="dropdown-item-text text-muted">
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-                                <span>Loading...</span>
-                            </div>
-                        </span>
-                    </li>
-                }
-                else if (Repositories != null && Repositories.Count > 0)
-                {
-                    @foreach (var repo in Repositories)
-                    {
                         <li>
-                            <a class="dropdown-item @(SelectedRepository == repo.Key ? "active" : "")"
-                               href="#" @onclick="() => OnRepositorySelected(repo.Key)" @onclick:preventDefault="true">
-                                @if (SelectedRepository == repo.Key)
-                                {
-                                    <span class="selected-indicator me-2">✅</span>
-                                }
-                                @repo.Key (@repo.Value.Agents.Count)
-                            </a>
+                            <span class="dropdown-item-text text-muted">No repositories found</span>
                         </li>
                     }
+                </ul>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="OnRefresh" disabled="@IsLoading">
+                @if (IsLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 }
                 else
                 {
-                    <li>
-                        <span class="dropdown-item-text text-muted">No repositories found</span>
-                    </li>
+                    <span>🔄</span>
                 }
-            </ul>
-        </div>
-        <button class="btn btn-outline-secondary btn-sm" @onclick="OnRefresh" disabled="@_isLoading">
-            @if (_isLoading)
-            {
-                <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-            }
-            else
-            {
-                <span>🔄</span>
-            }
-            <span class="ms-1">Refresh</span>
-        </button>
+                <span class="ms-1">Refresh</span>
+            </button>
         }
     </div>
 
@@ -121,61 +91,41 @@
     [Parameter] public EventCallback OnRefreshRequested { get; set; }
     [Parameter] public bool IsLoading { get; set; } = false;
 
-    private bool _isLoading => IsLoading;
-    private bool _hasNoData => Repositories == null;
-    private Dictionary<string, RepositoryInfo>? _previousRepositories;
-    private string? _previousSelectedRepository;
-
-    protected override void OnParametersSet()
-    {
-        // Detect state changes for better visual feedback
-        var repositoriesChanged = !RepositoriesEqual(_previousRepositories, Repositories);
-        var selectionChanged = _previousSelectedRepository != SelectedRepository;
-
-        if (repositoriesChanged || selectionChanged)
-        {
-            _previousRepositories = Repositories?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-            _previousSelectedRepository = SelectedRepository;
-
-            // Force UI update when data changes
-            InvokeAsync(StateHasChanged);
-        }
-
-        base.OnParametersSet();
-    }
-
-    private bool RepositoriesEqual(Dictionary<string, RepositoryInfo>? dict1, Dictionary<string, RepositoryInfo>? dict2)
-    {
-        if (dict1 == null && dict2 == null) return true;
-        if (dict1 == null || dict2 == null) return false;
-        if (dict1.Count != dict2.Count) return false;
-
-        return dict1.All(kvp => dict2.ContainsKey(kvp.Key));
-    }
-
     private async Task OnRepositorySelected(string repositoryName)
     {
-        if (_isLoading) return;
-
-        // Close the dropdown first using Bootstrap 5 API
-        await JSRuntime.InvokeVoidAsync("eval", @"
-            const dropdownElement = document.getElementById('repositoryDropdown');
-            if (dropdownElement) {
-                const dropdown = bootstrap.Dropdown.getInstance(dropdownElement) || new bootstrap.Dropdown(dropdownElement);
-                dropdown.hide();
-            }
-        ");
-
         await OnRepositoryChanged.InvokeAsync(repositoryName);
-
-        // Force immediate UI update to show selection
-        StateHasChanged();
     }
 
     private async Task OnRefresh()
     {
-        if (_isLoading) return;
-
         await OnRefreshRequested.InvokeAsync();
+    }
+
+    private string GetRepositoryIcon()
+    {
+        if (!string.IsNullOrEmpty(SelectedRepository) && Repositories != null && Repositories.ContainsKey(SelectedRepository))
+            return "🎯";
+        else if (!string.IsNullOrEmpty(SelectedRepository))
+            return "⚠️";
+        else
+            return "📂";
+    }
+
+    private string GetRepositoryText()
+    {
+        if (!string.IsNullOrEmpty(SelectedRepository))
+            return SelectedRepository;
+        else if (Repositories != null && Repositories.Count > 0)
+            return "Select Repository";
+        else
+            return "No repositories";
+    }
+
+    private string GetRepositoryCount()
+    {
+        if (!string.IsNullOrEmpty(SelectedRepository) && Repositories != null && Repositories.ContainsKey(SelectedRepository))
+            return $"({Repositories[SelectedRepository].Agents.Count})";
+        else
+            return "";
     }
 }

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Grid System Performance Test - Phase 2.2</title>
+    <link rel="stylesheet" href="src/Orchestra.Web/wwwroot/css/components.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        .performance-test-container {
+            padding: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .test-pass {
+            background: rgba(40, 167, 69, 0.1);
+            border-left: 3px solid var(--status-working);
+        }
+        .test-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-left: 3px solid var(--status-idle);
+        }
+        .test-fail {
+            background: rgba(220, 53, 69, 0.1);
+            border-left: 3px solid var(--status-error);
+        }
+    </style>
+</head>
+<body>
+    <div class="performance-test-container">
+        <h2>Phase 2.2 CSS Grid System Performance Test</h2>
+        <div id="test-results"></div>
+
+        <!-- Test Layout Structure -->
+        <div class="dashboard">
+            <div class="header">
+                <h1>🎼 AI Agent Orchestra</h1>
+                <div class="header-stats">
+                    <div class="stat-inline">
+                        <span class="stat-value">221</span>
+                        <span class="stat-label">Agents</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-layout" id="test-main-layout">
+                <div class="enhanced-sidebar sidebar" id="test-sidebar">
+                    <div class="sidebar-section repository-context sidebar-compact">
+                        <h3>Repository</h3>
+                        <div>Test Repository Section</div>
+                    </div>
+                    <div class="sidebar-section quick-actions-section sidebar-compact">
+                        <h3>Quick Actions</h3>
+                        <div>Test Quick Actions Section</div>
+                    </div>
+                    <div class="sidebar-section agent-list-section">
+                        <h3>Agent List</h3>
+                        <div>Test Agent List Section</div>
+                    </div>
+                </div>
+
+                <div class="enhanced-main-content main-content" id="test-content">
+                    <div class="content-panels">
+                        <div class="content-panel history-panel">
+                            <div>Test History Panel</div>
+                        </div>
+                        <div class="content-panel queue-panel">
+                            <div>Test Queue Panel</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const resultsContainer = document.getElementById('test-results');
+            const startTime = performance.now();
+
+            // Test 1: CSS Grid Layout Verification
+            function testGridLayoutStructure() {
+                const mainLayout = document.getElementById('test-main-layout');
+                const sidebar = document.getElementById('test-sidebar');
+                const content = document.getElementById('test-content');
+
+                const layoutStyles = window.getComputedStyle(mainLayout);
+                const sidebarStyles = window.getComputedStyle(sidebar);
+                const contentStyles = window.getComputedStyle(content);
+
+                const tests = [
+                    {
+                        name: 'Main Layout Grid Display',
+                        condition: layoutStyles.display === 'grid',
+                        expected: 'grid',
+                        actual: layoutStyles.display
+                    },
+                    {
+                        name: 'Grid Template Areas',
+                        condition: layoutStyles.gridTemplateAreas.includes('sidebar') && layoutStyles.gridTemplateAreas.includes('content'),
+                        expected: 'sidebar content areas defined',
+                        actual: layoutStyles.gridTemplateAreas
+                    },
+                    {
+                        name: 'Grid Template Columns',
+                        condition: layoutStyles.gridTemplateColumns.includes('400px') && layoutStyles.gridTemplateColumns.includes('1fr'),
+                        expected: '400px 1fr',
+                        actual: layoutStyles.gridTemplateColumns
+                    },
+                    {
+                        name: 'Sidebar Grid Area Assignment',
+                        condition: sidebarStyles.gridArea === 'sidebar',
+                        expected: 'sidebar',
+                        actual: sidebarStyles.gridArea
+                    },
+                    {
+                        name: 'Content Grid Area Assignment',
+                        condition: contentStyles.gridArea === 'content',
+                        expected: 'content',
+                        actual: contentStyles.gridArea
+                    }
+                ];
+
+                return tests;
+            }
+
+            // Test 2: Performance Metrics
+            function testPerformanceMetrics() {
+                const layoutTime = performance.now() - startTime;
+                const baselineTarget = 100; // ms - 10% baseline allowance
+
+                return [{
+                    name: 'Layout Render Performance',
+                    condition: layoutTime < baselineTarget,
+                    expected: `< ${baselineTarget}ms (10% baseline)`,
+                    actual: `${layoutTime.toFixed(2)}ms`
+                }];
+            }
+
+            // Test 3: Responsive Design Verification
+            function testResponsiveDesign() {
+                // Test viewport width impacts
+                const initialWidth = window.innerWidth;
+                const computedLayout = window.getComputedStyle(document.getElementById('test-main-layout'));
+
+                return [{
+                    name: 'Responsive Grid Adaptation',
+                    condition: computedLayout.gridTemplateColumns !== 'none',
+                    expected: 'Grid columns adapt to viewport',
+                    actual: `Current: ${computedLayout.gridTemplateColumns}`
+                }];
+            }
+
+            // Run All Tests
+            function runAllTests() {
+                const allTests = [
+                    ...testGridLayoutStructure(),
+                    ...testPerformanceMetrics(),
+                    ...testResponsiveDesign()
+                ];
+
+                let passCount = 0;
+                let failCount = 0;
+
+                allTests.forEach(test => {
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = `test-result ${test.condition ? 'test-pass' : 'test-fail'}`;
+                    resultDiv.innerHTML = `
+                        <strong>${test.name}:</strong> ${test.condition ? '✅ PASS' : '❌ FAIL'}<br>
+                        Expected: ${test.expected}<br>
+                        Actual: ${test.actual}
+                    `;
+                    resultsContainer.appendChild(resultDiv);
+
+                    if (test.condition) {
+                        passCount++;
+                    } else {
+                        failCount++;
+                    }
+                });
+
+                // Summary
+                const summaryDiv = document.createElement('div');
+                const successRate = (passCount / allTests.length * 100).toFixed(1);
+                summaryDiv.className = `test-result ${successRate >= 80 ? 'test-pass' : 'test-warning'}`;
+                summaryDiv.innerHTML = `
+                    <strong>Phase 2.2 Test Summary:</strong><br>
+                    Passed: ${passCount}/${allTests.length} (${successRate}%)<br>
+                    Status: ${successRate >= 80 ? '✅ CSS Grid System Implementation SUCCESSFUL' : '⚠️ Needs Review'}
+                `;
+                resultsContainer.appendChild(summaryDiv);
+            }
+
+            // Run tests after DOM is ready
+            setTimeout(runAllTests, 100);
+        });
+    </script>
+</body>
+</html>

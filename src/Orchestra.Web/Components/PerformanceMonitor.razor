@@ -1,0 +1,325 @@
+@using Orchestra.Web.Services
+@using Orchestra.Web.Components.Base
+@inherits AutoRefreshComponent
+@inject PerformanceMonitoringService PerformanceService
+@inject ILogger<PerformanceMonitor> Logger
+
+<div class="performance-monitor">
+    <div class="performance-header">
+        <h4>Performance Monitor</h4>
+        <div class="performance-status @(_hasRegressions ? "status-warning" : "status-good")">
+            @if (_hasRegressions)
+            {
+                <span class="status-icon">⚠️</span>
+                <span class="status-text">Regressions Detected</span>
+            }
+            else
+            {
+                <span class="status-icon">✅</span>
+                <span class="status-text">Performance OK</span>
+            }
+        </div>
+    </div>
+
+    @if (_summary != null)
+    {
+        <div class="performance-metrics">
+            <div class="metric-row">
+                <div class="metric-item">
+                    <span class="metric-label">API Metrics</span>
+                    <span class="metric-value">@_summary.ApiMetrics</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Component Metrics</span>
+                    <span class="metric-value">@_summary.ComponentMetrics</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Regressions</span>
+                    <span class="metric-value @(_summary.RegressionsDetected > 0 ? "metric-warning" : "")">
+                        @_summary.RegressionsDetected
+                    </span>
+                </div>
+            </div>
+
+            @if (_summary.LastUpdated.HasValue)
+            {
+                <div class="metric-timestamp">
+                    Last Updated: @_summary.LastUpdated.Value.ToString("HH:mm:ss")
+                </div>
+            }
+        </div>
+
+        @if (_detailedMetrics.Any())
+        {
+            <div class="performance-details">
+                <div class="details-toggle" @onclick="ToggleDetails">
+                    <span class="toggle-icon">@(_showDetails ? "▼" : "▶")</span>
+                    <span class="toggle-label">Performance Details</span>
+                </div>
+
+                @if (_showDetails)
+                {
+                    <div class="metrics-list">
+                        @foreach (var metric in _detailedMetrics.OrderByDescending(m => m.Value.LastUpdated))
+                        {
+                            <div class="metric-detail @(metric.Value.LastValue > metric.Value.Threshold ? "metric-regression" : "")">
+                                <div class="metric-name">@FormatMetricName(metric.Key)</div>
+                                <div class="metric-info">
+                                    <span class="metric-time">@metric.Value.LastValue ms</span>
+                                    <span class="metric-threshold">(threshold: @metric.Value.Threshold ms)</span>
+                                    @if (metric.Value.LastValue > metric.Value.Threshold)
+                                    {
+                                        <span class="metric-warning-icon">⚠️</span>
+                                    }
+                                </div>
+                                <div class="metric-timestamp">@metric.Value.LastUpdated.ToString("HH:mm:ss")</div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="performance-loading">
+            Loading performance metrics...
+        </div>
+    }
+</div>
+
+@code {
+    private PerformanceMetricsSummary? _summary;
+    private Dictionary<string, PerformanceMetric> _detailedMetrics = new();
+    private bool _hasRegressions;
+    private bool _showDetails;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        // Set refresh interval to 10 seconds for performance monitoring
+        RefreshInterval = TimeSpan.FromSeconds(10);
+        AutoRefresh = true;
+
+        await LoadPerformanceData();
+    }
+
+    protected override async Task RefreshDataAsync()
+    {
+        await LoadPerformanceData();
+    }
+
+    private async Task LoadPerformanceData()
+    {
+        try
+        {
+            _summary = PerformanceService.GetMetricsSummary();
+            _hasRegressions = _summary.RegressionsDetected > 0;
+
+            // Load detailed metrics for API and component monitoring
+            var apiMetrics = PerformanceService.GetMetrics("api_");
+            var componentMetrics = PerformanceService.GetMetrics("component_");
+            var statsMetrics = PerformanceService.GetMetrics("statistics");
+
+            _detailedMetrics.Clear();
+            foreach (var metric in apiMetrics.Concat(componentMetrics).Concat(statsMetrics))
+            {
+                _detailedMetrics[metric.Key] = metric.Value;
+            }
+
+            // Clean old metrics every 5 minutes
+            if (_summary.TotalMetrics > 100)
+            {
+                PerformanceService.ClearOldMetrics(TimeSpan.FromMinutes(5));
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading performance data");
+        }
+    }
+
+    private void ToggleDetails()
+    {
+        _showDetails = !_showDetails;
+        StateHasChanged();
+    }
+
+    private string FormatMetricName(string metricKey)
+    {
+        return metricKey switch
+        {
+            "api_state" => "API: State",
+            "api_agents" => "API: Agents",
+            "api_repositories" => "API: Repositories",
+            "api_tasks/queue" => "API: Task Queue",
+            "api_ping" => "API: Ping",
+            "api_refresh" => "API: Refresh",
+            "api_agents/history" => "API: Agent History",
+            "component_Home" => "Component: Home",
+            "component_RepositorySelector" => "Component: Repository Selector",
+            "component_AgentSidebar" => "Component: Agent Sidebar",
+            "component_TaskQueue" => "Component: Task Queue",
+            "component_AgentHistory" => "Component: Agent History",
+            "statistics_calculation" => "Statistics Calculation",
+            _ => metricKey.Replace("_", " ").Replace("api ", "API: ").Replace("component ", "Component: ")
+        };
+    }
+}
+
+<style>
+    .performance-monitor {
+        background: rgba(0, 0, 0, 0.05);
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 12px;
+        margin: 8px 0;
+        font-size: 0.85em;
+    }
+
+    .performance-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .performance-header h4 {
+        margin: 0;
+        font-size: 0.9em;
+        color: #333;
+    }
+
+    .performance-status {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.8em;
+        font-weight: 500;
+    }
+
+    .status-good {
+        color: #28a745;
+    }
+
+    .status-warning {
+        color: #ffc107;
+    }
+
+    .performance-metrics {
+        margin-bottom: 8px;
+    }
+
+    .metric-row {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 6px;
+    }
+
+    .metric-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 60px;
+    }
+
+    .metric-label {
+        font-size: 0.7em;
+        color: #666;
+        text-align: center;
+    }
+
+    .metric-value {
+        font-weight: bold;
+        font-size: 0.85em;
+    }
+
+    .metric-warning {
+        color: #dc3545;
+    }
+
+    .metric-timestamp {
+        font-size: 0.7em;
+        color: #888;
+        text-align: center;
+        margin-top: 4px;
+    }
+
+    .performance-details {
+        border-top: 1px solid #e0e0e0;
+        padding-top: 8px;
+    }
+
+    .details-toggle {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.8em;
+        color: #007bff;
+        margin-bottom: 6px;
+    }
+
+    .details-toggle:hover {
+        color: #0056b3;
+    }
+
+    .toggle-icon {
+        width: 12px;
+        text-align: center;
+    }
+
+    .metrics-list {
+        max-height: 150px;
+        overflow-y: auto;
+    }
+
+    .metric-detail {
+        padding: 4px 8px;
+        margin: 2px 0;
+        border-radius: 3px;
+        border-left: 3px solid transparent;
+        font-size: 0.75em;
+    }
+
+    .metric-regression {
+        background: rgba(220, 53, 69, 0.1);
+        border-left-color: #dc3545;
+    }
+
+    .metric-name {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .metric-info {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin: 2px 0;
+    }
+
+    .metric-time {
+        font-weight: bold;
+        color: #007bff;
+    }
+
+    .metric-threshold {
+        color: #666;
+        font-size: 0.9em;
+    }
+
+    .metric-warning-icon {
+        margin-left: auto;
+    }
+
+    .performance-loading {
+        text-align: center;
+        color: #666;
+        font-style: italic;
+        padding: 12px;
+    }
+</style>

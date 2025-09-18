@@ -2,7 +2,8 @@
 @using Orchestra.Web.Models
 @using Orchestra.Web.Services
 @using Orchestra.Web.Components
-@inject OrchestratorService OrchestratorService
+@inject MonitoredOrchestratorService OrchestratorService
+@inject PerformanceMonitoringService PerformanceService
 @implements IDisposable
 
 <PageTitle>AI Agent Orchestra</PageTitle>
@@ -15,27 +16,27 @@
         {
             <div class="header-stats">
                 <div class="stat-inline">
-                    <span class="stat-value">@(_repositories?.Values.Sum(r => r.Agents.Count) ?? _state.Agents.Count)</span>
+                    <span class="stat-value">@GetTotalAgentsCount()</span>
                     <span class="stat-label">Agents</span>
                     <div class="agent-status-breakdown">
                         <div class="status-item status-working">
                             <span class="status-icon">🟢</span>
-                            <span class="status-count">@(_repositories?.Values.Sum(r => r.WorkingCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Working))</span>
+                            <span class="status-count">@GetWorkingAgentsCount()</span>
                             <span class="status-label">Working</span>
                         </div>
                         <div class="status-item status-idle">
                             <span class="status-icon">🟡</span>
-                            <span class="status-count">@(_repositories?.Values.Sum(r => r.IdleCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Idle))</span>
+                            <span class="status-count">@GetIdleAgentsCount()</span>
                             <span class="status-label">Idle</span>
                         </div>
                         <div class="status-item status-error">
                             <span class="status-icon">🔴</span>
-                            <span class="status-count">@(_repositories?.Values.Sum(r => r.ErrorCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Error))</span>
+                            <span class="status-count">@GetErrorAgentsCount()</span>
                             <span class="status-label">Error</span>
                         </div>
                         <div class="status-item status-offline">
                             <span class="status-icon">⚫</span>
-                            <span class="status-count">@(_repositories?.Values.Sum(r => r.OfflineCount) ?? _state.Agents.Values.Count(a => a.Status == AgentStatus.Offline))</span>
+                            <span class="status-count">@GetOfflineAgentsCount()</span>
                             <span class="status-label">Offline</span>
                         </div>
                     </div>
@@ -71,16 +72,16 @@
             <div class="enhanced-sidebar sidebar">
                 <!-- Repository Context Section -->
                 <div class="sidebar-section repository-context sidebar-compact">
-                    <RepositorySelector Repositories="_repositories"
-                                       SelectedRepository="_selectedRepository"
+                    <RepositorySelector Repositories="@_repositories"
+                                       SelectedRepository="@_selectedRepository"
                                        OnRepositoryChanged="OnRepositoryChanged"
                                        OnRefreshRequested="OnRefreshRequested"
-                                       IsLoading="_isRefreshing" />
+                                       IsLoading="@_isRefreshing" />
                 </div>
 
                 <!-- Quick Actions Section -->
                 <div class="sidebar-section quick-actions-section sidebar-compact">
-                    <QuickActions SelectedRepository="_selectedRepository"
+                    <QuickActions SelectedRepository="@_selectedRepository"
                                  RepositoryPath="@GetSelectedRepositoryPath()"
                                  OnTaskQueued="OnTaskQueued" />
                 </div>
@@ -91,6 +92,11 @@
                                  SelectedAgentId="_selectedAgentId"
                                  OnAgentSelected="OnAgentSelected" />
                 </div>
+
+                <!-- Performance Monitoring Section (Phase 0.2) -->
+                <div class="sidebar-section performance-monitoring-section">
+                    <PerformanceMonitor />
+                </div>
             </div>
 
             <!-- Enhanced Main Content per Design Specifications -->
@@ -100,7 +106,7 @@
                         <AgentHistory SelectedAgentId="@GetSelectedAgentSessionId()" />
                     </div>
                     <div class="content-panel queue-panel">
-                        <TaskQueue SelectedRepository="_selectedRepository"
+                        <TaskQueue SelectedRepository="@_selectedRepository"
                                   RepositoryPath="@GetSelectedRepositoryPath()" />
                     </div>
                 </div>
@@ -139,10 +145,27 @@
             _repositories = await OrchestratorService.GetRepositoriesAsync();
             _isConnected = _state != null && _repositories != null;
 
-            // Set first repository as selected if none selected
-            if (string.IsNullOrEmpty(_selectedRepository) && _repositories?.Count > 0)
+            // Validate and correct selected repository state
+            if (_repositories?.Count > 0)
             {
-                _selectedRepository = _repositories.Keys.First();
+                // If no repository selected, select the first one
+                if (string.IsNullOrEmpty(_selectedRepository))
+                {
+                    _selectedRepository = _repositories.Keys.First();
+                }
+                // If selected repository no longer exists, select the first available one
+                else if (!_repositories.ContainsKey(_selectedRepository))
+                {
+    #if DEBUG
+                Console.WriteLine($"Home: Selected repository '{_selectedRepository}' no longer exists. Available: {string.Join(", ", _repositories.Keys)}");
+#endif
+                    _selectedRepository = _repositories.Keys.First();
+                }
+            }
+            else if (_repositories?.Count == 0)
+            {
+                // No repositories available, clear selection
+                _selectedRepository = "";
             }
         }
         catch
@@ -156,11 +179,25 @@
         }
     }
 
-    private async Task OnRepositoryChanged(string repositoryName)
+    private Task OnRepositoryChanged(string repositoryName)
     {
+        var startTime = DateTime.UtcNow;
+
         _selectedRepository = repositoryName;
         _selectedAgentId = ""; // Clear selected agent when repository changes
+
+        // Force immediate UI update for all dependent components
         StateHasChanged();
+
+        var endTime = DateTime.UtcNow;
+        var duration = endTime - startTime;
+
+#if DEBUG
+        Console.WriteLine($"Repository changed to '{repositoryName}' - Update duration: {duration.TotalMilliseconds:F2}ms");
+        Console.WriteLine($"Repository switching performance: {(duration.TotalSeconds < 2 ? "✅ PASS" : "❌ FAIL")} - {duration.TotalSeconds:F3}s (target: <2s)");
+#endif
+
+        return Task.CompletedTask;
     }
 
     private async Task OnRefreshRequested()
@@ -178,48 +215,119 @@
         await RefreshData();
     }
 
-    private async Task OnAgentSelected(string agentId)
+    private Task OnAgentSelected(string agentId)
     {
         _selectedAgentId = agentId;
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private List<AgentInfo>? GetSelectedRepositoryAgents()
     {
-        if (string.IsNullOrEmpty(_selectedRepository) || _repositories == null)
-        {
-            return null;
-        }
+        var startTime = DateTime.UtcNow;
 
-        return _repositories.ContainsKey(_selectedRepository)
+        if (string.IsNullOrEmpty(_selectedRepository) || _repositories == null)
+            return null;
+
+        var result = _repositories.ContainsKey(_selectedRepository)
             ? _repositories[_selectedRepository].Agents
             : null;
+
+        var duration = DateTime.UtcNow - startTime;
+#if DEBUG
+        if (duration.TotalMilliseconds > 10) // Only log if it takes more than 10ms
+        {
+            Console.WriteLine($"GetSelectedRepositoryAgents() took {duration.TotalMilliseconds:F2}ms for repository '{_selectedRepository}'");
+        }
+#endif
+
+        return result;
     }
 
     private string? GetSelectedRepositoryPath()
     {
-        if (string.IsNullOrEmpty(_selectedRepository) || _repositories == null)
-        {
-            return null;
-        }
+        var startTime = DateTime.UtcNow;
 
-        return _repositories.ContainsKey(_selectedRepository)
+        if (string.IsNullOrEmpty(_selectedRepository) || _repositories == null)
+            return null;
+
+        var result = _repositories.ContainsKey(_selectedRepository)
             ? _repositories[_selectedRepository].Path
             : null;
+
+        var duration = DateTime.UtcNow - startTime;
+#if DEBUG
+        if (duration.TotalMilliseconds > 5) // Only log if it takes more than 5ms
+        {
+            Console.WriteLine($"GetSelectedRepositoryPath() took {duration.TotalMilliseconds:F2}ms for repository '{_selectedRepository}'");
+        }
+#endif
+
+        return result;
     }
 
     private string? GetSelectedAgentSessionId()
     {
         if (string.IsNullOrEmpty(_selectedAgentId) || _repositories == null)
-        {
             return null;
-        }
 
         var agent = _repositories.Values
             .SelectMany(r => r.Agents)
             .FirstOrDefault(a => a.Id == _selectedAgentId);
 
         return agent?.SessionId;
+    }
+
+    // Performance-monitored statistics calculation methods (Phase 0.2 implementation)
+    private int GetTotalAgentsCount()
+    {
+        return OrchestratorService.MeasureStatisticsCalculation(() =>
+        {
+            // Priority: Use repositories data if available, fallback to state data
+            if (_repositories != null && _repositories.Count > 0)
+            {
+                return _repositories.Values.Sum(r => r.Agents.Count);
+            }
+            if (_state?.Agents != null)
+            {
+                return _state.Agents.Count;
+            }
+            return 0;
+        },
+        "total_agents_count"
+        );
+    }
+
+    private int GetWorkingAgentsCount()
+    {
+        return OrchestratorService.MeasureStatisticsCalculation(() =>
+            _repositories?.Values.Sum(r => r.WorkingCount) ?? _state?.Agents.Values.Count(a => a.Status == AgentStatus.Working) ?? 0,
+            "working_agents_count"
+        );
+    }
+
+    private int GetIdleAgentsCount()
+    {
+        return OrchestratorService.MeasureStatisticsCalculation(() =>
+            _repositories?.Values.Sum(r => r.IdleCount) ?? _state?.Agents.Values.Count(a => a.Status == AgentStatus.Idle) ?? 0,
+            "idle_agents_count"
+        );
+    }
+
+    private int GetErrorAgentsCount()
+    {
+        return OrchestratorService.MeasureStatisticsCalculation(() =>
+            _repositories?.Values.Sum(r => r.ErrorCount) ?? _state?.Agents.Values.Count(a => a.Status == AgentStatus.Error) ?? 0,
+            "error_agents_count"
+        );
+    }
+
+    private int GetOfflineAgentsCount()
+    {
+        return OrchestratorService.MeasureStatisticsCalculation(() =>
+            _repositories?.Values.Sum(r => r.OfflineCount) ?? _state?.Agents.Values.Count(a => a.Status == AgentStatus.Offline) ?? 0,
+            "offline_agents_count"
+        );
     }
 
     public void Dispose()

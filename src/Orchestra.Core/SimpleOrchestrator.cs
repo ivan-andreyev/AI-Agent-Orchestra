@@ -70,17 +70,29 @@ public class SimpleOrchestrator : IDisposable
             var availableAgent = FindAvailableAgent(repositoryPath);
             var agentId = availableAgent?.Id ?? ""; // Empty if no agent available yet
 
+            var taskStatus = string.IsNullOrEmpty(agentId) ? TaskStatus.Pending : TaskStatus.Assigned;
+            var startedAt = taskStatus == TaskStatus.Assigned ? DateTime.Now : (DateTime?)null;
+
             var task = new TaskRequest(
                 Guid.NewGuid().ToString(),
                 agentId,
                 command,
                 repositoryPath,
                 DateTime.Now,
-                priority
+                priority,
+                taskStatus,
+                startedAt,
+                null
             );
 
             _taskQueue.Enqueue(task);
             SaveState();
+
+            // Phase 4.3.1: Automatic assignment trigger for tasks created without immediate agent
+            if (string.IsNullOrEmpty(agentId))
+            {
+                TriggerTaskAssignment();
+            }
         }
     }
 
@@ -129,7 +141,10 @@ public class SimpleOrchestrator : IDisposable
     {
         var newQueue = new Queue<TaskRequest>(_taskQueue.Where(t => t.Id != taskId));
         _taskQueue.Clear();
-        foreach (var t in newQueue) _taskQueue.Enqueue(t);
+        foreach (var t in newQueue)
+        {
+            _taskQueue.Enqueue(t);
+        }
         SaveState();
     }
 
@@ -215,16 +230,21 @@ public class SimpleOrchestrator : IDisposable
     /// </summary>
     private void AssignUnassignedTasks()
     {
-        var unassignedTasks = _taskQueue.Where(t => string.IsNullOrEmpty(t.AgentId)).ToList();
+        var pendingTasks = _taskQueue.Where(t => t.Status == TaskStatus.Pending).ToList();
         var tasksToUpdate = new List<(TaskRequest oldTask, TaskRequest newTask)>();
 
-        foreach (var task in unassignedTasks)
+        foreach (var task in pendingTasks)
         {
             var availableAgent = FindAvailableAgent(task.RepositoryPath);
             if (availableAgent != null)
             {
-                // Create updated task with agent assignment
-                var assignedTask = task with { AgentId = availableAgent.Id };
+                // Create updated task with agent assignment and status change
+                var assignedTask = task with
+                {
+                    AgentId = availableAgent.Id,
+                    Status = TaskStatus.Assigned,
+                    StartedAt = DateTime.Now
+                };
                 tasksToUpdate.Add((task, assignedTask));
             }
         }
@@ -252,6 +272,77 @@ public class SimpleOrchestrator : IDisposable
                 _taskQueue.Enqueue(task);
             }
         }
+    }
+
+    /// <summary>
+    /// Updates the status of a specific task
+    /// </summary>
+    public void UpdateTaskStatus(string taskId, TaskStatus newStatus)
+    {
+        lock (_lock)
+        {
+            var tasksToUpdate = new List<TaskRequest>();
+            var newQueue = new Queue<TaskRequest>();
+
+            while (_taskQueue.Count > 0)
+            {
+                var task = _taskQueue.Dequeue();
+                if (task.Id == taskId)
+                {
+                    var updatedTask = task with
+                    {
+                        Status = newStatus,
+                        StartedAt = newStatus == TaskStatus.InProgress ? (task.StartedAt ?? DateTime.Now) : task.StartedAt,
+                        CompletedAt = newStatus is TaskStatus.Completed or TaskStatus.Failed or TaskStatus.Cancelled ? DateTime.Now : null
+                    };
+                    newQueue.Enqueue(updatedTask);
+                }
+                else
+                {
+                    newQueue.Enqueue(task);
+                }
+            }
+
+            _taskQueue.Clear();
+            foreach (var task in newQueue)
+            {
+                _taskQueue.Enqueue(task);
+            }
+
+            SaveState();
+        }
+    }
+
+    /// <summary>
+    /// Marks a task as started when an agent begins working on it
+    /// </summary>
+    public void StartTask(string taskId, string agentId)
+    {
+        UpdateTaskStatus(taskId, TaskStatus.InProgress);
+    }
+
+    /// <summary>
+    /// Marks a task as completed successfully
+    /// </summary>
+    public void CompleteTask(string taskId)
+    {
+        UpdateTaskStatus(taskId, TaskStatus.Completed);
+    }
+
+    /// <summary>
+    /// Marks a task as failed
+    /// </summary>
+    public void FailTask(string taskId)
+    {
+        UpdateTaskStatus(taskId, TaskStatus.Failed);
+    }
+
+    /// <summary>
+    /// Cancels a task
+    /// </summary>
+    public void CancelTask(string taskId)
+    {
+        UpdateTaskStatus(taskId, TaskStatus.Cancelled);
     }
 
     private void SaveState()

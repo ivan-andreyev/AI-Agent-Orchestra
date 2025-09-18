@@ -25,7 +25,10 @@ public record TaskRequest(
     string Command,
     string RepositoryPath,
     DateTime CreatedAt,
-    TaskPriority Priority = TaskPriority.Normal
+    TaskPriority Priority = TaskPriority.Normal,
+    TaskStatus Status = TaskStatus.Pending,
+    DateTime? StartedAt = null,
+    DateTime? CompletedAt = null
 );
 
 public enum TaskPriority
@@ -34,6 +37,16 @@ public enum TaskPriority
     Normal,
     High,
     Critical
+}
+
+public enum TaskStatus
+{
+    Pending,
+    Assigned,
+    InProgress,
+    Completed,
+    Failed,
+    Cancelled
 }
 
 public record RepositoryInfo(

@@ -1,7 +1,8 @@
 @using Orchestra.Web.Models
 @using Orchestra.Web.Services
+@using Orchestra.Web.Components.Base
 @inject OrchestratorService OrchestratorService
-@implements IDisposable
+@inherits AutoRefreshComponent
 
 <div class="task-queue">
     <div class="queue-header">
@@ -19,7 +20,7 @@
                 Refresh
             </button>
             <div class="auto-refresh-toggle">
-                <input type="checkbox" id="queue-auto-refresh" @bind="_autoRefresh" @bind:after="ToggleAutoRefresh" />
+                <input type="checkbox" id="queue-auto-refresh" @bind="AutoRefresh" />
                 <label for="queue-auto-refresh">Auto-refresh</label>
             </div>
         </div>
@@ -61,7 +62,7 @@
             </div>
 
             <div class="task-list">
-                @foreach (var task in _tasks.Take(10))
+                @foreach (var task in _tasks.Take(ComponentConstants.Tasks.DisplayLimit))
                 {
                     <div class="task-item @GetPriorityClass(task.Priority)">
                         <div class="task-header">
@@ -90,10 +91,10 @@
                     </div>
                 }
 
-                @if (_tasks.Count > 10)
+                @if (_tasks.Count > ComponentConstants.Tasks.DisplayLimit)
                 {
                     <div class="more-tasks">
-                        <p>...and @(_tasks.Count - 10) more tasks</p>
+                        <p>...and @(_tasks.Count - ComponentConstants.Tasks.DisplayLimit) more tasks</p>
                     </div>
                 }
             </div>
@@ -120,10 +121,8 @@
 
     private List<TaskRequest> _tasks = new();
     private bool _isLoading = false;
-    private bool _autoRefresh = false;
     private string? _errorMessage;
     private string? _lastRepository;
-    private Timer? _refreshTimer;
     private Dictionary<string, AgentInfo> _allAgents = new();
     private List<string> _taskLog = new();
 
@@ -136,106 +135,139 @@
         }
     }
 
+    protected override async Task OnInitializedAsync()
+    {
+        // Set 3-second refresh interval for task queue (faster updates)
+        RefreshInterval = TimeSpan.FromSeconds(3);
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task RefreshDataAsync()
+    {
+        await LoadTasks();
+    }
+
     private async Task LoadTasks()
     {
+        // Fast-return pattern for early validation
         if (string.IsNullOrEmpty(SelectedRepository) || string.IsNullOrEmpty(RepositoryPath))
         {
             _tasks = new List<TaskRequest>();
             return;
         }
 
-        _isLoading = true;
-        _errorMessage = null;
-        StateHasChanged();
+        SetLoadingState(true);
 
         try
         {
             var state = await OrchestratorService.GetStateAsync();
-            if (state?.TaskQueue != null)
-            {
-                var previousTaskCount = _tasks.Count;
-                var previousTaskIds = _tasks.Select(t => t.Id).ToHashSet();
-
-                _tasks = state.TaskQueue
-                    .Where(t => t.RepositoryPath == RepositoryPath)
-                    .OrderBy(t => GetPriorityValue(t.Priority))
-                    .ThenBy(t => t.CreatedAt)
-                    .ToList();
-
-                // Store all agents for name lookup
-                if (state.Agents != null)
-                {
-                    _allAgents = state.Agents;
-                }
-
-                // Log task changes
-                var currentTaskIds = _tasks.Select(t => t.Id).ToHashSet();
-                var newTasks = _tasks.Where(t => !previousTaskIds.Contains(t.Id)).ToList();
-                var removedTaskIds = previousTaskIds.Except(currentTaskIds).ToList();
-
-                foreach (var task in newTasks)
-                {
-                    var agentName = GetAgentDisplayName(task.AgentId);
-                    LogMessage($"NEW TASK: {task.Command[..Math.Min(50, task.Command.Length)]}... → {agentName} (Priority: {task.Priority})");
-                }
-
-                foreach (var taskId in removedTaskIds)
-                {
-                    LogMessage($"REMOVED TASK: {taskId[..8]}... (task completed or disappeared)");
-                }
-
-                if (_tasks.Count != previousTaskCount)
-                {
-                    LogMessage($"Task count changed: {previousTaskCount} → {_tasks.Count}");
-                }
-            }
-            else
-            {
-                _tasks = new List<TaskRequest>();
-            }
+            ProcessTasksFromState(state);
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
-            _tasks = new List<TaskRequest>();
+            HandleLoadError(ex);
         }
         finally
         {
-            _isLoading = false;
-            StateHasChanged();
+            SetLoadingState(false);
+        }
+    }
+
+    private void ProcessTasksFromState(OrchestratorState? state)
+    {
+        if (state?.TaskQueue == null)
+        {
+            _tasks = new List<TaskRequest>();
+            return;
+        }
+
+        var previousTaskCount = _tasks.Count;
+        var previousTaskIds = _tasks.Select(t => t.Id).ToHashSet();
+
+        _tasks = state.TaskQueue
+            .Where(t => t.RepositoryPath == RepositoryPath)
+            .OrderBy(t => GetPriorityValue(t.Priority))
+            .ThenBy(t => t.CreatedAt)
+            .ToList();
+
+        // Store all agents for name lookup
+        if (state.Agents != null)
+        {
+            _allAgents = state.Agents;
+        }
+
+        LogTaskChanges(previousTaskCount, previousTaskIds);
+    }
+
+    private void HandleLoadError(Exception ex)
+    {
+        _errorMessage = ex.Message;
+        _tasks = new List<TaskRequest>();
+        LogMessage($"ERROR loading tasks: {ex.Message}");
+    }
+
+    private void SetLoadingState(bool isLoading)
+    {
+        _isLoading = isLoading;
+        if (isLoading)
+        {
+            _errorMessage = null;
+        }
+        StateHasChanged();
+    }
+
+    private void LogTaskChanges(int previousTaskCount, HashSet<string> previousTaskIds)
+    {
+        var currentTaskIds = _tasks.Select(t => t.Id).ToHashSet();
+        var newTasks = _tasks.Where(t => !previousTaskIds.Contains(t.Id)).ToList();
+        var removedTaskIds = previousTaskIds.Except(currentTaskIds).ToList();
+
+        foreach (var task in newTasks)
+        {
+            var agentName = GetAgentDisplayName(task.AgentId);
+            LogMessage($"NEW TASK: {task.Command[..Math.Min(ComponentConstants.Tasks.CommandLogLength, task.Command.Length)]}... → {agentName} (Priority: {task.Priority})");
+        }
+
+        foreach (var taskId in removedTaskIds)
+        {
+            LogMessage($"REMOVED TASK: {taskId[..8]}... (task completed or disappeared)");
+        }
+
+        if (_tasks.Count != previousTaskCount)
+        {
+            LogMessage($"Task count changed: {previousTaskCount} → {_tasks.Count}");
         }
     }
 
     private async Task RefreshQueue()
     {
-        await LoadTasks();
-    }
-
-    private void ToggleAutoRefresh()
-    {
-        if (_autoRefresh)
-        {
-            _refreshTimer = new Timer(async _ =>
-            {
-                await InvokeAsync(async () => await LoadTasks());
-            }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
-        }
-        else
-        {
-            _refreshTimer?.Dispose();
-            _refreshTimer = null;
-        }
+        await ManualRefreshAsync();
     }
 
     private static int GetPriorityValue(TaskPriority priority)
     {
         switch (priority)
         {
-            case TaskPriority.Critical: return 1;
-            case TaskPriority.High: return 2;
-            case TaskPriority.Normal: return 3;
-            case TaskPriority.Low: return 4;
-            default: return 5;
+            case TaskPriority.Critical:
+            {
+                return 1;
+            }
+            case TaskPriority.High:
+            {
+                return 2;
+            }
+            case TaskPriority.Normal:
+            {
+                return 3;
+            }
+            case TaskPriority.Low:
+            {
+                return 4;
+            }
+            default:
+            {
+                return 5;
+            }
         }
     }
 
@@ -248,11 +280,26 @@
     {
         switch (priority)
         {
-            case TaskPriority.Critical: return "🚨";
-            case TaskPriority.High: return "🔴";
-            case TaskPriority.Normal: return "🟡";
-            case TaskPriority.Low: return "🟢";
-            default: return "❓";
+            case TaskPriority.Critical:
+            {
+                return "🚨";
+            }
+            case TaskPriority.High:
+            {
+                return "🔴";
+            }
+            case TaskPriority.Normal:
+            {
+                return "🟡";
+            }
+            case TaskPriority.Low:
+            {
+                return "🟢";
+            }
+            default:
+            {
+                return "❓";
+            }
         }
     }
 
@@ -311,18 +358,14 @@
         var logEntry = $"[{timestamp}] {message}";
         _taskLog.Insert(0, logEntry);
 
-        // Keep only last 50 log entries
-        if (_taskLog.Count > 50)
+        // Keep only last log entries
+        if (_taskLog.Count > ComponentConstants.Tasks.LogEntryLimit)
         {
-            _taskLog = _taskLog.Take(50).ToList();
+            _taskLog = _taskLog.Take(ComponentConstants.Tasks.LogEntryLimit).ToList();
         }
 
         // Log to browser console for debugging
         Console.WriteLine($"TaskQueue: {logEntry}");
     }
 
-    public void Dispose()
-    {
-        _refreshTimer?.Dispose();
-    }
 }
