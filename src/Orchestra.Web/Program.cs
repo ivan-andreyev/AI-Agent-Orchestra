@@ -15,6 +15,9 @@ builder.Services.AddScoped<PerformanceMonitoringService>();
 builder.Services.AddScoped<OrchestratorService>();
 builder.Services.AddScoped<MonitoredOrchestratorService>();
 
+// Register task template service (Actions Block Refactoring Phase 1)
+builder.Services.AddScoped<TaskTemplateService>();
+
 // Configure logging for performance monitoring
 builder.Services.AddLogging();
 

@@ -1,0 +1,392 @@
+@using Orchestra.Web.Services
+@using Orchestra.Web.Models
+@inject TaskTemplateService TemplateService
+@inject OrchestratorService OrchestratorService
+
+<div class="task-templates-section">
+    <div class="section-header">
+        <h4>📋 Task Templates</h4>
+        <div class="section-controls">
+            <div class="btn-group btn-group-sm" role="group">
+                <button class="btn btn-outline-secondary @(SelectedCategory == null ? "active" : "")"
+                        @onclick="() => FilterByCategory(null)">
+                    All
+                </button>
+                <button class="btn btn-outline-primary @(SelectedCategory == TaskCategory.Development ? "active" : "")"
+                        @onclick="() => FilterByCategory(TaskCategory.Development)">
+                    Dev
+                </button>
+                <button class="btn btn-outline-info @(SelectedCategory == TaskCategory.Analysis ? "active" : "")"
+                        @onclick="() => FilterByCategory(TaskCategory.Analysis)">
+                    Analysis
+                </button>
+                <button class="btn btn-outline-success @(SelectedCategory == TaskCategory.Documentation ? "active" : "")"
+                        @onclick="() => FilterByCategory(TaskCategory.Documentation)">
+                    Docs
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (string.IsNullOrEmpty(SelectedRepository))
+    {
+        <div class="no-repository-message">
+            <div class="text-center text-muted">
+                <div class="mb-2">📂</div>
+                <small>Select a repository to use templates</small>
+            </div>
+        </div>
+    }
+    else if (_isLoading)
+    {
+        <div class="templates-loading">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                <span>Loading templates...</span>
+            </div>
+        </div>
+    }
+    else if (_templates.Any())
+    {
+        <div class="templates-grid">
+            @foreach (var template in _filteredTemplates)
+            {
+                <div class="template-card @(template.Id == _expandedTemplateId ? "expanded" : "")">
+                    <div class="template-header" @onclick="() => ToggleTemplateExpansion(template.Id)">
+                        <div class="template-info">
+                            <h5 class="template-name">
+                                @GetCategoryIcon(template.Category) @template.Name
+                            </h5>
+                            <p class="template-description">@template.Description</p>
+                            <div class="template-meta">
+                                <small class="text-muted">
+                                    @template.Steps.Count step@(template.Steps.Count != 1 ? "s" : "") •
+                                    ~@FormatDuration(template.Steps.Sum(s => (s.EstimatedDuration ?? TimeSpan.FromMinutes(1)).TotalMinutes))
+                                </small>
+                            </div>
+                        </div>
+                        <div class="template-actions">
+                            <button class="btn btn-sm btn-primary"
+                                    @onclick="() => ExecuteTemplate(template.Id)"
+                                    @onclick:stopPropagation="true"
+                                    disabled="@(_isExecuting || string.IsNullOrEmpty(RepositoryPath))">
+                                @if (_isExecuting && _executingTemplateId == template.Id)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    <span>Executing...</span>
+                                }
+                                else
+                                {
+                                    <span>▶️ Execute</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (template.Id == _expandedTemplateId)
+                    {
+                        <div class="template-details">
+                            <div class="template-steps">
+                                <h6>📝 Execution Steps:</h6>
+                                <ol class="steps-list">
+                                    @foreach (var step in template.Steps)
+                                    {
+                                        <li class="step-item">
+                                            <div class="step-command">
+                                                <code>@step.Command</code>
+                                            </div>
+                                            <div class="step-meta">
+                                                <span class="badge bg-@GetPriorityColor(step.Priority)">@step.Priority</span>
+                                                @if (step.RequiresPreviousSuccess)
+                                                {
+                                                    <span class="badge bg-warning">Depends on previous</span>
+                                                }
+                                                <small class="text-muted">
+                                                    ~@FormatDuration((step.EstimatedDuration ?? TimeSpan.FromMinutes(1)).TotalMinutes)
+                                                </small>
+                                            </div>
+                                        </li>
+                                    }
+                                </ol>
+                            </div>
+
+                            @if (template.AllowParameterCustomization && template.DefaultParameters.Any())
+                            {
+                                <div class="template-parameters">
+                                    <h6>⚙️ Parameters:</h6>
+                                    <div class="parameters-grid">
+                                        @foreach (var param in template.DefaultParameters)
+                                        {
+                                            <div class="parameter-item">
+                                                <label class="form-label">@param.Key</label>
+                                                <input type="text" class="form-control form-control-sm"
+                                                       value="@param.Value?.ToString()"
+                                                       @onchange="(e) => UpdateTemplateParameter(template.Id, param.Key, e.Value?.ToString())" />
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-success"
+                                                @onclick="() => ExecuteTemplateWithParameters(template.Id)"
+                                                disabled="@(_isExecuting || string.IsNullOrEmpty(RepositoryPath))">
+                                            @if (_isExecuting && _executingTemplateId == template.Id)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                                <span>Executing with params...</span>
+                                            }
+                                            else
+                                            {
+                                                <span>▶️ Execute with Parameters</span>
+                                            }
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="no-templates-message">
+            <div class="text-center text-muted">
+                <div class="mb-2">📋</div>
+                <p>No templates found</p>
+                <small>Templates will be loaded automatically</small>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_lastResult))
+    {
+        <div class="alert @(_lastSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show mt-3" role="alert">
+            <strong>@(_lastSuccess ? "✅ Success:" : "❌ Error:")</strong> @_lastResult
+            <button type="button" class="btn-close" @onclick="ClearResult" aria-label="Close"></button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? SelectedRepository { get; set; }
+    [Parameter] public string? RepositoryPath { get; set; }
+    [Parameter] public EventCallback OnTaskQueued { get; set; }
+
+    private List<TaskTemplate> _templates = new();
+    private List<TaskTemplate> _filteredTemplates = new();
+    private TaskCategory? SelectedCategory = null;
+    private bool _isLoading = true;
+    private bool _isExecuting = false;
+    private string? _executingTemplateId = null;
+    private string? _expandedTemplateId = null;
+    private string? _lastResult;
+    private bool _lastSuccess;
+    private Dictionary<string, Dictionary<string, object>> _templateParameters = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTemplates();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(SelectedRepository))
+        {
+            await LoadTemplates();
+        }
+    }
+
+    private async Task LoadTemplates()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            _templates = await TemplateService.GetTemplatesAsync();
+            FilterTemplates();
+        }
+        catch (Exception ex)
+        {
+            _lastResult = $"Error loading templates: {ex.Message}";
+            _lastSuccess = false;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void FilterByCategory(TaskCategory? category)
+    {
+        SelectedCategory = category;
+        FilterTemplates();
+        StateHasChanged();
+    }
+
+    private void FilterTemplates()
+    {
+        _filteredTemplates = SelectedCategory.HasValue
+            ? _templates.Where(t => t.Category == SelectedCategory.Value).ToList()
+            : _templates.ToList();
+    }
+
+    private void ToggleTemplateExpansion(string templateId)
+    {
+        _expandedTemplateId = _expandedTemplateId == templateId ? null : templateId;
+        StateHasChanged();
+    }
+
+    private async Task ExecuteTemplate(string templateId)
+    {
+        if (string.IsNullOrEmpty(RepositoryPath))
+        {
+            _lastResult = "No repository path available";
+            _lastSuccess = false;
+            StateHasChanged();
+            return;
+        }
+
+        await ExecuteTemplateInternal(templateId, new Dictionary<string, object>());
+    }
+
+    private async Task ExecuteTemplateWithParameters(string templateId)
+    {
+        if (string.IsNullOrEmpty(RepositoryPath))
+        {
+            _lastResult = "No repository path available";
+            _lastSuccess = false;
+            StateHasChanged();
+            return;
+        }
+
+        var parameters = _templateParameters.GetValueOrDefault(templateId, new Dictionary<string, object>());
+        await ExecuteTemplateInternal(templateId, parameters);
+    }
+
+    private async Task ExecuteTemplateInternal(string templateId, Dictionary<string, object> parameters)
+    {
+        _isExecuting = true;
+        _executingTemplateId = templateId;
+        _lastResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var executionPlan = await TemplateService.BuildExecutionPlanAsync(templateId, parameters);
+
+            int successCount = 0;
+            int totalSteps = executionPlan.Steps.Count;
+
+            foreach (var step in executionPlan.Steps)
+            {
+                var success = await OrchestratorService.QueueTaskAsync(step.Command, RepositoryPath!, step.Priority);
+
+                if (success)
+                {
+                    successCount++;
+                }
+                else if (step.RequiresPreviousSuccess)
+                {
+                    // Stop execution if this step failed and requires previous success
+                    break;
+                }
+
+                // Small delay between tasks to avoid overwhelming the orchestrator
+                await Task.Delay(100);
+            }
+
+            if (successCount == totalSteps)
+            {
+                _lastResult = $"Template '{executionPlan.TemplateName}' executed successfully ({successCount}/{totalSteps} steps)";
+                _lastSuccess = true;
+                await OnTaskQueued.InvokeAsync();
+            }
+            else
+            {
+                _lastResult = $"Template execution partially completed ({successCount}/{totalSteps} steps)";
+                _lastSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _lastResult = $"Error executing template: {ex.Message}";
+            _lastSuccess = false;
+        }
+        finally
+        {
+            _isExecuting = false;
+            _executingTemplateId = null;
+            StateHasChanged();
+        }
+
+        // Clear result after 10 seconds for templates (longer than quick actions)
+        _ = Task.Delay(10000).ContinueWith(_ =>
+        {
+            _lastResult = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void UpdateTemplateParameter(string templateId, string parameterName, string? value)
+    {
+        if (!_templateParameters.ContainsKey(templateId))
+        {
+            _templateParameters[templateId] = new Dictionary<string, object>();
+        }
+
+        if (!string.IsNullOrEmpty(value))
+        {
+            _templateParameters[templateId][parameterName] = value;
+        }
+        else
+        {
+            _templateParameters[templateId].Remove(parameterName);
+        }
+    }
+
+    private void ClearResult()
+    {
+        _lastResult = null;
+        StateHasChanged();
+    }
+
+    private string GetCategoryIcon(TaskCategory category) => category switch
+    {
+        TaskCategory.Development => "🔨",
+        TaskCategory.Analysis => "🔍",
+        TaskCategory.Documentation => "📚",
+        TaskCategory.Maintenance => "🔧",
+        TaskCategory.Custom => "⚙️",
+        _ => "📋"
+    };
+
+    private string GetPriorityColor(TaskPriority priority) => priority switch
+    {
+        TaskPriority.Critical => "danger",
+        TaskPriority.High => "warning",
+        TaskPriority.Normal => "primary",
+        TaskPriority.Low => "secondary",
+        _ => "primary"
+    };
+
+    private string FormatDuration(double minutes)
+    {
+        if (minutes < 1)
+        {
+            return $"{(int)(minutes * 60)}s";
+        }
+        else if (minutes < 60)
+        {
+            return $"{(int)minutes}m";
+        }
+        else
+        {
+            var hours = (int)(minutes / 60);
+            var remainingMinutes = (int)(minutes % 60);
+            return $"{hours}h {remainingMinutes}m";
+        }
+    }
+}

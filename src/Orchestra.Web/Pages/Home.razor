@@ -75,11 +75,11 @@
                                        IsLoading="@_isRefreshing" />
                 </div>
 
-                <!-- Quick Actions Section -->
-                <div class="sidebar-section quick-actions-section sidebar-compact">
-                    <QuickActions SelectedRepository="@_selectedRepository"
-                                 RepositoryPath="@GetSelectedRepositoryPath()"
-                                 OnTaskQueued="OnTaskQueued" />
+                <!-- Orchestration Control Panel Section (Actions Block Refactoring Phase 1) -->
+                <div class="sidebar-section orchestration-control-section sidebar-compact">
+                    <OrchestrationControlPanel SelectedRepository="@_selectedRepository"
+                                             RepositoryPath="@GetSelectedRepositoryPath()"
+                                             OnTaskQueued="OnTaskQueued" />
                 </div>
 
                 <!-- Agent List Section -->

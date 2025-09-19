@@ -1,0 +1,224 @@
+@using Orchestra.Web.Services
+@using Orchestra.Web.Models
+@inject TaskTemplateService TemplateService
+@inject OrchestratorService OrchestratorService
+
+<div class="orchestration-control-panel">
+    <div class="panel-header">
+        <h3>🎛️ Orchestration Control Panel</h3>
+        <div class="panel-controls">
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleCompactMode">
+                @(IsCompactMode ? "📖 Expand" : "📋 Compact")
+            </button>
+        </div>
+    </div>
+
+    @if (string.IsNullOrEmpty(SelectedRepository))
+    {
+        <!-- Skeleton loading when no repository selected -->
+        <div class="skeleton-control-panel">
+            <div class="skeleton-tabs">
+                <div class="skeleton skeleton-tab"></div>
+                <div class="skeleton skeleton-tab"></div>
+                <div class="skeleton skeleton-tab"></div>
+            </div>
+            <div class="skeleton-content">
+                <div class="skeleton skeleton-text" style="width: 60%; margin-bottom: 16px;"></div>
+                <div class="skeleton skeleton-button-group">
+                    <div class="skeleton skeleton-button"></div>
+                    <div class="skeleton skeleton-button"></div>
+                    <div class="skeleton skeleton-button"></div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="panel-tabs">
+            <nav class="nav nav-tabs" role="tablist">
+                <button class="nav-link @(ActiveTab == "templates" ? "active" : "")"
+                        @onclick="OnTemplatesTabClick"
+                        type="button" role="tab"
+                        aria-selected="@(ActiveTab == "templates")">
+                    📋 Templates
+                </button>
+                <button class="nav-link @(ActiveTab == "quick" ? "active" : "")"
+                        @onclick="OnQuickTabClick"
+                        type="button" role="tab"
+                        aria-selected="@(ActiveTab == "quick")">
+                    ⚡ Quick Actions
+                </button>
+                <button class="nav-link @(ActiveTab == "batch" ? "active" : "")"
+                        @onclick="OnBatchTabClick"
+                        type="button" role="tab"
+                        aria-selected="@(ActiveTab == "batch")"
+                        disabled="true"
+                        title="Coming in Phase 2">
+                    📦 Batch Ops
+                </button>
+                <button class="nav-link @(ActiveTab == "workflows" ? "active" : "")"
+                        @onclick="OnWorkflowsTabClick"
+                        type="button" role="tab"
+                        aria-selected="@(ActiveTab == "workflows")"
+                        disabled="true"
+                        title="Coming in Phase 3">
+                    🔄 Workflows
+                </button>
+            </nav>
+        </div>
+
+        <div class="panel-content @(IsCompactMode ? "compact-mode" : "")">
+            <div class="tab-content">
+                @switch (ActiveTab)
+                {
+                    case "templates":
+                        <div class="tab-pane fade show active" role="tabpanel">
+                            <TaskTemplatesSection SelectedRepository="@SelectedRepository"
+                                                RepositoryPath="@RepositoryPath"
+                                                OnTaskQueued="@OnTaskQueued" />
+                        </div>
+                        break;
+                    case "quick":
+                        <div class="tab-pane fade show active" role="tabpanel">
+                            <QuickActionsSection SelectedRepository="@SelectedRepository"
+                                               RepositoryPath="@RepositoryPath"
+                                               OnTaskQueued="@OnTaskQueued" />
+                        </div>
+                        break;
+                    case "batch":
+                        <div class="tab-pane fade show active" role="tabpanel">
+                            <div class="coming-soon">
+                                <div class="coming-soon-icon">🚧</div>
+                                <h4>Batch Operations</h4>
+                                <p>Multi-repository task execution coming in Phase 2</p>
+                                <div class="feature-preview">
+                                    <small>🎯 Multi-repo selection</small><br>
+                                    <small>⚡ Parallel execution</small><br>
+                                    <small>📊 Progress tracking</small>
+                                </div>
+                            </div>
+                        </div>
+                        break;
+                    case "workflows":
+                        <div class="tab-pane fade show active" role="tabpanel">
+                            <div class="coming-soon">
+                                <div class="coming-soon-icon">🔮</div>
+                                <h4>Workflow Manager</h4>
+                                <p>Visual workflow builder coming in Phase 3</p>
+                                <div class="feature-preview">
+                                    <small>🎨 Visual builder</small><br>
+                                    <small>🔀 Conditional logic</small><br>
+                                    <small>🔁 Loop & retry</small>
+                                </div>
+                            </div>
+                        </div>
+                        break;
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? SelectedRepository { get; set; }
+    [Parameter] public string? RepositoryPath { get; set; }
+    [Parameter] public EventCallback OnTaskQueued { get; set; }
+
+    private string ActiveTab { get; set; } = "quick"; // Start with Quick Actions for familiarity
+    private bool IsCompactMode { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load user preferences for active tab and compact mode
+        await LoadUserPreferences();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Reset to Quick Actions tab when repository changes for consistency
+        if (!string.IsNullOrEmpty(SelectedRepository))
+        {
+            // Only switch if we're currently on a disabled tab
+            if (ActiveTab == "batch" || ActiveTab == "workflows")
+            {
+                ActiveTab = "quick";
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void SetActiveTab(string tabName)
+    {
+        // Prevent switching to disabled tabs
+        if (tabName == "batch" || tabName == "workflows")
+        {
+            return;
+        }
+
+        ActiveTab = tabName;
+        StateHasChanged();
+
+        // Save user preference
+        _ = SaveUserPreferences();
+    }
+
+    private void OnTemplatesTabClick()
+    {
+        SetActiveTab("templates");
+    }
+
+    private void OnQuickTabClick()
+    {
+        SetActiveTab("quick");
+    }
+
+    private void OnBatchTabClick()
+    {
+        SetActiveTab("batch");
+    }
+
+    private void OnWorkflowsTabClick()
+    {
+        SetActiveTab("workflows");
+    }
+
+    private void ToggleCompactMode()
+    {
+        IsCompactMode = !IsCompactMode;
+        StateHasChanged();
+
+        // Save user preference
+        _ = SaveUserPreferences();
+    }
+
+    private async Task LoadUserPreferences()
+    {
+        try
+        {
+            // Load preferences from localStorage - implement in future iteration
+            // For now, use sensible defaults
+            ActiveTab = "quick";
+            IsCompactMode = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user preferences: {ex.Message}");
+        }
+    }
+
+    private async Task SaveUserPreferences()
+    {
+        try
+        {
+            // Save preferences to localStorage - implement in future iteration
+            // For now, just log the preference change
+#if DEBUG
+            Console.WriteLine($"OrchestrationControlPanel: ActiveTab={ActiveTab}, CompactMode={IsCompactMode}");
+#endif
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving user preferences: {ex.Message}");
+        }
+    }
+}

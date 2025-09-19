@@ -1,0 +1,229 @@
+@using Orchestra.Web.Services
+@using Orchestra.Web.Models
+@inject OrchestratorService OrchestratorService
+
+<div class="quick-actions-section">
+    @if (string.IsNullOrEmpty(SelectedRepository))
+    {
+        <!-- Skeleton loading when no repository selected -->
+        <div class="skeleton-quick-actions">
+            <div class="skeleton-action-buttons">
+                <div class="skeleton skeleton-button"></div>
+                <div class="skeleton skeleton-button"></div>
+                <div class="skeleton skeleton-button"></div>
+            </div>
+            <div class="skeleton-custom-task">
+                <div class="skeleton skeleton-text" style="width: 40%; margin-bottom: 12px;"></div>
+                <div class="skeleton-task-input-group">
+                    <div class="skeleton skeleton-input"></div>
+                    <div class="skeleton skeleton-button"></div>
+                    <div class="skeleton skeleton-button"></div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="section-header mb-3">
+            <h4>⚡ Quick Actions</h4>
+            <small class="text-muted">Ready-to-use commands for @SelectedRepository</small>
+        </div>
+
+        <div class="d-flex gap-3 mb-3 flex-wrap content-fade-in">
+            <!-- Development Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" id="developmentDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                    🔨 Development
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="developmentDropdown">
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("git status"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">📊</span>Git Status</a></li>
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("git pull"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">⬇️</span>Git Pull</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("dotnet build"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">🔨</span>Build</a></li>
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("dotnet test"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">🧪</span>Run Tests</a></li>
+                </ul>
+            </div>
+
+            <!-- Analysis Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="analysisDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                    🔍 Analysis
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="analysisDropdown">
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("Analyze code quality and suggest improvements"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">🔍</span>Code Review</a></li>
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("Find and fix potential security issues"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">🛡️</span>Security Scan</a></li>
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("Identify performance bottlenecks"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">⚡</span>Performance Check</a></li>
+                </ul>
+            </div>
+
+            <!-- Documentation Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-outline-info dropdown-toggle" type="button" id="documentationDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                    📚 Documentation
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="documentationDropdown">
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("Update README.md with current project state"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">📝</span>Update README</a></li>
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("Generate API documentation"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">📚</span>API Docs</a></li>
+                    <li><a class="dropdown-item @(_isProcessing ? "disabled" : "")" href="#" @onclick="@(() => QueueTaskWrapper("Add missing code comments"))" @onclick:preventDefault="true">
+                        <span class="me-2 emoji">💬</span>Add Comments</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="custom-task">
+            <h5>💬 Custom Task</h5>
+            <div class="d-flex gap-2 align-items-center">
+                <input type="text" @bind="_customCommand" placeholder="Enter custom command or task..."
+                       @onkeypress="HandleKeyPress" class="form-control" />
+
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="priorityDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false" style="min-width: 100px;">
+                        @_selectedPriority
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="priorityDropdown">
+                        <li><a class="dropdown-item @(_selectedPriority == TaskPriority.Normal ? "active" : "")"
+                               href="#" @onclick="() => SetPriority(TaskPriority.Normal)" @onclick:preventDefault="true">Normal</a></li>
+                        <li><a class="dropdown-item @(_selectedPriority == TaskPriority.High ? "active" : "")"
+                               href="#" @onclick="() => SetPriority(TaskPriority.High)" @onclick:preventDefault="true">High</a></li>
+                        <li><a class="dropdown-item @(_selectedPriority == TaskPriority.Critical ? "active" : "")"
+                               href="#" @onclick="() => SetPriority(TaskPriority.Critical)" @onclick:preventDefault="true">Critical</a></li>
+                        <li><a class="dropdown-item @(_selectedPriority == TaskPriority.Low ? "active" : "")"
+                               href="#" @onclick="() => SetPriority(TaskPriority.Low)" @onclick:preventDefault="true">Low</a></li>
+                    </ul>
+                </div>
+
+                <button class="btn btn-primary" @onclick="QueueCustomTask"
+                        disabled="@(string.IsNullOrWhiteSpace(_customCommand) || _isProcessing)">
+                    @if (_isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Processing...</span>
+                    }
+                    else
+                    {
+                        <span>📤 Queue Task</span>
+                    }
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_lastResult))
+    {
+        <div class="alert @(_lastSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show mt-3" role="alert">
+            <strong>@(_lastSuccess ? "✅ Success:" : "❌ Error:")</strong> @_lastResult
+            <button type="button" class="btn-close" @onclick="ClearResult" aria-label="Close"></button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? SelectedRepository { get; set; }
+    [Parameter] public string? RepositoryPath { get; set; }
+    [Parameter] public EventCallback OnTaskQueued { get; set; }
+
+    private string _customCommand = "";
+    private TaskPriority _selectedPriority = TaskPriority.Normal;
+    private string? _lastResult;
+    private bool _lastSuccess;
+    private bool _isProcessing = false;
+
+    private async Task QueueTask(string command, TaskPriority priority = TaskPriority.Normal)
+    {
+        if (string.IsNullOrEmpty(RepositoryPath))
+        {
+            _lastResult = "No repository path available";
+            _lastSuccess = false;
+            StateHasChanged();
+            return;
+        }
+
+        _isProcessing = true;
+        _lastResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var success = await OrchestratorService.QueueTaskAsync(command, RepositoryPath, priority);
+
+            if (success)
+            {
+                _lastResult = $"Task '{command}' queued successfully with {priority} priority";
+                _lastSuccess = true;
+                await OnTaskQueued.InvokeAsync();
+            }
+            else
+            {
+                _lastResult = "Failed to queue task - orchestrator may be busy";
+                _lastSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _lastResult = $"Error: {ex.Message}";
+            _lastSuccess = false;
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+
+        // Clear result after 5 seconds
+        _ = Task.Delay(5000).ContinueWith(_ =>
+        {
+            _lastResult = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task QueueCustomTask()
+    {
+        if (!string.IsNullOrWhiteSpace(_customCommand))
+        {
+            await QueueTask(_customCommand, _selectedPriority);
+            _customCommand = "";
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_customCommand))
+        {
+            await QueueCustomTask();
+        }
+    }
+
+    private void SetPriority(TaskPriority priority)
+    {
+        _selectedPriority = priority;
+        StateHasChanged();
+    }
+
+    private void ClearResult()
+    {
+        _lastResult = null;
+        StateHasChanged();
+    }
+
+    private async Task QueueTaskWrapper(string command)
+    {
+        if (!_isProcessing)
+        {
+            await QueueTask(command);
+        }
+    }
+}
