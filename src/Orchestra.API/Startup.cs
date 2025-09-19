@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using Hangfire;
 using Hangfire.Storage.SQLite;
 using Hangfire.Dashboard;
+using Microsoft.AspNetCore.SignalR;
 
 namespace Orchestra.API;
 
@@ -24,9 +25,10 @@ public class Startup
         {
             options.AddDefaultPolicy(policy =>
             {
-                policy.AllowAnyOrigin()
-                      .AllowAnyMethod()
-                      .AllowAnyHeader();
+                policy.AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials()
+                      .SetIsOriginAllowed(origin => true); // Allow all origins with credentials for SignalR
             });
         });
 
@@ -49,6 +51,14 @@ public class Startup
         {
             options.Queues = new[] { "default", "high-priority", "long-running", "maintenance" };
             options.WorkerCount = Environment.ProcessorCount * 2;
+        });
+
+        // Add SignalR services for real-time agent communication
+        services.AddSignalR(options =>
+        {
+            options.EnableDetailedErrors = true;
+            options.MaximumReceiveMessageSize = 1024 * 1024; // 1MB
+            options.StreamBufferCapacity = 10;
         });
 
         services.AddSingleton<SimpleOrchestrator>();
@@ -83,6 +93,8 @@ public class Startup
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
+            // Map SignalR hub for real-time agent communication
+            endpoints.MapHub<AgentCommunicationHub>("/agentHub");
         });
 
         // Schedule recurring jobs
