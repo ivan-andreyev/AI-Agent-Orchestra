@@ -345,6 +345,28 @@ public class SimpleOrchestrator : IDisposable
         UpdateTaskStatus(taskId, TaskStatus.Cancelled);
     }
 
+    /// <summary>
+    /// Gets an agent by ID
+    /// </summary>
+    public AgentInfo? GetAgentById(string agentId)
+    {
+        lock (_lock)
+        {
+            return _agents.GetValueOrDefault(agentId);
+        }
+    }
+
+    /// <summary>
+    /// Gets a task by ID
+    /// </summary>
+    public TaskRequest? GetTaskById(string taskId)
+    {
+        lock (_lock)
+        {
+            return _taskQueue.FirstOrDefault(t => t.Id == taskId);
+        }
+    }
+
     private void SaveState()
     {
         // Create thread-safe copies for serialization

@@ -9,12 +9,18 @@ public record AgentInfo(
     DateTime LastPing,
     string? CurrentTask = null,
     string? SessionId = null
-);
+)
+{
+    public string? CurrentTaskId { get; set; }
+    public DateTime LastActiveTime { get; set; } = LastPing;
+    public int TasksCompleted { get; set; } = 0;
+};
 
 public enum AgentStatus
 {
     Idle,
     Working,
+    Busy,
     Error,
     Offline
 }
@@ -29,6 +35,20 @@ public record TaskRequest(
     TaskStatus Status = TaskStatus.Pending,
     DateTime? StartedAt = null,
     DateTime? CompletedAt = null
+)
+{
+    public string? AssignedAgentId { get; set; }
+};
+
+public record TaskResult(
+    string TaskId,
+    string AgentId,
+    TaskStatus Status,
+    string? Output,
+    bool Success,
+    DateTime? CompletedAt,
+    TimeSpan? ExecutionTime = null,
+    string? ErrorMessage = null
 );
 
 public enum TaskPriority

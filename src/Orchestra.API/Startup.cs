@@ -1,5 +1,7 @@
 using Orchestra.Core;
 using Orchestra.Core.Services;
+using Orchestra.API.Jobs;
+using Orchestra.API.Services;
 using System.Text.Json.Serialization;
 using Hangfire;
 using Hangfire.Storage.SQLite;
@@ -54,6 +56,12 @@ public class Startup
             AgentConfiguration.LoadFromFile("agent-config.json"));
         services.AddHostedService<AgentScheduler>();
         services.AddHostedService<BackgroundTaskAssignmentService>();
+
+        // Register Hangfire job classes
+        services.AddScoped<TaskExecutionJob>();
+
+        // Register HangfireOrchestrator - the critical integration bridge
+        services.AddScoped<HangfireOrchestrator>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
