@@ -18,6 +18,9 @@ builder.Services.AddScoped<MonitoredOrchestratorService>();
 // Register task template service (Actions Block Refactoring Phase 1)
 builder.Services.AddScoped<TaskTemplateService>();
 
+// Register batch task executor service (Phase 2 implementation)
+builder.Services.AddScoped<BatchTaskExecutor>();
+
 // Configure logging for performance monitoring
 builder.Services.AddLogging();
 

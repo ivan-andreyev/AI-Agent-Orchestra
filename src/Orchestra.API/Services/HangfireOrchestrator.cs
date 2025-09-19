@@ -147,9 +147,18 @@ public class HangfireOrchestrator
         // Use existing orchestrator logic to find available agents
         var allAgents = _legacyOrchestrator.GetAllAgents();
 
-        // Find agents that are idle and match the repository
+        _logger.LogInformation("FindAvailableAgentAsync - Total agents: {AgentCount}, Repository: {RepositoryPath}",
+            allAgents.Count, repositoryPath);
+
+        foreach (var agent in allAgents)
+        {
+            _logger.LogInformation("Available agent: {AgentId}, Status: {Status}, Repository: {AgentRepository}",
+                agent.Id, agent.Status, agent.RepositoryPath);
+        }
+
+        // Find agents that are available (Idle or Working) and match the repository
         var availableAgent = allAgents
-            .Where(agent => agent.Status == AgentStatus.Idle)
+            .Where(agent => agent.Status == AgentStatus.Idle || agent.Status == AgentStatus.Working)
             .Where(agent => string.IsNullOrEmpty(repositoryPath) ||
                            agent.RepositoryPath?.Equals(repositoryPath, StringComparison.OrdinalIgnoreCase) == true)
             .OrderBy(agent => agent.LastActiveTime) // Prefer least recently used

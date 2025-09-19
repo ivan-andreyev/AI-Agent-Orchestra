@@ -51,9 +51,7 @@
                 <button class="nav-link @(ActiveTab == "batch" ? "active" : "")"
                         @onclick="OnBatchTabClick"
                         type="button" role="tab"
-                        aria-selected="@(ActiveTab == "batch")"
-                        disabled="true"
-                        title="Coming in Phase 2">
+                        aria-selected="@(ActiveTab == "batch")">
                     📦 Batch Ops
                 </button>
                 <button class="nav-link @(ActiveTab == "workflows" ? "active" : "")"
@@ -87,16 +85,7 @@
                         break;
                     case "batch":
                         <div class="tab-pane fade show active" role="tabpanel">
-                            <div class="coming-soon">
-                                <div class="coming-soon-icon">🚧</div>
-                                <h4>Batch Operations</h4>
-                                <p>Multi-repository task execution coming in Phase 2</p>
-                                <div class="feature-preview">
-                                    <small>🎯 Multi-repo selection</small><br>
-                                    <small>⚡ Parallel execution</small><br>
-                                    <small>📊 Progress tracking</small>
-                                </div>
-                            </div>
+                            <BatchOperationsSection Repositories="@Repositories" />
                         </div>
                         break;
                     case "workflows":
@@ -122,6 +111,7 @@
 @code {
     [Parameter] public string? SelectedRepository { get; set; }
     [Parameter] public string? RepositoryPath { get; set; }
+    [Parameter] public Dictionary<string, RepositoryInfo>? Repositories { get; set; }
     [Parameter] public EventCallback OnTaskQueued { get; set; }
 
     private string ActiveTab { get; set; } = "quick"; // Start with Quick Actions for familiarity
@@ -139,7 +129,7 @@
         if (!string.IsNullOrEmpty(SelectedRepository))
         {
             // Only switch if we're currently on a disabled tab
-            if (ActiveTab == "batch" || ActiveTab == "workflows")
+            if (ActiveTab == "workflows")
             {
                 ActiveTab = "quick";
                 StateHasChanged();
@@ -150,7 +140,7 @@
     private void SetActiveTab(string tabName)
     {
         // Prevent switching to disabled tabs
-        if (tabName == "batch" || tabName == "workflows")
+        if (tabName == "workflows")
         {
             return;
         }

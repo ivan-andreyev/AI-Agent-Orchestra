@@ -1,0 +1,640 @@
+@using Orchestra.Web.Services
+@using Orchestra.Web.Models
+
+<div class="batch-progress-visualization">
+    @if (BatchStatus != null)
+    {
+        <div class="batch-header">
+            <div class="batch-title">
+                <h4>🔄 Batch Execution: @BatchStatus.Id[..8]...</h4>
+                <div class="batch-status-badge">
+                    <span class="badge @GetStatusBadgeClass()">@GetStatusText()</span>
+                </div>
+            </div>
+            <div class="batch-timestamp">
+                <small class="text-muted">Started: @BatchStatus.StartTime.ToString("HH:mm:ss")</small>
+            </div>
+        </div>
+
+        <div class="progress-overview">
+            <div class="progress-stats">
+                <div class="stat-item">
+                    <div class="stat-value">@BatchStatus.CompletedTasks</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-divider">/</div>
+                <div class="stat-item">
+                    <div class="stat-value">@BatchStatus.TotalTasks</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-item ms-auto">
+                    <div class="stat-value text-success">@BatchStatus.SuccessfulTasks</div>
+                    <div class="stat-label">Success</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value text-danger">@BatchStatus.FailedTasks</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+            </div>
+
+            <div class="progress-bar-container">
+                <div class="progress mb-2" style="height: 20px;">
+                    <div class="progress-bar bg-success"
+                         role="progressbar"
+                         style="width: @GetSuccessPercentage()%"
+                         aria-valuenow="@GetSuccessPercentage()"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        @if (GetSuccessPercentage() > 10)
+                        {
+                            <span>@BatchStatus.SuccessfulTasks success</span>
+                        }
+                    </div>
+                    <div class="progress-bar bg-danger"
+                         role="progressbar"
+                         style="width: @GetFailedPercentage()%"
+                         aria-valuenow="@GetFailedPercentage()"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        @if (GetFailedPercentage() > 10)
+                        {
+                            <span>@BatchStatus.FailedTasks failed</span>
+                        }
+                    </div>
+                </div>
+                <div class="progress-text">
+                    <small>@GetOverallPercentage()% complete (@BatchStatus.CompletedTasks of @BatchStatus.TotalTasks)</small>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(BatchStatus.CurrentTask))
+        {
+            <div class="current-task">
+                <div class="current-task-header">
+                    <span class="current-task-icon">🏃‍♂️</span>
+                    <span class="current-task-label">Currently executing:</span>
+                </div>
+                <div class="current-task-command">
+                    <code>@GetShortCommand(BatchStatus.CurrentTask)</code>
+                </div>
+            </div>
+        }
+
+        @if (BatchStatus.EstimatedTimeRemaining > TimeSpan.Zero)
+        {
+            <div class="time-estimates">
+                <div class="time-item">
+                    <span class="time-icon">⏱️</span>
+                    <span class="time-label">ETA:</span>
+                    <span class="time-value">@FormatTimeSpan(BatchStatus.EstimatedTimeRemaining)</span>
+                </div>
+                <div class="time-item">
+                    <span class="time-icon">⏳</span>
+                    <span class="time-label">Elapsed:</span>
+                    <span class="time-value">@FormatTimeSpan(DateTime.Now - BatchStatus.StartTime)</span>
+                </div>
+            </div>
+        }
+
+        <div class="repository-progress">
+            <h6>📂 Repository Progress</h6>
+            <div class="repository-list">
+                @if (RepositoryProgress?.Any() == true)
+                {
+                    @foreach (var repoProgress in RepositoryProgress)
+                    {
+                        <div class="repository-item">
+                            <div class="repository-header">
+                                <div class="repository-name">
+                                    <span class="repository-icon">@GetRepositoryIcon(repoProgress)</span>
+                                    @repoProgress.RepositoryName
+                                </div>
+                                <div class="repository-stats">
+                                    <span class="badge bg-light text-dark">@repoProgress.CompletedTasks/@repoProgress.TotalTasks</span>
+                                </div>
+                            </div>
+                            <div class="progress progress-sm">
+                                <div class="progress-bar bg-primary"
+                                     role="progressbar"
+                                     style="width: @GetRepositoryPercentage(repoProgress)%">
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(repoProgress.CurrentTask))
+                            {
+                                <div class="repository-current-task">
+                                    <small class="text-muted">🔄 @GetShortCommand(repoProgress.CurrentTask, 40)</small>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="no-repository-data">
+                        <small class="text-muted">No repository-specific progress data available</small>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (ShowTaskDetails && TaskDetails?.Any() == true)
+        {
+            <div class="task-details">
+                <div class="task-details-header">
+                    <h6>📋 Task Details</h6>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleTaskDetails">
+                        @(ShowTaskDetails ? "Hide" : "Show") Details
+                    </button>
+                </div>
+                <div class="task-list">
+                    @foreach (var task in TaskDetails.Take(MaxDetailedTasks))
+                    {
+                        <div class="task-item @GetTaskStatusClass(task.Status)">
+                            <div class="task-status-icon">@GetTaskStatusIcon(task.Status)</div>
+                            <div class="task-content">
+                                <div class="task-command">
+                                    <code>@GetShortCommand(task.Command, 60)</code>
+                                </div>
+                                <div class="task-meta">
+                                    <small class="text-muted">
+                                        📂 @task.Repository
+                                        @if (task.Status == BatchTaskStatus.Completed)
+                                        {
+                                            <span class="ms-2">⏱️ @FormatTimeSpan(task.EndTime - task.StartTime)</span>
+                                        }
+                                        @if (!string.IsNullOrEmpty(task.ErrorMessage))
+                                        {
+                                            <span class="ms-2 text-danger">❌ @task.ErrorMessage</span>
+                                        }
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    @if (TaskDetails.Count > MaxDetailedTasks)
+                    {
+                        <div class="more-tasks">
+                            <small class="text-muted">...and @(TaskDetails.Count - MaxDetailedTasks) more tasks</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="task-details-toggle">
+                <button class="btn btn-sm btn-outline-primary" @onclick="ToggleTaskDetails">
+                    <span>📋</span> Show Task Details
+                </button>
+            </div>
+        }
+
+        @if (BatchStatus.IsCompleted)
+        {
+            <div class="batch-summary">
+                <div class="alert @(BatchStatus.IsSuccess ? "alert-success" : "alert-warning")">
+                    <h6 class="alert-heading">
+                        @if (BatchStatus.IsSuccess)
+                        {
+                            <span>✅ Batch Completed Successfully</span>
+                        }
+                        else
+                        {
+                            <span>⚠️ Batch Completed with Issues</span>
+                        }
+                    </h6>
+                    <div class="batch-summary-stats">
+                        <p class="mb-1">
+                            <strong>Summary:</strong> @BatchStatus.SuccessfulTasks successful, @BatchStatus.FailedTasks failed out of @BatchStatus.TotalTasks tasks
+                        </p>
+                        <p class="mb-0">
+                            <strong>Duration:</strong> @FormatTimeSpan(BatchStatus.EndTime - BatchStatus.StartTime)
+                        </p>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="no-batch">
+            <div class="text-center text-muted py-4">
+                <span class="fs-3">📋</span>
+                <p class="mt-2">No batch execution in progress</p>
+                <small>Start a batch operation to see progress visualization</small>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public BatchStatus? BatchStatus { get; set; }
+    [Parameter] public List<RepositoryProgress>? RepositoryProgress { get; set; }
+    [Parameter] public List<TaskDetail>? TaskDetails { get; set; }
+    [Parameter] public bool ShowTaskDetails { get; set; } = false;
+    [Parameter] public EventCallback<bool> ShowTaskDetailsChanged { get; set; }
+
+    private const int MaxDetailedTasks = 10;
+
+    private async Task ToggleTaskDetails()
+    {
+        ShowTaskDetails = !ShowTaskDetails;
+        await ShowTaskDetailsChanged.InvokeAsync(ShowTaskDetails);
+    }
+
+    private string GetStatusBadgeClass()
+    {
+        if (BatchStatus == null)
+        {
+            return "bg-secondary";
+        }
+
+        if (BatchStatus.IsCompleted)
+        {
+            return BatchStatus.IsSuccess ? "bg-success" : "bg-warning";
+        }
+
+        return "bg-primary";
+    }
+
+    private string GetStatusText()
+    {
+        if (BatchStatus == null)
+        {
+            return "Unknown";
+        }
+
+        if (BatchStatus.IsCompleted)
+        {
+            return BatchStatus.IsSuccess ? "Completed" : "Completed with Errors";
+        }
+
+        return "Running";
+    }
+
+    private double GetOverallPercentage()
+    {
+        if (BatchStatus?.TotalTasks == 0)
+        {
+            return 0;
+        }
+
+        return Math.Round((double)BatchStatus!.CompletedTasks / BatchStatus.TotalTasks * 100, 1);
+    }
+
+    private double GetSuccessPercentage()
+    {
+        if (BatchStatus?.TotalTasks == 0)
+        {
+            return 0;
+        }
+
+        return Math.Round((double)BatchStatus!.SuccessfulTasks / BatchStatus.TotalTasks * 100, 1);
+    }
+
+    private double GetFailedPercentage()
+    {
+        if (BatchStatus?.TotalTasks == 0)
+        {
+            return 0;
+        }
+
+        return Math.Round((double)BatchStatus!.FailedTasks / BatchStatus.TotalTasks * 100, 1);
+    }
+
+    private double GetRepositoryPercentage(RepositoryProgress repoProgress)
+    {
+        if (repoProgress.TotalTasks == 0)
+        {
+            return 0;
+        }
+
+        return Math.Round((double)repoProgress.CompletedTasks / repoProgress.TotalTasks * 100, 1);
+    }
+
+    private static string GetRepositoryIcon(RepositoryProgress repoProgress)
+    {
+        if (repoProgress.CompletedTasks == repoProgress.TotalTasks)
+        {
+            return "✅";
+        }
+
+        if (repoProgress.CompletedTasks > 0)
+        {
+            return "🔄";
+        }
+
+        return "⏳";
+    }
+
+    private static string GetTaskStatusClass(BatchTaskStatus status)
+    {
+        return status switch
+        {
+            BatchTaskStatus.Pending => "pending",
+            BatchTaskStatus.Running => "running",
+            BatchTaskStatus.Completed => "completed",
+            BatchTaskStatus.Failed => "failed",
+            _ => "unknown"
+        };
+    }
+
+    private static string GetTaskStatusIcon(BatchTaskStatus status)
+    {
+        return status switch
+        {
+            BatchTaskStatus.Pending => "⏳",
+            BatchTaskStatus.Running => "🔄",
+            BatchTaskStatus.Completed => "✅",
+            BatchTaskStatus.Failed => "❌",
+            _ => "❓"
+        };
+    }
+
+    private static string GetShortCommand(string command, int maxLength = 50)
+    {
+        if (command.Length <= maxLength)
+        {
+            return command;
+        }
+
+        return command[..maxLength] + "...";
+    }
+
+    private static string FormatTimeSpan(TimeSpan timeSpan)
+    {
+        if (timeSpan.TotalDays >= 1)
+        {
+            return $"{(int)timeSpan.TotalDays}d {timeSpan.Hours}h {timeSpan.Minutes}m";
+        }
+
+        if (timeSpan.TotalHours >= 1)
+        {
+            return $"{timeSpan.Hours}h {timeSpan.Minutes}m {timeSpan.Seconds}s";
+        }
+
+        if (timeSpan.TotalMinutes >= 1)
+        {
+            return $"{timeSpan.Minutes}m {timeSpan.Seconds}s";
+        }
+
+        return $"{timeSpan.Seconds}s";
+    }
+}
+
+
+<style>
+    .batch-progress-visualization {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        background-color: var(--bs-body-bg);
+    }
+
+    .batch-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    .batch-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .batch-title h4 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .progress-overview {
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-stats {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--bs-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-divider {
+        font-size: 1.5rem;
+        color: var(--bs-secondary);
+        margin: 0 0.5rem;
+    }
+
+    .progress-bar-container .progress-text {
+        text-align: center;
+        margin-top: 0.25rem;
+    }
+
+    .current-task {
+        background-color: var(--bs-primary-bg-subtle);
+        border: 1px solid var(--bs-primary-border-subtle);
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .current-task-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--bs-primary);
+    }
+
+    .current-task-command {
+        font-family: var(--bs-font-monospace);
+        background-color: var(--bs-body-bg);
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        border: 1px solid var(--bs-border-color);
+    }
+
+    .time-estimates {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1.5rem;
+        padding: 0.75rem;
+        background-color: var(--bs-light);
+        border-radius: 0.375rem;
+    }
+
+    .time-item {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .time-label {
+        font-weight: 500;
+        color: var(--bs-secondary);
+    }
+
+    .time-value {
+        font-weight: 600;
+        color: var(--bs-primary);
+    }
+
+    .repository-progress {
+        margin-bottom: 1.5rem;
+    }
+
+    .repository-progress h6 {
+        margin-bottom: 0.75rem;
+        color: var(--bs-primary);
+    }
+
+    .repository-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .repository-item {
+        padding: 0.75rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        background-color: var(--bs-body-bg);
+    }
+
+    .repository-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .repository-name {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+
+    .progress-sm {
+        height: 0.5rem;
+    }
+
+    .repository-current-task {
+        margin-top: 0.5rem;
+    }
+
+    .task-details-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .task-details h6 {
+        margin: 0;
+        color: var(--bs-primary);
+    }
+
+    .task-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+    }
+
+    .task-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .task-item.pending {
+        background-color: var(--bs-light);
+    }
+
+    .task-item.running {
+        background-color: var(--bs-primary-bg-subtle);
+        border: 1px solid var(--bs-primary-border-subtle);
+    }
+
+    .task-item.completed {
+        background-color: var(--bs-success-bg-subtle);
+        border: 1px solid var(--bs-success-border-subtle);
+    }
+
+    .task-item.failed {
+        background-color: var(--bs-danger-bg-subtle);
+        border: 1px solid var(--bs-danger-border-subtle);
+    }
+
+    .task-status-icon {
+        font-size: 1.1em;
+        margin-top: 0.125rem;
+    }
+
+    .task-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .task-command {
+        font-family: var(--bs-font-monospace);
+        font-size: 0.875rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .task-meta {
+        font-size: 0.75rem;
+    }
+
+    .batch-summary {
+        margin-top: 1.5rem;
+    }
+
+    .batch-summary-stats {
+        margin-top: 0.5rem;
+    }
+
+    .task-details-toggle {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .more-tasks {
+        text-align: center;
+        padding: 0.5rem;
+        color: var(--bs-secondary);
+    }
+
+    .no-batch, .no-repository-data {
+        text-align: center;
+        padding: 2rem;
+        color: var(--bs-secondary);
+    }
+</style>

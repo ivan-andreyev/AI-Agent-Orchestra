@@ -119,7 +119,7 @@
     [Parameter] public string? SelectedRepository { get; set; }
     [Parameter] public string? RepositoryPath { get; set; }
 
-    private List<TaskRequest> _tasks = new();
+    private List<Orchestra.Web.Models.TaskRequest> _tasks = new();
     private bool _isLoading = false;
     private string? _errorMessage;
     private string? _lastRepository;
@@ -152,7 +152,7 @@
         // Fast-return pattern for early validation
         if (string.IsNullOrEmpty(SelectedRepository) || string.IsNullOrEmpty(RepositoryPath))
         {
-            _tasks = new List<TaskRequest>();
+            _tasks = new List<Orchestra.Web.Models.TaskRequest>();
             return;
         }
 
@@ -177,7 +177,7 @@
     {
         if (state?.TaskQueue == null)
         {
-            _tasks = new List<TaskRequest>();
+            _tasks = new List<Orchestra.Web.Models.TaskRequest>();
             return;
         }
 
@@ -202,7 +202,7 @@
     private void HandleLoadError(Exception ex)
     {
         _errorMessage = ex.Message;
-        _tasks = new List<TaskRequest>();
+        _tasks = new List<Orchestra.Web.Models.TaskRequest>();
         LogMessage($"ERROR loading tasks: {ex.Message}");
     }
 

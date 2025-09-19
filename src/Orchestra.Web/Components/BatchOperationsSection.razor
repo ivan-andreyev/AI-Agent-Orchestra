@@ -1,0 +1,848 @@
+@using Orchestra.Web.Models
+@using Orchestra.Web.Services
+@using Orchestra.Web.Components.Base
+@inject BatchTaskExecutor BatchExecutor
+@inject IJSRuntime JSRuntime
+@inherits AutoRefreshComponent
+
+<div class="batch-operations-section">
+    <div class="section-header">
+        <h3>🚀 Batch Operations</h3>
+        <p class="text-muted">Execute commands across multiple repositories simultaneously</p>
+    </div>
+
+    <div class="batch-workflow">
+        <!-- Step 1: Repository Selection -->
+        <div class="workflow-step @(_currentStep >= 1 ? "active" : "") @(_currentStep > 1 ? "completed" : "")">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <h5>Select Target Repositories</h5>
+                @if (_selectedRepositories.Any())
+                {
+                    <div class="step-status">
+                        <span class="badge bg-success">@_selectedRepositories.Count selected</span>
+                    </div>
+                }
+            </div>
+
+            <div class="step-content @(_currentStep == 1 ? "expanded" : "")">
+                <RepositoryMultiSelector
+                    Repositories="@Repositories"
+                    SelectedRepositories="@_selectedRepositories"
+                    SelectedRepositoriesChanged="@OnRepositoriesChanged"
+                    ValidationErrors="@_repositoryValidationErrors" />
+
+                @if (_selectedRepositories.Any())
+                {
+                    <div class="step-actions">
+                        <button class="btn btn-primary" @onclick="() => AdvanceToStep(2)">
+                            <span>➡️</span> Configure Tasks
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Step 2: Task Configuration -->
+        <div class="workflow-step @(_currentStep >= 2 ? "active" : "") @(_currentStep > 2 ? "completed" : "")">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <h5>Configure Batch Tasks</h5>
+                @if (_batchTasks.Any())
+                {
+                    <div class="step-status">
+                        <span class="badge bg-info">@_batchTasks.Count tasks</span>
+                    </div>
+                }
+            </div>
+
+            <div class="step-content @(_currentStep == 2 ? "expanded" : "")">
+                <div class="task-configuration">
+                    <div class="task-input-section">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <label for="task-command" class="form-label">Command</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="task-command"
+                                       @bind="_newTaskCommand"
+                                       @onkeypress="@HandleTaskInputKeyPress"
+                                       placeholder="Enter command to execute across selected repositories" />
+                            </div>
+                            <div class="col-md-3">
+                                <label for="task-priority" class="form-label">Priority</label>
+                                <select class="form-select" id="task-priority" @bind="_newTaskPriority">
+                                    <option value="@TaskPriority.Normal">Normal</option>
+                                    <option value="@TaskPriority.High">High</option>
+                                    <option value="@TaskPriority.Critical">Critical</option>
+                                    <option value="@TaskPriority.Low">Low</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button class="btn btn-success"
+                                        @onclick="AddTask"
+                                        disabled="@(string.IsNullOrWhiteSpace(_newTaskCommand))">
+                                    <span>➕</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (_batchTasks.Any())
+                    {
+                        <div class="task-list-section">
+                            <h6>📋 Batch Task Queue (@_batchTasks.Count tasks)</h6>
+                            <div class="task-queue">
+                                @for (int i = 0; i < _batchTasks.Count; i++)
+                                {
+                                    var task = _batchTasks[i];
+                                    var index = i;
+                                    <div class="task-item">
+                                        <div class="task-order">@(i + 1)</div>
+                                        <div class="task-content">
+                                            <div class="task-command">
+                                                <code>@task.Command</code>
+                                            </div>
+                                            <div class="task-meta">
+                                                <span class="badge @GetPriorityBadgeClass(task.Priority)">@task.Priority</span>
+                                                <span class="badge bg-light text-dark">@_selectedRepositories.Count repositories</span>
+                                            </div>
+                                        </div>
+                                        <div class="task-actions">
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    @onclick="() => MoveTaskUp(index)"
+                                                    disabled="@(index == 0)">
+                                                ⬆️
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    @onclick="() => MoveTaskDown(index)"
+                                                    disabled="@(index == _batchTasks.Count - 1)">
+                                                ⬇️
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    @onclick="() => RemoveTask(index)">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="execution-options">
+                            <h6>⚙️ Execution Options</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label for="max-concurrency" class="form-label">Max Concurrency</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           id="max-concurrency"
+                                           @bind="_maxConcurrency"
+                                           min="1"
+                                           max="20" />
+                                    <small class="form-text text-muted">Number of parallel tasks</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="timeout-minutes" class="form-label">Timeout (minutes)</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           id="timeout-minutes"
+                                           @bind="_timeoutMinutes"
+                                           min="1"
+                                           max="120" />
+                                    <small class="form-text text-muted">Per task timeout</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="error-policy" class="form-label">Error Policy</label>
+                                    <select class="form-select" id="error-policy" @bind="_errorPolicy">
+                                        <option value="@BatchErrorPolicy.ContinueOnError">Continue on Error</option>
+                                        <option value="@BatchErrorPolicy.StopOnFirstError">Stop on First Error</option>
+                                        <option value="@BatchErrorPolicy.StopOnCriticalError">Stop on Critical Error</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-actions">
+                            <button class="btn btn-outline-secondary me-2" @onclick="() => BackToStep(1)">
+                                <span>⬅️</span> Back to Repositories
+                            </button>
+                            <button class="btn btn-primary" @onclick="() => AdvanceToStep(3)">
+                                <span>▶️</span> Start Execution
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Execution & Monitoring -->
+        <div class="workflow-step @(_currentStep >= 3 ? "active" : "")">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <h5>Execution & Monitoring</h5>
+                @if (_currentBatchStatus != null)
+                {
+                    <div class="step-status">
+                        <span class="badge @GetExecutionStatusBadgeClass()">@GetExecutionStatusText()</span>
+                    </div>
+                }
+            </div>
+
+            <div class="step-content @(_currentStep == 3 ? "expanded" : "")">
+                @if (_currentBatchStatus != null)
+                {
+                    <BatchProgressVisualization
+                        BatchStatus="@_currentBatchStatus"
+                        RepositoryProgress="@_repositoryProgress"
+                        TaskDetails="@_taskDetails"
+                        ShowTaskDetails="@_showTaskDetails"
+                        ShowTaskDetailsChanged="@OnShowTaskDetailsChanged" />
+
+                    <div class="execution-controls">
+                        @if (!_currentBatchStatus.IsCompleted)
+                        {
+                            <button class="btn btn-warning" @onclick="CancelExecution" disabled="@_isCancelling">
+                                @if (_isCancelling)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <span>⏹️</span> Cancel Execution
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary" @onclick="StartNewBatch">
+                                <span>🔄</span> Start New Batch
+                            </button>
+                            <button class="btn btn-outline-secondary ms-2" @onclick="DownloadResults">
+                                <span>💾</span> Download Results
+                            </button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="execution-start">
+                        <div class="execution-preview">
+                            <h6>🎯 Execution Preview</h6>
+                            <div class="preview-stats">
+                                <div class="stat">
+                                    <span class="stat-label">Repositories:</span>
+                                    <span class="stat-value">@_selectedRepositories.Count</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Tasks per repo:</span>
+                                    <span class="stat-value">@_batchTasks.Count</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Total operations:</span>
+                                    <span class="stat-value">@(_selectedRepositories.Count * _batchTasks.Count)</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Est. duration:</span>
+                                    <span class="stat-value">@GetEstimatedDuration()</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="start-execution">
+                            <button class="btn btn-success btn-lg" @onclick="StartBatchExecution" disabled="@_isStarting">
+                                @if (_isStarting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <span>🚀</span> Start Batch Execution
+                            </button>
+                        </div>
+
+                        <div class="step-actions">
+                            <button class="btn btn-outline-secondary" @onclick="() => BackToStep(2)">
+                                <span>⬅️</span> Back to Configuration
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (_error != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <h6 class="alert-heading">❌ Error</h6>
+            @_error
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Dictionary<string, RepositoryInfo>? Repositories { get; set; }
+
+    // State management
+    private int _currentStep = 1;
+    private HashSet<string> _selectedRepositories = new();
+    private List<BatchTaskRequest> _batchTasks = new();
+    private List<string> _repositoryValidationErrors = new();
+
+    // Task configuration
+    private string _newTaskCommand = "";
+    private TaskPriority _newTaskPriority = TaskPriority.Normal;
+    private int _maxConcurrency = 5;
+    private BatchErrorPolicy _errorPolicy = BatchErrorPolicy.ContinueOnError;
+    private int _timeoutMinutes = 30;
+
+    // Execution state
+    private BatchStatus? _currentBatchStatus;
+    private List<RepositoryProgress>? _repositoryProgress;
+    private List<TaskDetail>? _taskDetails;
+    private bool _showTaskDetails = false;
+    private bool _isStarting = false;
+    private bool _isCancelling = false;
+    private string? _error;
+    private CancellationTokenSource? _cancellationTokenSource;
+
+    protected override async Task OnInitializedAsync()
+    {
+        RefreshInterval = TimeSpan.FromSeconds(2); // Fast updates during execution
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task RefreshDataAsync()
+    {
+        if (_currentBatchStatus != null && !_currentBatchStatus.IsCompleted)
+        {
+            // Update batch status during execution
+            await UpdateBatchStatus();
+        }
+    }
+
+    private async Task OnRepositoriesChanged(HashSet<string> selectedRepositories)
+    {
+        _selectedRepositories = selectedRepositories;
+        StateHasChanged();
+    }
+
+    private async Task OnShowTaskDetailsChanged(bool showDetails)
+    {
+        _showTaskDetails = showDetails;
+        StateHasChanged();
+    }
+
+    private void AdvanceToStep(int step)
+    {
+        _currentStep = step;
+        _error = null;
+    }
+
+    private void BackToStep(int step)
+    {
+        _currentStep = step;
+        _error = null;
+    }
+
+    private async Task HandleTaskInputKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_newTaskCommand))
+        {
+            await AddTask();
+        }
+    }
+
+    private async Task AddTask()
+    {
+        if (string.IsNullOrWhiteSpace(_newTaskCommand))
+        {
+            return;
+        }
+
+        var task = new BatchTaskRequest(
+            _newTaskCommand.Trim(),
+            string.Join(",", _selectedRepositories),
+            _newTaskPriority
+        );
+
+        _batchTasks.Add(task);
+        _newTaskCommand = "";
+        _newTaskPriority = TaskPriority.Normal;
+
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    private void RemoveTask(int index)
+    {
+        if (index >= 0 && index < _batchTasks.Count)
+        {
+            _batchTasks.RemoveAt(index);
+        }
+    }
+
+    private void MoveTaskUp(int index)
+    {
+        if (index > 0 && index < _batchTasks.Count)
+        {
+            var task = _batchTasks[index];
+            _batchTasks.RemoveAt(index);
+            _batchTasks.Insert(index - 1, task);
+        }
+    }
+
+    private void MoveTaskDown(int index)
+    {
+        if (index >= 0 && index < _batchTasks.Count - 1)
+        {
+            var task = _batchTasks[index];
+            _batchTasks.RemoveAt(index);
+            _batchTasks.Insert(index + 1, task);
+        }
+    }
+
+    private async Task StartBatchExecution()
+    {
+        try
+        {
+            _isStarting = true;
+            _error = null;
+
+            var options = new BatchExecutionOptions(
+                MaxConcurrency: _maxConcurrency,
+                ErrorPolicy: _errorPolicy,
+                Timeout: TimeSpan.FromMinutes(_timeoutMinutes)
+            );
+            var progressHandler = new Progress<BatchProgress>(OnBatchProgress);
+            _cancellationTokenSource = new CancellationTokenSource();
+            var result = await BatchExecutor.ExecuteBatchAsync(_batchTasks, options, progressHandler, _cancellationTokenSource.Token);
+
+            _currentBatchStatus = new BatchStatus(
+                Id: result.BatchId,
+                TotalTasks: result.TotalTasks,
+                CompletedTasks: result.SuccessfulTasks.Count + result.FailedTasks.Count,
+                FailedTasks: result.FailedTasks.Count,
+                SuccessfulTasks: result.SuccessfulTasks.Count,
+                IsCompleted: true,
+                IsSuccess: result.FailedTasks.Count == 0,
+                StartTime: result.CompletedAt.AddMinutes(-1), // Simple approximation
+                EndTime: result.CompletedAt,
+                CurrentTask: null,
+                EstimatedTimeRemaining: TimeSpan.Zero
+            );
+
+            await UpdateProgressDetails(result);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to start batch execution: {ex.Message}";
+        }
+        finally
+        {
+            _isStarting = false;
+        }
+    }
+
+    private async Task UpdateBatchStatus()
+    {
+        // This would normally poll the BatchExecutor for current status
+        // For now, we'll simulate progress updates
+        await Task.CompletedTask;
+    }
+
+    private async Task UpdateProgressDetails(BatchExecutionResult result)
+    {
+        // Convert execution result to progress details
+        _repositoryProgress = _selectedRepositories.Select(repo => new RepositoryProgress(
+            RepositoryName: repo,
+            TotalTasks: _batchTasks.Count,
+            CompletedTasks: _batchTasks.Count // Simplified for demo
+        )).ToList();
+
+        _taskDetails = result.SuccessfulTasks.Concat(result.FailedTasks)
+            .Select(task => new TaskDetail(
+                TaskId: task.TaskId,
+                Command: task.Command,
+                Repository: task.Repository,
+                Status: task.IsSuccess ? BatchTaskStatus.Completed : BatchTaskStatus.Failed,
+                StartTime: task.StartTime,
+                EndTime: task.EndTime,
+                ErrorMessage: task.IsSuccess ? null : task.Message
+            )).ToList();
+
+        await Task.CompletedTask;
+    }
+
+    private async Task CancelExecution()
+    {
+        try
+        {
+            _isCancelling = true;
+            // Cancel logic would go here
+            await Task.Delay(1000); // Simulate cancellation
+
+            if (_currentBatchStatus != null)
+            {
+                _currentBatchStatus = _currentBatchStatus with { IsCompleted = true, IsSuccess = false };
+            }
+        }
+        finally
+        {
+            _isCancelling = false;
+        }
+    }
+
+    private void StartNewBatch()
+    {
+        _currentStep = 1;
+        _currentBatchStatus = null;
+        _repositoryProgress = null;
+        _taskDetails = null;
+        _batchTasks.Clear();
+        _selectedRepositories.Clear();
+        _error = null;
+    }
+
+    private async Task DownloadResults()
+    {
+        if (_currentBatchStatus == null || _taskDetails == null)
+        {
+            return;
+        }
+
+        var csvContent = GenerateResultsCsv();
+        var fileName = $"batch-results-{_currentBatchStatus.Id[..8]}-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csvContent, "text/csv");
+    }
+
+    private string GenerateResultsCsv()
+    {
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("TaskId,Command,Repository,Status,StartTime,EndTime,Duration,ErrorMessage");
+
+        if (_taskDetails != null)
+        {
+            foreach (var task in _taskDetails)
+            {
+                var duration = task.EndTime != default ? (task.EndTime - task.StartTime).TotalSeconds.ToString("F1") : "";
+                csv.AppendLine($"\"{task.TaskId}\",\"{task.Command}\",\"{task.Repository}\",\"{task.Status}\",\"{task.StartTime:yyyy-MM-dd HH:mm:ss}\",\"{task.EndTime:yyyy-MM-dd HH:mm:ss}\",\"{duration}\",\"{task.ErrorMessage ?? ""}\"");
+            }
+        }
+
+        return csv.ToString();
+    }
+
+    private static string GetPriorityBadgeClass(TaskPriority priority)
+    {
+        return priority switch
+        {
+            TaskPriority.Critical => "bg-danger",
+            TaskPriority.High => "bg-warning",
+            TaskPriority.Normal => "bg-primary",
+            TaskPriority.Low => "bg-secondary",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    private string GetExecutionStatusBadgeClass()
+    {
+        if (_currentBatchStatus == null)
+        {
+            return "bg-secondary";
+        }
+
+        if (_currentBatchStatus.IsCompleted)
+        {
+            return _currentBatchStatus.IsSuccess ? "bg-success" : "bg-warning";
+        }
+
+        return "bg-primary";
+    }
+
+    private string GetExecutionStatusText()
+    {
+        if (_currentBatchStatus == null)
+        {
+            return "Not Started";
+        }
+
+        if (_currentBatchStatus.IsCompleted)
+        {
+            return _currentBatchStatus.IsSuccess ? "Completed" : "Completed with Errors";
+        }
+
+        return "Running";
+    }
+
+    private string GetEstimatedDuration()
+    {
+        var totalTasks = _selectedRepositories.Count * _batchTasks.Count;
+        var estimatedMinutes = totalTasks * 2; // Rough estimate of 2 minutes per task
+
+        if (estimatedMinutes < 60)
+        {
+            return $"{estimatedMinutes}min";
+        }
+
+        var hours = estimatedMinutes / 60;
+        var minutes = estimatedMinutes % 60;
+
+        return $"{hours}h {minutes}m";
+    }
+
+    private void OnBatchProgress(BatchProgress progress)
+    {
+        // Update UI with batch progress - simplified for now
+        // TODO: Implement detailed repository progress tracking
+        StateHasChanged();
+    }
+}
+
+
+<style>
+    .batch-operations-section {
+        padding: 1.5rem;
+    }
+
+    .section-header {
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .section-header h3 {
+        color: var(--bs-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .batch-workflow {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .workflow-step {
+        margin-bottom: 2rem;
+        border: 2px solid var(--bs-border-color);
+        border-radius: 1rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .workflow-step.active {
+        border-color: var(--bs-primary);
+        box-shadow: 0 0 0 3px var(--bs-primary-bg-subtle);
+    }
+
+    .workflow-step.completed {
+        border-color: var(--bs-success);
+        background-color: var(--bs-success-bg-subtle);
+    }
+
+    .step-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.5rem;
+        background-color: var(--bs-light);
+        border-bottom: 1px solid var(--bs-border-color);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .workflow-step.active .step-header {
+        background-color: var(--bs-primary-bg-subtle);
+    }
+
+    .workflow-step.completed .step-header {
+        background-color: var(--bs-success-bg-subtle);
+    }
+
+    .step-number {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        background-color: var(--bs-secondary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .workflow-step.active .step-number {
+        background-color: var(--bs-primary);
+    }
+
+    .workflow-step.completed .step-number {
+        background-color: var(--bs-success);
+    }
+
+    .step-header h5 {
+        margin: 0;
+        flex: 1;
+    }
+
+    .step-status {
+        margin-left: auto;
+    }
+
+    .step-content {
+        padding: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .step-content.expanded {
+        padding: 1.5rem;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .step-actions {
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--bs-border-color);
+        text-align: right;
+    }
+
+    .task-configuration {
+        max-width: 800px;
+    }
+
+    .task-input-section {
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background-color: var(--bs-light);
+        border-radius: 0.5rem;
+    }
+
+    .task-list-section {
+        margin-bottom: 2rem;
+    }
+
+    .task-queue {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.5rem;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .task-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        background-color: var(--bs-body-bg);
+    }
+
+    .task-item:last-child {
+        border-bottom: none;
+    }
+
+    .task-order {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background-color: var(--bs-primary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .task-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .task-command {
+        font-family: var(--bs-font-monospace);
+        margin-bottom: 0.25rem;
+    }
+
+    .task-meta {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .task-actions {
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .execution-options {
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background-color: var(--bs-light);
+        border-radius: 0.5rem;
+    }
+
+    .execution-options h6 {
+        margin-bottom: 1rem;
+        color: var(--bs-primary);
+    }
+
+    .execution-start {
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .execution-preview {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background-color: var(--bs-light);
+        border-radius: 0.5rem;
+    }
+
+    .preview-stats {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .preview-stats .stat {
+        text-align: center;
+    }
+
+    .preview-stats .stat-label {
+        display: block;
+        font-size: 0.875rem;
+        color: var(--bs-secondary);
+        margin-bottom: 0.25rem;
+    }
+
+    .preview-stats .stat-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--bs-primary);
+    }
+
+    .start-execution {
+        margin-bottom: 2rem;
+    }
+
+    .execution-controls {
+        margin-top: 1.5rem;
+        text-align: center;
+    }
+</style>
+
+<script>
+    window.downloadFile = (filename, content, contentType) => {
+        const blob = new Blob([content], { type: contentType });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
+</script>

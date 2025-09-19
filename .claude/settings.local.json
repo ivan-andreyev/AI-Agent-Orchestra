@@ -36,7 +36,10 @@
       "Bash(grep:*)",
       "Bash(rg:*)",
       "Bash(echo:*)",
-      "Bash(start:*)"
+      "Bash(start:*)",
+      "Bash(sqlite3:*)",
+      "WebSearch",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

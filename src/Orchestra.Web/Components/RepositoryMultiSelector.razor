@@ -1,0 +1,432 @@
+@using Orchestra.Web.Models
+
+<div class="repository-multi-selector stable-container">
+    <h3>Target Repositories</h3>
+    <p class="text-muted small">Select repositories where batch tasks will be executed</p>
+
+    <div class="selection-controls mb-3">
+        <div class="btn-group" role="group">
+            <button class="btn btn-outline-primary btn-sm" @onclick="SelectAll" disabled="@(Repositories == null || !Repositories.Any())">
+                <span>✅</span> Select All
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="ClearAll" disabled="@(!SelectedRepositories.Any())">
+                <span>❌</span> Clear All
+            </button>
+        </div>
+        <div class="selected-count ms-3">
+            <span class="badge bg-primary">@SelectedRepositories.Count selected</span>
+        </div>
+    </div>
+
+    <div class="repository-list">
+        @if (Repositories == null)
+        {
+            <!-- Skeleton loading -->
+            <div class="repository-item skeleton-item">
+                <div class="skeleton skeleton-checkbox"></div>
+                <div class="skeleton skeleton-text"></div>
+            </div>
+            <div class="repository-item skeleton-item">
+                <div class="skeleton skeleton-checkbox"></div>
+                <div class="skeleton skeleton-text"></div>
+            </div>
+        }
+        else if (Repositories.Any())
+        {
+            @foreach (var repo in Repositories)
+            {
+                var isSelected = SelectedRepositories.Contains(repo.Key);
+                var hasErrors = repo.Value.ErrorCount > 0;
+                var hasOfflineAgents = repo.Value.OfflineCount > 0;
+                var availableAgents = repo.Value.IdleCount + repo.Value.WorkingCount;
+
+                <div class="repository-item @(isSelected ? "selected" : "") @(availableAgents == 0 ? "unavailable" : "")">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="repo-@repo.Key"
+                               checked="@isSelected"
+                               disabled="@(availableAgents == 0)"
+                               @onchange="@(e => OnRepositoryToggled(repo.Key, (bool)e.Value!))" />
+                        <label class="form-check-label" for="repo-@repo.Key">
+                            <div class="repository-info">
+                                <div class="repository-header">
+                                    <span class="repository-icon">
+                                        @if (availableAgents == 0)
+                                        {
+                                            <span>⚫</span>
+                                        }
+                                        else if (hasErrors)
+                                        {
+                                            <span>⚠️</span>
+                                        }
+                                        else
+                                        {
+                                            <span>📂</span>
+                                        }
+                                    </span>
+                                    <span class="repository-name">@repo.Key</span>
+                                </div>
+                                <div class="repository-stats">
+                                    <span class="stat-badge @(repo.Value.IdleCount > 0 ? "idle" : "")">
+                                        🟢 @repo.Value.IdleCount
+                                    </span>
+                                    <span class="stat-badge @(repo.Value.WorkingCount > 0 ? "working" : "")">
+                                        🟡 @repo.Value.WorkingCount
+                                    </span>
+                                    @if (hasErrors)
+                                    {
+                                        <span class="stat-badge error">
+                                            🔴 @repo.Value.ErrorCount
+                                        </span>
+                                    }
+                                    @if (hasOfflineAgents)
+                                    {
+                                        <span class="stat-badge offline">
+                                            ⚫ @repo.Value.OfflineCount
+                                        </span>
+                                    }
+                                </div>
+                                @if (availableAgents == 0)
+                                {
+                                    <div class="unavailable-message">
+                                        <small class="text-warning">No available agents</small>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="repository-path">
+                                        <small class="text-muted">📁 @repo.Value.Path</small>
+                                    </div>
+                                }
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="no-repositories">
+                <div class="text-center text-muted py-4">
+                    <span class="fs-3">📭</span>
+                    <p class="mt-2">No repositories available</p>
+                    <small>Refresh to check for available repositories</small>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (ValidationErrors.Any())
+    {
+        <div class="validation-errors mt-3">
+            <div class="alert alert-warning">
+                <h6 class="alert-heading">⚠️ Repository Access Issues</h6>
+                <ul class="mb-0">
+                    @foreach (var error in ValidationErrors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
+    @if (SelectedRepositories.Any())
+    {
+        <div class="selection-summary mt-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">📋 Batch Execution Summary</h6>
+                    <div class="summary-stats">
+                        <div class="stat">
+                            <span class="stat-label">Repositories:</span>
+                            <span class="stat-value">@SelectedRepositories.Count</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Available Agents:</span>
+                            <span class="stat-value">@GetTotalAvailableAgents()</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Est. Execution:</span>
+                            <span class="stat-value">@GetEstimatedExecutionMode()</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Dictionary<string, RepositoryInfo>? Repositories { get; set; }
+    [Parameter] public HashSet<string> SelectedRepositories { get; set; } = new();
+    [Parameter] public EventCallback<HashSet<string>> SelectedRepositoriesChanged { get; set; }
+    [Parameter] public List<string> ValidationErrors { get; set; } = new();
+
+    private async Task OnRepositoryToggled(string repositoryName, bool isSelected)
+    {
+        if (isSelected)
+        {
+            SelectedRepositories.Add(repositoryName);
+        }
+        else
+        {
+            SelectedRepositories.Remove(repositoryName);
+        }
+
+        await ValidateSelection();
+        await SelectedRepositoriesChanged.InvokeAsync(SelectedRepositories);
+    }
+
+    private async Task SelectAll()
+    {
+        if (Repositories == null)
+        {
+            return;
+        }
+
+        SelectedRepositories.Clear();
+
+        // Only select repositories with available agents
+        foreach (var repo in Repositories.Where(r => (r.Value.IdleCount + r.Value.WorkingCount) > 0))
+        {
+            SelectedRepositories.Add(repo.Key);
+        }
+
+        await ValidateSelection();
+        await SelectedRepositoriesChanged.InvokeAsync(SelectedRepositories);
+    }
+
+    private async Task ClearAll()
+    {
+        SelectedRepositories.Clear();
+        ValidationErrors.Clear();
+        await SelectedRepositoriesChanged.InvokeAsync(SelectedRepositories);
+    }
+
+    private async Task ValidateSelection()
+    {
+        ValidationErrors.Clear();
+
+        if (Repositories == null || !SelectedRepositories.Any())
+        {
+            return;
+        }
+
+        foreach (var selectedRepo in SelectedRepositories.ToList())
+        {
+            if (!Repositories.ContainsKey(selectedRepo))
+            {
+                ValidationErrors.Add($"Repository '{selectedRepo}' is no longer available");
+                SelectedRepositories.Remove(selectedRepo);
+                continue;
+            }
+
+            var repo = Repositories[selectedRepo];
+            var availableAgents = repo.IdleCount + repo.WorkingCount;
+
+            if (availableAgents == 0)
+            {
+                ValidationErrors.Add($"Repository '{selectedRepo}' has no available agents");
+                SelectedRepositories.Remove(selectedRepo);
+            }
+            else if (repo.ErrorCount > 0)
+            {
+                ValidationErrors.Add($"Repository '{selectedRepo}' has {repo.ErrorCount} agents in error state");
+            }
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private int GetTotalAvailableAgents()
+    {
+        if (Repositories == null)
+        {
+            return 0;
+        }
+
+        return SelectedRepositories
+            .Where(repo => Repositories.ContainsKey(repo))
+            .Sum(repo => Repositories[repo].IdleCount + Repositories[repo].WorkingCount);
+    }
+
+    private string GetEstimatedExecutionMode()
+    {
+        var totalAgents = GetTotalAvailableAgents();
+        var repoCount = SelectedRepositories.Count;
+
+        if (totalAgents == 0)
+        {
+            return "Cannot execute";
+        }
+
+        if (totalAgents >= repoCount * 2)
+        {
+            return "Parallel";
+        }
+
+        if (totalAgents >= repoCount)
+        {
+            return "Mixed";
+        }
+
+        return "Sequential";
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await ValidateSelection();
+    }
+}
+
+<style>
+    .repository-multi-selector {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .selection-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .repository-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+    }
+
+    .repository-item {
+        padding: 0.75rem;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .repository-item:hover {
+        background-color: var(--bs-light);
+        border-color: var(--bs-border-color);
+    }
+
+    .repository-item.selected {
+        background-color: var(--bs-primary-bg-subtle);
+        border-color: var(--bs-primary);
+    }
+
+    .repository-item.unavailable {
+        opacity: 0.6;
+        background-color: var(--bs-secondary-bg);
+    }
+
+    .repository-info {
+        margin-left: 0.5rem;
+    }
+
+    .repository-header {
+        display: flex;
+        align-items: center;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .repository-icon {
+        margin-right: 0.5rem;
+        font-size: 1.1em;
+    }
+
+    .repository-stats {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-badge {
+        font-size: 0.75rem;
+        padding: 0.125rem 0.25rem;
+        border-radius: 0.25rem;
+        background-color: var(--bs-light);
+        color: var(--bs-body-color);
+    }
+
+    .stat-badge.idle {
+        background-color: var(--bs-success-bg-subtle);
+        color: var(--bs-success-text);
+    }
+
+    .stat-badge.working {
+        background-color: var(--bs-warning-bg-subtle);
+        color: var(--bs-warning-text);
+    }
+
+    .stat-badge.error {
+        background-color: var(--bs-danger-bg-subtle);
+        color: var(--bs-danger-text);
+    }
+
+    .stat-badge.offline {
+        background-color: var(--bs-secondary-bg-subtle);
+        color: var(--bs-secondary-text);
+    }
+
+    .unavailable-message {
+        margin-top: 0.25rem;
+    }
+
+    .repository-path {
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+
+    .selection-summary .summary-stats {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .selection-summary .stat {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .selection-summary .stat-label {
+        font-weight: 500;
+        color: var(--bs-secondary);
+    }
+
+    .selection-summary .stat-value {
+        font-weight: 600;
+        color: var(--bs-primary);
+    }
+
+    .skeleton-item {
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .skeleton-checkbox {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 0.25rem;
+    }
+
+    .skeleton-text {
+        height: 1rem;
+        width: 60%;
+        border-radius: 0.25rem;
+    }
+
+    .no-repositories {
+        padding: 2rem;
+        text-align: center;
+    }
+</style>

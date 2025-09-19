@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Orchestra.Web.Services;
 
-public class OrchestratorService
+public class OrchestratorService : IOrchestratorService
 {
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
