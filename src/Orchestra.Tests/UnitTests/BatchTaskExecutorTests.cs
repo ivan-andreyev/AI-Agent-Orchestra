@@ -15,16 +15,16 @@ public class BatchTaskExecutorTests
 {
     private readonly BatchTaskExecutor _executor;
     private readonly Mock<IOrchestratorService> _mockOrchestratorService;
-    private readonly Mock<DependencyGraphBuilder> _mockGraphBuilder;
-    private readonly Mock<TaskExecutionEngine> _mockExecutionEngine;
+    private readonly Mock<IDependencyGraphBuilder> _mockGraphBuilder;
+    private readonly Mock<ITaskExecutionEngine> _mockExecutionEngine;
     private readonly ILogger<BatchTaskExecutor> _logger;
 
     public BatchTaskExecutorTests()
     {
         _logger = new LoggerFactory().CreateLogger<BatchTaskExecutor>();
         _mockOrchestratorService = new Mock<IOrchestratorService>();
-        _mockGraphBuilder = new Mock<DependencyGraphBuilder>(Mock.Of<ILogger<DependencyGraphBuilder>>());
-        _mockExecutionEngine = new Mock<TaskExecutionEngine>(Mock.Of<ILogger<TaskExecutionEngine>>(), _mockOrchestratorService.Object);
+        _mockGraphBuilder = new Mock<IDependencyGraphBuilder>();
+        _mockExecutionEngine = new Mock<ITaskExecutionEngine>();
 
         _executor = new BatchTaskExecutor(
             _logger,

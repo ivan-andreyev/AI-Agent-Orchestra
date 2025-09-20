@@ -2,6 +2,7 @@ using Orchestra.Core;
 using Orchestra.Core.Services;
 using Orchestra.API.Jobs;
 using Orchestra.API.Services;
+using Orchestra.Web.Services;
 using System.Text.Json.Serialization;
 using Hangfire;
 using Hangfire.Storage.SQLite;
@@ -33,7 +34,8 @@ public class Startup
         });
 
         // Database connection string for SQLite
-        var connectionString = "orchestra.db";
+        // Use unique database for tests to avoid conflicts
+        var connectionString = Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION") ?? "orchestra.db";
 
         // Hangfire configuration
         services.AddHangfire(configuration => configuration
@@ -72,6 +74,13 @@ public class Startup
 
         // Register HangfireOrchestrator - the critical integration bridge
         services.AddScoped<HangfireOrchestrator>();
+
+        // Register Web services for batch task execution
+        services.AddHttpClient(); // Required for OrchestratorService
+        services.AddScoped<IOrchestratorService, OrchestratorService>();
+        services.AddScoped<IDependencyGraphBuilder, DependencyGraphBuilder>();
+        services.AddScoped<ITaskExecutionEngine, TaskExecutionEngine>();
+        services.AddScoped<BatchTaskExecutor>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

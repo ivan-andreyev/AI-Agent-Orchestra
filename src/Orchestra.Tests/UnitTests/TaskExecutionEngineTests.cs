@@ -75,11 +75,19 @@ public class TaskExecutionEngineTests
         var progress = new Mock<IProgress<BatchProgress>>();
         var executionTimes = new ConcurrentBag<(string TaskId, DateTime Time)>();
 
+        // Create mapping from command to TaskId
+        var commandToTaskId = new Dictionary<string, string>
+        {
+            { "cmd1", "1" },
+            { "cmd2", "2" }
+        };
+
         _mockOrchestratorService
             .Setup(o => o.QueueTaskAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Orchestra.Web.Models.TaskPriority>()))
             .Returns(async (string command, string repo, Orchestra.Web.Models.TaskPriority priority) =>
             {
-                executionTimes.Add((command.Split(' ').Last(), DateTime.UtcNow));
+                var taskId = commandToTaskId.ContainsKey(command) ? commandToTaskId[command] : command;
+                executionTimes.Add((taskId, DateTime.UtcNow));
                 await Task.Delay(10); // Small delay to ensure ordering
                 return true;
             });

@@ -1,5 +1,7 @@
 # Phase 2: Batch Operations - Детальный План Декомпозиции
 
+**Родительский план**: [actions-block-refactoring-workplan.md](../actions-block-refactoring-workplan.md)
+
 **Дата создания:** 2025-09-19
 **Общая оценка времени:** 10-14 часов
 **Статус:** Detailed Planning

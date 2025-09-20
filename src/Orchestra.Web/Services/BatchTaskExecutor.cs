@@ -12,15 +12,15 @@ public class BatchTaskExecutor
 {
     private readonly ILogger<BatchTaskExecutor> _logger;
     private readonly IOrchestratorService _orchestratorService;
-    private readonly DependencyGraphBuilder _graphBuilder;
-    private readonly TaskExecutionEngine _executionEngine;
+    private readonly IDependencyGraphBuilder _graphBuilder;
+    private readonly ITaskExecutionEngine _executionEngine;
     private readonly ConcurrentDictionary<string, TaskExecutionContext> _activeBatches;
 
     public BatchTaskExecutor(
         ILogger<BatchTaskExecutor> logger,
         IOrchestratorService orchestratorService,
-        DependencyGraphBuilder graphBuilder,
-        TaskExecutionEngine executionEngine)
+        IDependencyGraphBuilder graphBuilder,
+        ITaskExecutionEngine executionEngine)
     {
         _logger = logger;
         _orchestratorService = orchestratorService;

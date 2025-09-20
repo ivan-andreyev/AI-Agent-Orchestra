@@ -6,7 +6,7 @@ namespace Orchestra.Web.Services;
 /// Service responsible for building and validating dependency graphs for batch task execution
 /// Handles DAG construction, circular dependency detection, and topological ordering
 /// </summary>
-public class DependencyGraphBuilder
+public class DependencyGraphBuilder : IDependencyGraphBuilder
 {
     private readonly ILogger<DependencyGraphBuilder> _logger;
 

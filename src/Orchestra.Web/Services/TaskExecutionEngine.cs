@@ -7,7 +7,7 @@ namespace Orchestra.Web.Services;
 /// Engine responsible for executing tasks with dependency resolution and parallel execution
 /// Handles task scheduling, progress tracking, and error handling policies
 /// </summary>
-public class TaskExecutionEngine
+public class TaskExecutionEngine : ITaskExecutionEngine
 {
     private readonly ILogger<TaskExecutionEngine> _logger;
     private readonly IOrchestratorService _orchestratorService;

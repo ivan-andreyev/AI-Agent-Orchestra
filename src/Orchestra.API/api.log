@@ -1,0 +1,76 @@
+info: Orchestra.Core.AgentScheduler[0]
+      Agent Scheduler started
+info: Orchestra.Core.AgentScheduler[0]
+      Registered agent: Claude Agent 1
+info: Orchestra.Core.AgentScheduler[0]
+      Registered agent: Claude Agent 2
+info: Orchestra.Core.Services.BackgroundTaskAssignmentService[0]
+      Starting Background Task Assignment Service
+info: Orchestra.Core.Services.BackgroundTaskAssignmentService[0]
+      Background Task Assignment Service started
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5002
+info: Hangfire.BackgroundJobServer[0]
+      Starting Hangfire Server using job storage: 'Database path: orchestra.db,  prefix: hangfire'
+info: Hangfire.BackgroundJobServer[0]
+      Using the following options for Hangfire Server:
+          Worker count: 64
+          Listening queues: 'default', 'high-priority', 'long-running', 'maintenance'
+          Shutdown timeout: 00:00:15
+          Schedule polling interval: 00:00:15
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.API
+info: Hangfire.Server.BackgroundServerProcess[0]
+      Server desktop-c4ff2f6:9724:085dd3a0 successfully announced in 4.2808 ms
+info: Hangfire.Server.BackgroundServerProcess[0]
+      Server desktop-c4ff2f6:9724:085dd3a0 is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, Worker, DelayedJobScheduler, RecurringJobScheduler...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'AggregatedCounter' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'AggregatedCounter' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'Counter' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'Counter' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'Job' table...
+info: Hangfire.Server.ServerWatchdog[0]
+      2 servers were removed due to timeout
+info: Hangfire.Server.BackgroundServerProcess[0]
+      Server desktop-c4ff2f6:9724:085dd3a0 all the dispatchers started
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'Job' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'List' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'List' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'Set' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'Set' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'Hash' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'Hash' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'State' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'State' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'JobParameter' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'JobParameter' table...
+GetAgentHistory called with sessionId: aa2936c2-7191-419c-850a-12e471672ac2, maxEntries: 50
+Searching for session file in: C:\Users\mrred\.claude\projects
+Found 1 session files matching pattern aa2936c2-7191-419c-850a-12e471672ac2.jsonl
+Using session file: C:\Users\mrred\.claude\projects\C--Users-mrred-RiderProjects-AI-Agent-Orchestra\aa2936c2-7191-419c-850a-12e471672ac2.jsonl
+Attempting to read last 100 lines from file
+Read 100 lines from file
+Processing 50 lines
+Task cleanup job executed at 9/19/2025 9:52:33 PM
+Task cleanup job executed at 9/19/2025 9:52:33 PM
+Task cleanup job executed at 9/19/2025 9:52:33 PM
