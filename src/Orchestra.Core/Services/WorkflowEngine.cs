@@ -709,7 +709,7 @@ public class WorkflowEngine : IWorkflowEngine
         Exception? lastException = null;
         Dictionary<string, object>? lastOutput = null;
         var attemptCount = 0;
-        var maxAttempts = (step.RetryPolicy?.MaxRetries ?? 0) + 1; // +1 for initial attempt
+        var maxAttempts = (step.RetryPolicy?.MaxRetryCount ?? 0) + 1; // +1 for initial attempt
 
         _logger.LogDebug("Начало выполнения шага {StepId} типа {StepType} с максимальным количеством попыток: {MaxAttempts}",
             step.Id, step.Type, maxAttempts);
@@ -821,21 +821,19 @@ public class WorkflowEngine : IWorkflowEngine
     /// <returns>Время задержки перед следующей попыткой</returns>
     private TimeSpan CalculateRetryDelay(RetryPolicy retryPolicy, int retryAttempt)
     {
-        if (retryPolicy.ExponentialBackoff)
-        {
-            // Экспоненциальная задержка: baseDelay * 2^retryAttempt
-            var exponentialDelay = TimeSpan.FromMilliseconds(
-                retryPolicy.DelayBetweenRetries.TotalMilliseconds * Math.Pow(2, retryAttempt));
+        // Экспоненциальная задержка: BaseDelay * (BackoffMultiplier ^ retryAttempt)
+        var delay = TimeSpan.FromMilliseconds(
+            retryPolicy.BaseDelay.TotalMilliseconds *
+            Math.Pow(retryPolicy.BackoffMultiplier, retryAttempt)
+        );
 
-            // Ограничиваем максимальную задержку до 30 секунд
-            var maxDelay = TimeSpan.FromSeconds(30);
-            return exponentialDelay > maxDelay ? maxDelay : exponentialDelay;
-        }
-        else
+        // Ограничиваем максимальной задержкой
+        if (delay > retryPolicy.MaxDelay)
         {
-            // Фиксированная задержка
-            return retryPolicy.DelayBetweenRetries;
+            delay = retryPolicy.MaxDelay;
         }
+
+        return delay;
     }
 
     /// <summary>

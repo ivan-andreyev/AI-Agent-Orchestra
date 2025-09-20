@@ -105,17 +105,6 @@ public record ConditionalLogic(
     [property: JsonPropertyName("falsePath")] List<string>? FalsePath = null
 );
 
-/// <summary>
-/// Политика повторных попыток
-/// </summary>
-/// <param name="MaxRetries">Максимальное количество попыток</param>
-/// <param name="DelayBetweenRetries">Задержка между попытками</param>
-/// <param name="ExponentialBackoff">Использовать экспоненциальную задержку</param>
-public record RetryPolicy(
-    [property: JsonPropertyName("maxRetries")] int MaxRetries,
-    [property: JsonPropertyName("delayBetweenRetries")] TimeSpan DelayBetweenRetries,
-    [property: JsonPropertyName("exponentialBackoff")] bool ExponentialBackoff = false
-);
 
 /// <summary>
 /// Шаг workflow
