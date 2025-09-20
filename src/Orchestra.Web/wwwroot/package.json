@@ -11,10 +11,9 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-flow-renderer": "^10.3.17",
+    "react-flow-renderer": "^11.11.3",
     "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@types/react-flow-renderer": "^1.0.0"
+    "@types/react-dom": "^18.2.0"
   },
   "devDependencies": {
     "webpack": "^5.88.0",
@@ -24,7 +23,8 @@
     "@babel/preset-react": "^7.22.0",
     "@babel/preset-env": "^7.22.0",
     "typescript": "^5.1.0",
-    "ts-loader": "^9.4.0"
+    "ts-loader": "^9.4.0",
+    "@types/react-flow-renderer": "^11.0.0"
   },
   "keywords": [
     "react",
