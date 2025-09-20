@@ -1,0 +1,399 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="workflow-toolbar">
+    <div class="toolbar-section">
+        <h4>Workflow Actions</h4>
+
+        <div class="toolbar-buttons">
+            <!-- File Operations -->
+            <div class="button-group">
+                <button class="toolbar-button primary" @onclick="@(() => OnSave.InvokeAsync())">
+                    <span class="button-icon">💾</span>
+                    <span class="button-text">Save</span>
+                </button>
+
+                <button class="toolbar-button secondary" @onclick="@(() => OnLoad.InvokeAsync())">
+                    <span class="button-icon">📁</span>
+                    <span class="button-text">Load</span>
+                </button>
+
+                <button class="toolbar-button secondary" @onclick="@HandleExport">
+                    <span class="button-icon">📤</span>
+                    <span class="button-text">Export</span>
+                </button>
+
+                <button class="toolbar-button secondary" @onclick="@HandleImport">
+                    <span class="button-icon">📥</span>
+                    <span class="button-text">Import</span>
+                </button>
+            </div>
+
+            <!-- Workflow Operations -->
+            <div class="button-group">
+                <button class="toolbar-button success" @onclick="@(() => OnValidate.InvokeAsync())">
+                    <span class="button-icon">✅</span>
+                    <span class="button-text">Validate</span>
+                </button>
+
+                <button class="toolbar-button info" @onclick="@HandleExecute">
+                    <span class="button-icon">▶️</span>
+                    <span class="button-text">Execute</span>
+                </button>
+
+                <button class="toolbar-button warning" @onclick="@HandlePreview">
+                    <span class="button-icon">👁️</span>
+                    <span class="button-text">Preview</span>
+                </button>
+            </div>
+
+            <!-- Layout Operations -->
+            <div class="button-group">
+                <button class="toolbar-button secondary" @onclick="@HandleAutoLayout">
+                    <span class="button-icon">🔄</span>
+                    <span class="button-text">Auto Layout</span>
+                </button>
+
+                <button class="toolbar-button secondary" @onclick="@HandleZoomFit">
+                    <span class="button-icon">🔍</span>
+                    <span class="button-text">Fit View</span>
+                </button>
+
+                <button class="toolbar-button danger" @onclick="@(() => OnClear.InvokeAsync())">
+                    <span class="button-icon">🗑️</span>
+                    <span class="button-text">Clear</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Section -->
+    <div class="toolbar-status">
+        <div class="status-item">
+            <span class="status-label">Status:</span>
+            <span class="status-value @GetStatusClass()">@workflowStatus</span>
+        </div>
+
+        <div class="status-item">
+            <span class="status-label">Nodes:</span>
+            <span class="status-value">@nodeCount</span>
+        </div>
+
+        <div class="status-item">
+            <span class="status-label">Connections:</span>
+            <span class="status-value">@connectionCount</span>
+        </div>
+
+        @if (!string.IsNullOrEmpty(lastAction))
+        {
+            <div class="status-item">
+                <span class="status-label">Last Action:</span>
+                <span class="status-value">@lastAction</span>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .workflow-toolbar {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .toolbar-section h4 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .toolbar-buttons {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 8px;
+        padding: 0 10px;
+        border-right: 1px solid #eee;
+    }
+
+    .button-group:last-child {
+        border-right: none;
+    }
+
+    .toolbar-button {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #f8f9fa;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 13px;
+        font-weight: 500;
+        min-width: 80px;
+        justify-content: center;
+    }
+
+    .toolbar-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .toolbar-button:active {
+        transform: translateY(0);
+    }
+
+    .button-icon {
+        font-size: 14px;
+    }
+
+    .button-text {
+        white-space: nowrap;
+    }
+
+    /* Button variants */
+    .toolbar-button.primary {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+
+    .toolbar-button.primary:hover {
+        background: #2563eb;
+        border-color: #2563eb;
+    }
+
+    .toolbar-button.secondary {
+        background: #f8f9fa;
+        border-color: #ccc;
+        color: #333;
+    }
+
+    .toolbar-button.secondary:hover {
+        background: #e9ecef;
+    }
+
+    .toolbar-button.success {
+        background: #10b981;
+        border-color: #10b981;
+        color: white;
+    }
+
+    .toolbar-button.success:hover {
+        background: #059669;
+        border-color: #059669;
+    }
+
+    .toolbar-button.info {
+        background: #06b6d4;
+        border-color: #06b6d4;
+        color: white;
+    }
+
+    .toolbar-button.info:hover {
+        background: #0891b2;
+        border-color: #0891b2;
+    }
+
+    .toolbar-button.warning {
+        background: #f59e0b;
+        border-color: #f59e0b;
+        color: white;
+    }
+
+    .toolbar-button.warning:hover {
+        background: #d97706;
+        border-color: #d97706;
+    }
+
+    .toolbar-button.danger {
+        background: #ef4444;
+        border-color: #ef4444;
+        color: white;
+    }
+
+    .toolbar-button.danger:hover {
+        background: #dc2626;
+        border-color: #dc2626;
+    }
+
+    /* Status section */
+    .toolbar-status {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        font-size: 13px;
+    }
+
+    .status-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .status-label {
+        color: #666;
+        font-weight: 500;
+    }
+
+    .status-value {
+        color: #333;
+        font-weight: 600;
+    }
+
+    .status-value.valid {
+        color: #10b981;
+    }
+
+    .status-value.invalid {
+        color: #ef4444;
+    }
+
+    .status-value.processing {
+        color: #f59e0b;
+    }
+
+    /* Responsive design */
+    @@media (max-width: 768px) {
+        .workflow-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .toolbar-buttons {
+            justify-content: center;
+        }
+
+        .button-group {
+            border-right: none;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            justify-content: center;
+        }
+
+        .button-group:last-child {
+            border-bottom: none;
+        }
+
+        .toolbar-status {
+            justify-content: center;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+    }
+</style>
+
+@code {
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnLoad { get; set; }
+    [Parameter] public EventCallback OnValidate { get; set; }
+    [Parameter] public EventCallback OnClear { get; set; }
+
+    // Status tracking
+    private string workflowStatus = "Ready";
+    private int nodeCount = 0;
+    private int connectionCount = 0;
+    private string lastAction = string.Empty;
+
+    private Task HandleExport()
+    {
+        lastAction = "Export";
+        Console.WriteLine("Exporting workflow...");
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleImport()
+    {
+        lastAction = "Import";
+        Console.WriteLine("Importing workflow...");
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleExecute()
+    {
+        lastAction = "Execute";
+        workflowStatus = "Executing";
+        Console.WriteLine("Executing workflow...");
+        StateHasChanged();
+
+        // Simulate execution completion
+        Task.Delay(2000).ContinueWith(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                workflowStatus = "Completed";
+                StateHasChanged();
+            });
+        });
+        return Task.CompletedTask;
+    }
+
+    private Task HandlePreview()
+    {
+        lastAction = "Preview";
+        Console.WriteLine("Previewing workflow...");
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleAutoLayout()
+    {
+        lastAction = "Auto Layout";
+        Console.WriteLine("Applying auto layout...");
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleZoomFit()
+    {
+        lastAction = "Fit View";
+        Console.WriteLine("Fitting view to workflow...");
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Updates the toolbar status with current workflow information
+    /// </summary>
+    /// <param name="nodes">Number of nodes in the workflow</param>
+    /// <param name="connections">Number of connections in the workflow</param>
+    /// <param name="status">Current workflow status</param>
+    public void UpdateStatus(int nodes, int connections, string status = "Ready")
+    {
+        nodeCount = nodes;
+        connectionCount = connections;
+        workflowStatus = status;
+        StateHasChanged();
+    }
+
+    private string GetStatusClass()
+    {
+        return workflowStatus.ToLower() switch
+        {
+            "ready" => "valid",
+            "valid" => "valid",
+            "completed" => "valid",
+            "invalid" => "invalid",
+            "error" => "invalid",
+            "failed" => "invalid",
+            "executing" => "processing",
+            "processing" => "processing",
+            _ => ""
+        };
+    }
+}

@@ -1,0 +1,377 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="property-editor">
+    <h4>Node Properties</h4>
+
+    @if (SelectedNode == null)
+    {
+        <div class="no-selection">
+            <p>Select a node to edit its properties</p>
+        </div>
+    }
+    else
+    {
+        <div class="property-form">
+            <!-- Common Properties -->
+            <div class="property-section">
+                <h5>General</h5>
+
+                <div class="property-field">
+                    <label class="property-label">Node ID</label>
+                    <input type="text" class="property-input" @bind="nodeId" readonly />
+                </div>
+
+                <div class="property-field">
+                    <label class="property-label">Title</label>
+                    <input type="text" class="property-input" value="@nodeTitle"
+                           @oninput="@((e) => { nodeTitle = e.Value?.ToString() ?? ""; HandlePropertyChange("title", e.Value); })" />
+                </div>
+
+                <div class="property-field">
+                    <label class="property-label">Description</label>
+                    <textarea class="property-input property-textarea" rows="3" value="@nodeDescription"
+                              @oninput="@((e) => { nodeDescription = e.Value?.ToString() ?? ""; HandlePropertyChange("description", e.Value); })">@nodeDescription</textarea>
+                </div>
+            </div>
+
+            <!-- Node Type Specific Properties -->
+            @if (nodeType == "taskNode")
+            {
+                <div class="property-section">
+                    <h5>Task Configuration</h5>
+
+                    <div class="property-field">
+                        <label class="property-label">Command</label>
+                        <input type="text" class="property-input" value="@taskCommand"
+                               placeholder="Enter command to execute"
+                               @oninput="@((e) => { taskCommand = e.Value?.ToString() ?? ""; HandlePropertyChange("command", e.Value); })" />
+                    </div>
+
+                    <div class="property-field">
+                        <label class="property-label">Parameters</label>
+                        <textarea class="property-input property-textarea" rows="4" value="@taskParameters"
+                                  placeholder="Enter parameters as JSON"
+                                  @oninput="@((e) => { taskParameters = e.Value?.ToString() ?? ""; HandlePropertyChange("parameters", e.Value); })">@taskParameters</textarea>
+                    </div>
+
+                    <div class="property-field">
+                        <label class="property-label">Timeout (seconds)</label>
+                        <input type="number" class="property-input" value="@taskTimeout" min="0"
+                               @oninput="@((e) => { if (int.TryParse(e.Value?.ToString(), out var val)) { taskTimeout = val; HandlePropertyChange("timeout", e.Value); } })" />
+                    </div>
+                </div>
+            }
+            else if (nodeType == "conditionNode")
+            {
+                <div class="property-section">
+                    <h5>Condition Configuration</h5>
+
+                    <div class="property-field">
+                        <label class="property-label">Expression</label>
+                        <textarea class="property-input property-textarea" rows="3" value="@conditionExpression"
+                                  placeholder="Enter condition expression"
+                                  @oninput="@((e) => { conditionExpression = e.Value?.ToString() ?? ""; HandlePropertyChange("expression", e.Value); })">@conditionExpression</textarea>
+                    </div>
+
+                    <div class="property-field">
+                        <label class="property-label">Condition Type</label>
+                        <select class="property-input" value="@conditionType"
+                                @onchange="@((e) => { conditionType = e.Value?.ToString() ?? ""; HandlePropertyChange("conditionType", e.Value); })">
+                            <option value="simple">Simple Comparison</option>
+                            <option value="complex">Complex Expression</option>
+                            <option value="script">Script Evaluation</option>
+                        </select>
+                    </div>
+                </div>
+            }
+            else if (nodeType == "loopNode")
+            {
+                <div class="property-section">
+                    <h5>Loop Configuration</h5>
+
+                    <div class="property-field">
+                        <label class="property-label">Loop Type</label>
+                        <select class="property-input" value="@loopType"
+                                @onchange="@((e) => { loopType = e.Value?.ToString() ?? ""; HandlePropertyChange("loopType", e.Value); })">
+                            <option value="forEach">For Each</option>
+                            <option value="while">While</option>
+                            <option value="retry">Retry</option>
+                        </select>
+                    </div>
+
+                    <div class="property-field">
+                        <label class="property-label">Collection/Condition</label>
+                        <input type="text" class="property-input" value="@loopCondition"
+                               placeholder="Enter collection or condition"
+                               @oninput="@((e) => { loopCondition = e.Value?.ToString() ?? ""; HandlePropertyChange("loopCondition", e.Value); })" />
+                    </div>
+
+                    <div class="property-field">
+                        <label class="property-label">Max Iterations</label>
+                        <input type="number" class="property-input" value="@maxIterations" min="1"
+                               @oninput="@((e) => { if (int.TryParse(e.Value?.ToString(), out var val)) { maxIterations = val; HandlePropertyChange("maxIterations", e.Value); } })" />
+                    </div>
+                </div>
+            }
+
+            <!-- Retry Policy Section -->
+            <div class="property-section">
+                <h5>Retry Policy</h5>
+
+                <div class="property-field">
+                    <label class="property-label">
+                        <input type="checkbox" checked="@enableRetry"
+                               @onchange="@((e) => { enableRetry = bool.Parse(e.Value?.ToString() ?? "false"); HandlePropertyChange("enableRetry", e.Value); })" />
+                        Enable Retry
+                    </label>
+                </div>
+
+                @if (enableRetry)
+                {
+                    <div class="property-field">
+                        <label class="property-label">Max Retries</label>
+                        <input type="number" class="property-input" value="@maxRetries" min="1" max="10"
+                               @oninput="@((e) => { if (int.TryParse(e.Value?.ToString(), out var val)) { maxRetries = val; HandlePropertyChange("maxRetries", e.Value); } })" />
+                    </div>
+
+                    <div class="property-field">
+                        <label class="property-label">Retry Delay (ms)</label>
+                        <input type="number" class="property-input" value="@retryDelay" min="100"
+                               @oninput="@((e) => { if (int.TryParse(e.Value?.ToString(), out var val)) { retryDelay = val; HandlePropertyChange("retryDelay", e.Value); } })" />
+                    </div>
+                }
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="property-actions">
+                <button class="btn btn-primary" @onclick="ApplyChanges">Apply Changes</button>
+                <button class="btn btn-secondary" @onclick="ResetChanges">Reset</button>
+                <button class="btn btn-danger" @onclick="DeleteNode">Delete Node</button>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .property-editor {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        height: fit-content;
+        max-height: 100%;
+        overflow-y: auto;
+    }
+
+    .property-editor h4 {
+        margin: 0 0 20px 0;
+        color: #333;
+        font-size: 16px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 8px;
+    }
+
+    .no-selection {
+        text-align: center;
+        color: #666;
+        font-style: italic;
+        padding: 40px 20px;
+    }
+
+    .property-section {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .property-section:last-of-type {
+        border-bottom: none;
+    }
+
+    .property-section h5 {
+        margin: 0 0 15px 0;
+        color: #555;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .property-field {
+        margin-bottom: 15px;
+    }
+
+    .property-label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+        font-size: 13px;
+    }
+
+    .property-input {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 13px;
+        transition: border-color 0.2s;
+    }
+
+    .property-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    .property-textarea {
+        resize: vertical;
+        min-height: 60px;
+        font-family: monospace;
+    }
+
+    .property-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex: 1;
+        min-width: 80px;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+        border-color: #2563eb;
+    }
+
+    .btn-secondary {
+        background: #f8f9fa;
+        color: #333;
+    }
+
+    .btn-secondary:hover {
+        background: #e9ecef;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        border-color: #ef4444;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+        border-color: #dc2626;
+    }
+</style>
+
+@code {
+    [Parameter] public object? SelectedNode { get; set; }
+    [Parameter] public EventCallback<(string property, object value)> OnPropertyChanged { get; set; }
+
+    // Common properties
+    private string nodeId = string.Empty;
+    private string nodeTitle = string.Empty;
+    private string nodeDescription = string.Empty;
+    private string nodeType = string.Empty;
+
+    // Task-specific properties
+    private string taskCommand = string.Empty;
+    private string taskParameters = "{}";
+    private int taskTimeout = 30;
+
+    // Condition-specific properties
+    private string conditionExpression = string.Empty;
+    private string conditionType = "simple";
+
+    // Loop-specific properties
+    private string loopType = "forEach";
+    private string loopCondition = string.Empty;
+    private int maxIterations = 10;
+
+    // Retry policy properties
+    private bool enableRetry = false;
+    private int maxRetries = 3;
+    private int retryDelay = 1000;
+
+    protected override void OnParametersSet()
+    {
+        LoadNodeProperties();
+    }
+
+    private void LoadNodeProperties()
+    {
+        if (SelectedNode == null)
+        {
+            ClearProperties();
+            return;
+        }
+
+        // TODO: Extract properties from the selected node object
+        // This will be implemented when the node selection mechanism is complete
+        nodeId = "sample-node-id";
+        nodeTitle = "Sample Node";
+        nodeDescription = "Sample description";
+        nodeType = "taskNode";
+    }
+
+    private void ClearProperties()
+    {
+        nodeId = string.Empty;
+        nodeTitle = string.Empty;
+        nodeDescription = string.Empty;
+        nodeType = string.Empty;
+        taskCommand = string.Empty;
+        taskParameters = "{}";
+        taskTimeout = 30;
+        conditionExpression = string.Empty;
+        conditionType = "simple";
+        loopType = "forEach";
+        loopCondition = string.Empty;
+        maxIterations = 10;
+        enableRetry = false;
+        maxRetries = 3;
+        retryDelay = 1000;
+    }
+
+    private void HandlePropertyChange(string property, object? value)
+    {
+        OnPropertyChanged.InvokeAsync((property, value ?? string.Empty));
+    }
+
+    private void ApplyChanges()
+    {
+        // Apply all current property values to the selected node
+        Console.WriteLine("Applying property changes...");
+        StateHasChanged();
+    }
+
+    private void ResetChanges()
+    {
+        // Reset to original node values
+        LoadNodeProperties();
+        StateHasChanged();
+    }
+
+    private void DeleteNode()
+    {
+        // Delete the selected node
+        Console.WriteLine("Deleting selected node...");
+        OnPropertyChanged.InvokeAsync(("delete", true));
+    }
+}

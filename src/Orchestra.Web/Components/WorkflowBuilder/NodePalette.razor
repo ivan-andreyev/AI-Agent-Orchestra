@@ -1,0 +1,161 @@
+@using Microsoft.AspNetCore.Components
+
+<div class="node-palette">
+    <h4>Node Types</h4>
+
+    <div class="palette-nodes">
+        <div class="palette-node task-node-palette"
+             draggable="true"
+             @ondragstart="@(() => HandleDragStart("taskNode"))"
+             @ondragend="HandleDragEnd">
+            <span class="node-icon">⚙️</span>
+            <span class="node-label">Task</span>
+        </div>
+
+        <div class="palette-node condition-node-palette"
+             draggable="true"
+             @ondragstart="@(() => HandleDragStart("conditionNode"))"
+             @ondragend="HandleDragEnd">
+            <span class="node-icon">🔀</span>
+            <span class="node-label">Condition</span>
+        </div>
+
+        <div class="palette-node loop-node-palette"
+             draggable="true"
+             @ondragstart="@(() => HandleDragStart("loopNode"))"
+             @ondragend="HandleDragEnd">
+            <span class="node-icon">🔄</span>
+            <span class="node-label">Loop</span>
+        </div>
+
+        <div class="palette-node start-node-palette"
+             draggable="true"
+             @ondragstart="@(() => HandleDragStart("startNode"))"
+             @ondragend="HandleDragEnd">
+            <span class="node-icon">▶️</span>
+            <span class="node-label">Start</span>
+        </div>
+
+        <div class="palette-node end-node-palette"
+             draggable="true"
+             @ondragstart="@(() => HandleDragStart("endNode"))"
+             @ondragend="HandleDragEnd">
+            <span class="node-icon">⏹️</span>
+            <span class="node-label">End</span>
+        </div>
+    </div>
+
+    <div class="palette-help">
+        <small>Drag nodes to the canvas to create your workflow</small>
+    </div>
+</div>
+
+<style>
+    .node-palette {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        height: fit-content;
+    }
+
+    .node-palette h4 {
+        margin: 0 0 15px 0;
+        color: #333;
+        font-size: 16px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 8px;
+    }
+
+    .palette-nodes {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .palette-node {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        cursor: grab;
+        background: #f8f9fa;
+        transition: all 0.2s ease;
+        user-select: none;
+    }
+
+    .palette-node:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .palette-node:active {
+        cursor: grabbing;
+        transform: translateY(0);
+    }
+
+    .node-icon {
+        font-size: 18px;
+        min-width: 20px;
+        text-align: center;
+    }
+
+    .node-label {
+        font-weight: 500;
+        color: #333;
+        font-size: 14px;
+    }
+
+    /* Specific node type styling */
+    .task-node-palette {
+        border-left: 4px solid #3b82f6;
+    }
+
+    .condition-node-palette {
+        border-left: 4px solid #f59e0b;
+    }
+
+    .loop-node-palette {
+        border-left: 4px solid #10b981;
+    }
+
+    .start-node-palette {
+        border-left: 4px solid #8b5cf6;
+    }
+
+    .end-node-palette {
+        border-left: 4px solid #ef4444;
+    }
+
+    .palette-help {
+        margin-top: 15px;
+        padding-top: 10px;
+        border-top: 1px solid #eee;
+        text-align: center;
+        color: #666;
+    }
+
+    /* Drag feedback */
+    .palette-node.dragging {
+        opacity: 0.5;
+        transform: rotate(5deg);
+    }
+</style>
+
+@code {
+    [Parameter] public EventCallback<string> OnNodeDragStart { get; set; }
+
+    private void HandleDragStart(string nodeType)
+    {
+        OnNodeDragStart.InvokeAsync(nodeType);
+    }
+
+    private void HandleDragEnd()
+    {
+        // Remove any drag-related styling
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,123 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+
+<div class="workflow-canvas-wrapper">
+    <div id="@Id" class="workflow-canvas-container">
+        <!-- React Flow will be rendered here by JavaScript -->
+        <div class="loading-placeholder">
+            <p>Loading workflow canvas...</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .workflow-canvas-wrapper {
+        width: 100%;
+        height: 100%;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #f9f9f9;
+        position: relative;
+    }
+
+    .workflow-canvas-container {
+        width: 100%;
+        height: 100%;
+        min-height: 500px;
+    }
+
+    .loading-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #666;
+        font-style: italic;
+    }
+
+    /* React Flow will override these styles when loaded */
+    .react-flow {
+        width: 100%;
+        height: 100%;
+    }
+
+    .react-flow__node {
+        font-family: inherit;
+    }
+
+    .react-flow__edge {
+        stroke: #333;
+        stroke-width: 2;
+    }
+
+    .react-flow__edge.selected {
+        stroke: #3b82f6;
+    }
+
+    .react-flow__node.selected {
+        box-shadow: 0 0 0 2px #3b82f6;
+    }
+</style>
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+    [Parameter] public EventCallback<object> OnNodesChanged { get; set; }
+    [Parameter] public EventCallback<object> OnEdgesChanged { get; set; }
+    [Parameter] public EventCallback<object> OnConnect { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (string.IsNullOrEmpty(Id))
+        {
+            Id = $"canvas-{Guid.NewGuid():N}";
+        }
+    }
+
+    /// <summary>
+    /// Updates the canvas with new workflow data
+    /// </summary>
+    /// <param name="workflowData">The workflow data containing nodes and edges</param>
+    public async Task LoadWorkflowData(object workflowData)
+    {
+        // This will be called from the parent component to load workflow data
+        await OnNodesChanged.InvokeAsync(workflowData);
+    }
+
+    /// <summary>
+    /// Gets the current workflow data from the canvas
+    /// </summary>
+    /// <returns>Current workflow data</returns>
+    public async Task<object?> GetWorkflowData()
+    {
+        // This will be implemented when JavaScript interop is fully set up
+        return await Task.FromResult<object?>(null);
+    }
+
+    /// <summary>
+    /// Adds a new node to the canvas
+    /// </summary>
+    /// <param name="nodeType">Type of node to add</param>
+    /// <param name="position">Position where to add the node</param>
+    public async Task AddNode(string nodeType, object position)
+    {
+        var nodeData = new
+        {
+            id = $"{nodeType}_{Guid.NewGuid():N}",
+            type = nodeType,
+            position = position,
+            data = new { title = $"New {nodeType}" }
+        };
+
+        await OnNodesChanged.InvokeAsync(nodeData);
+    }
+
+    /// <summary>
+    /// Validates the current workflow structure
+    /// </summary>
+    /// <returns>Validation result</returns>
+    public async Task<bool> ValidateWorkflow()
+    {
+        // Basic validation - will be enhanced in subsequent tasks
+        return await Task.FromResult(true);
+    }
+}

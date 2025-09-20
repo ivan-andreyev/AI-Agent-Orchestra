@@ -1,0 +1,218 @@
+@page "/workflow-builder"
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<PageTitle>Workflow Builder</PageTitle>
+
+<div class="workflow-builder-container">
+    <h3>Visual Workflow Builder</h3>
+
+    <div class="workflow-builder-layout">
+        <!-- Toolbar Section -->
+        <div class="toolbar-section">
+            <WorkflowToolbar OnSave="HandleSaveWorkflow"
+                           OnLoad="HandleLoadWorkflow"
+                           OnValidate="HandleValidateWorkflow"
+                           OnClear="HandleClearWorkflow" />
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Node Palette -->
+            <div class="palette-section">
+                <NodePalette OnNodeDragStart="@HandleNodeDragStart" />
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="canvas-section">
+                <WorkflowCanvas @ref="canvasComponent"
+                              Id="@canvasId"
+                              OnNodesChanged="HandleNodesChanged"
+                              OnEdgesChanged="HandleEdgesChanged" />
+            </div>
+
+            <!-- Properties Panel -->
+            <div class="properties-section">
+                <NodeProperties SelectedNode="selectedNode"
+                              OnPropertyChanged="@HandlePropertyChanged" />
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .workflow-builder-container {
+        padding: 20px;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .workflow-builder-layout {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .toolbar-section {
+        flex-shrink: 0;
+    }
+
+    .main-content {
+        flex: 1;
+        display: flex;
+        gap: 10px;
+        min-height: 0;
+    }
+
+    .palette-section {
+        width: 200px;
+        flex-shrink: 0;
+    }
+
+    .canvas-section {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .properties-section {
+        width: 300px;
+        flex-shrink: 0;
+    }
+</style>
+
+@code {
+    private WorkflowCanvas? canvasComponent;
+    private string canvasId = $"workflow-canvas-{Guid.NewGuid():N}";
+    private object? selectedNode;
+    private IJSObjectReference? jsModule;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                // Load the workflow builder JavaScript module
+                jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
+                    "import", "./js/workflow-builder.js");
+
+                // Initialize the React Flow component
+                await InitializeCanvas();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing workflow builder: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task InitializeCanvas()
+    {
+        if (jsModule != null)
+        {
+            var options = new
+            {
+                initialNodes = new object[]
+                {
+                    new { id = "start", type = "startNode", position = new { x = 100, y = 100 }, data = new { title = "Start" } },
+                    new { id = "end", type = "endNode", position = new { x = 400, y = 100 }, data = new { title = "End" } }
+                },
+                initialEdges = new object[0],
+                onNodesChange = DotNetObjectReference.Create(this),
+                onEdgesChange = DotNetObjectReference.Create(this),
+                onConnect = DotNetObjectReference.Create(this)
+            };
+
+            await jsModule.InvokeVoidAsync("init", canvasId, options);
+        }
+    }
+
+    private void HandleNodeDragStart(string nodeType)
+    {
+        // This will be handled by the NodePalette component
+        Console.WriteLine($"Starting drag for node type: {nodeType}");
+    }
+
+    private void HandleNodesChanged(object nodes)
+    {
+        Console.WriteLine("Nodes changed");
+        StateHasChanged();
+    }
+
+    private void HandleEdgesChanged(object edges)
+    {
+        Console.WriteLine("Edges changed");
+        StateHasChanged();
+    }
+
+    private async Task HandleSaveWorkflow()
+    {
+        if (jsModule != null)
+        {
+            try
+            {
+                var workflowData = await jsModule.InvokeAsync<object>("getWorkflowData", canvasId);
+                Console.WriteLine("Saving workflow data...");
+                // TODO: Implement actual save logic in subsequent tasks
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving workflow: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task HandleLoadWorkflow()
+    {
+        Console.WriteLine("Loading workflow...");
+        // TODO: Implement actual load logic in subsequent tasks
+    }
+
+    private async Task HandleValidateWorkflow()
+    {
+        Console.WriteLine("Validating workflow...");
+        // TODO: Implement workflow validation in subsequent tasks
+    }
+
+    private async Task HandleClearWorkflow()
+    {
+        if (jsModule != null)
+        {
+            try
+            {
+                var emptyData = new { nodes = new object[0], edges = new object[0] };
+                await jsModule.InvokeVoidAsync("loadWorkflowData", canvasId, emptyData);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error clearing workflow: {ex.Message}");
+            }
+        }
+    }
+
+    private void HandlePropertyChanged((string property, object value) args)
+    {
+        Console.WriteLine($"Property {args.property} changed to {args.value}");
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (jsModule != null)
+        {
+            try
+            {
+                await jsModule.InvokeVoidAsync("destroy", canvasId);
+                await jsModule.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error disposing workflow builder: {ex.Message}");
+            }
+        }
+    }
+}
