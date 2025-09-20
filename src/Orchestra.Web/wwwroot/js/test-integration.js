@@ -7,5 +7,11 @@ function testJavaScriptIntegration() {
     return true;
 }
 
+// JSInterop foundation test function - Task 3B.0.4-B
+window.testJSInterop = function() {
+    console.log('JSInterop foundation test executed');
+    return 'JSInterop working';
+};
+
 // Auto-execute test on load
 testJavaScriptIntegration();

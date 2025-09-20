@@ -4,6 +4,7 @@
 @using Orchestra.Web.Components
 @inject MonitoredOrchestratorService OrchestratorService
 @inject PerformanceMonitoringService PerformanceService
+@inject IJSRuntime JSRuntime
 @implements IDisposable
 
 <PageTitle>AI Agent Orchestra</PageTitle>
@@ -51,6 +52,8 @@
         <div class="header-controls">
             <!-- CSS Framework Test Element (Task 3B.0.3-B) -->
             <div class="test-css-verification">CSS Framework compatibility verified</div>
+            <!-- JSInterop Test Element (Task 3B.0.4-B) -->
+            <button class="debug-button" @onclick="TestJSInterop">🔧 Test JSInterop</button>
             <div class="status-indicator @(_isConnected ? "connected" : "disconnected")">
                 @(_isConnected ? "🟢 Connected" : "🔴 Disconnected")
             </div>
@@ -212,6 +215,11 @@
     private async Task OnTaskQueued()
     {
         await RefreshData();
+    }
+
+    private async Task TestJSInterop()
+    {
+        await JSRuntime.InvokeVoidAsync("testJSInterop");
     }
 
     private Task OnAgentSelected(string agentId)
