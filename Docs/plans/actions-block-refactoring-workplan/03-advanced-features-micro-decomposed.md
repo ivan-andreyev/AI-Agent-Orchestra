@@ -34,6 +34,8 @@
 - Explicit STOP conditions for each task
 - Comprehensive "DO NOT" lists to prevent scope creep
 - Progressive validation checkpoints instead of end-to-end completion
+- **Edge Case Handling**: Verification patterns for pre-existing deliverables
+- **Conditional Execution**: Tasks adapt between creation and verification modes
 
 ### ATOMIC TASK TEMPLATE:
 ```
@@ -53,6 +55,39 @@
 - [ ] {Compilation/rendering check}
 
 **Handoff**: Next task handles {what comes next}
+```
+
+### VERIFICATION TASK TEMPLATE (Edge Case Pattern):
+```
+#### Task ID: {Unique identifier}-B
+**Duration**: 5-10 minutes
+**Single Deliverable**: Verification report for {target deliverable}
+**STOP Condition**: Validation complete OR deliverable created if missing
+
+**CONDITIONAL EXECUTION**:
+- IF deliverable EXISTS: Execute verification workflow
+- IF deliverable MISSING: Execute creation workflow
+
+**VERIFICATION MODE**:
+- Validate file existence and structure
+- Check acceptance criteria compliance
+- Document verification results
+
+**CREATION MODE** (fallback):
+- Create missing deliverable
+- Apply standard creation validation
+
+**DO NOT**:
+- Modify existing deliverables
+- Expand beyond verification scope
+- Perform integration testing
+
+**Validation**:
+- [ ] Deliverable status determined (exists/missing)
+- [ ] Appropriate workflow executed
+- [ ] Verification/creation results documented
+
+**Handoff**: Verified deliverable ready for next task
 ```
 
 ---

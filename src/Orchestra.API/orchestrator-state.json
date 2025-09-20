@@ -2885,10 +2885,36 @@
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-04T13:09:33.2770658+04:00",
       "TasksCompleted": 0
+    },
+    "claude-1": {
+      "Id": "claude-1",
+      "Name": "Claude Agent 1",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
+      "Status": 0,
+      "LastPing": "2025-09-20T17:44:52.572934+04:00",
+      "CurrentTask": null,
+      "SessionId": null,
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-20T17:10:21.7447337+04:00",
+      "TasksCompleted": 0
+    },
+    "claude-2": {
+      "Id": "claude-2",
+      "Name": "Claude Agent 2",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-20T17:44:52.5802258+04:00",
+      "CurrentTask": null,
+      "SessionId": null,
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-20T17:10:21.752307+04:00",
+      "TasksCompleted": 0
     }
   },
   "TaskQueue": [],
-  "LastUpdate": "2025-09-20T02:34:27.6714799+04:00",
+  "LastUpdate": "2025-09-20T17:44:52.5802622+04:00",
   "Repositories": {
     "DaersTools": {
       "Name": "DaersTools",
@@ -2951,7 +2977,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 4,
-      "LastUpdate": "2025-09-20T02:34:27.6714733+04:00"
+      "LastUpdate": "2025-09-20T17:44:52.5802552+04:00"
     },
     "ServiceTerminal": {
       "Name": "ServiceTerminal",
@@ -2975,7 +3001,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 1,
-      "LastUpdate": "2025-09-20T02:34:27.6714741+04:00"
+      "LastUpdate": "2025-09-20T17:44:52.5802557+04:00"
     },
     "DigitalMe": {
       "Name": "DigitalMe",
@@ -3597,7 +3623,7 @@
       "WorkingCount": 1,
       "ErrorCount": 0,
       "OfflineCount": 46,
-      "LastUpdate": "2025-09-20T02:34:27.6714751+04:00"
+      "LastUpdate": "2025-09-20T17:44:52.5802566+04:00"
     },
     "SharedWorkspace": {
       "Name": "SharedWorkspace",
@@ -3634,7 +3660,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-20T02:34:27.6714754+04:00"
+      "LastUpdate": "2025-09-20T17:44:52.5802578+04:00"
     },
     "AI-Agent-Orchestra": {
       "Name": "AI-Agent-Orchestra",
@@ -3743,13 +3769,26 @@
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-17T19:00:24.1774807+04:00",
           "TasksCompleted": 0
+        },
+        {
+          "Id": "claude-2",
+          "Name": "Claude Agent 2",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-20T17:44:52.5802258+04:00",
+          "CurrentTask": null,
+          "SessionId": null,
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-20T17:10:21.752307+04:00",
+          "TasksCompleted": 0
         }
       ],
-      "IdleCount": 4,
+      "IdleCount": 5,
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 4,
-      "LastUpdate": "2025-09-20T02:34:27.6714762+04:00"
+      "LastUpdate": "2025-09-20T17:44:52.5802585+04:00"
     },
     "Elly": {
       "Name": "Elly",
@@ -3786,7 +3825,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-20T02:34:27.6714764+04:00"
+      "LastUpdate": "2025-09-20T17:44:52.5802588+04:00"
     },
     "Elly2": {
       "Name": "Elly2",
@@ -4434,7 +4473,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 48,
-      "LastUpdate": "2025-09-20T02:34:27.6714775+04:00"
+      "LastUpdate": "2025-09-20T17:44:52.5802599+04:00"
     },
     "Galactic-Idlers": {
       "Name": "Galactic-Idlers",
@@ -5856,13 +5895,26 @@
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-04T13:09:33.2770658+04:00",
           "TasksCompleted": 0
+        },
+        {
+          "Id": "claude-1",
+          "Name": "Claude Agent 1",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
+          "Status": 0,
+          "LastPing": "2025-09-20T17:44:52.572934+04:00",
+          "CurrentTask": null,
+          "SessionId": null,
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-20T17:10:21.7447337+04:00",
+          "TasksCompleted": 0
         }
       ],
-      "IdleCount": 0,
+      "IdleCount": 1,
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 109,
-      "LastUpdate": "2025-09-20T02:34:27.6714796+04:00"
+      "LastUpdate": "2025-09-20T17:44:52.580262+04:00"
     }
   }
 }

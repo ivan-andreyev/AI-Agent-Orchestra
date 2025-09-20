@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(verbosity=minimal)"
+      "Bash(verbosity=minimal)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet run:*)",
+      "Bash(taskkill:*)",
+      "Bash(git add:*)",
+      "Bash(dotnet script:*)",
+      "Bash(del test_retry_executor.cs)",
+      "Bash(del nul)",
+      "Bash(del \"src\\Orchestra.Core\\nul\")",
+      "Bash"
     ],
     "deny": [],
     "ask": []
