@@ -1,0 +1,16 @@
+/* Test CSS Framework Compatibility - Task 3B.0.3-B */
+/* Simple test rule to verify CSS loading without conflicts */
+
+.test-css-verification {
+    background-color: #e8f5e8;
+    border: 1px solid #4caf50;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #2e7d32;
+}
+
+.test-css-verification::before {
+    content: "✅ CSS Framework Test: ";
+    font-weight: bold;
+}

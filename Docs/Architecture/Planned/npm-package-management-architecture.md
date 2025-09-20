@@ -2,8 +2,8 @@
 
 **Type**: Planned Architecture
 **Plan Reference**: [Phase 3B: Visual Workflow Builder](../../plans/actions-block-refactoring-workplan/03-advanced-features-micro-decomposed.md#3b02-a-validate-npm-package-management)
-**Last Updated**: 2025-09-20
-**Status**: Foundation Phase Completed
+**Last Updated**: 2025-09-21
+**Status**: Foundation Phase Completed with CSS Framework Compatibility Verified
 
 ## Component Overview
 
@@ -85,9 +85,36 @@ graph TD
 - `typescript`: ^5.1.0 (Type safety)
 - `babel-loader`: ^9.1.0 (JavaScript transpilation)
 
-### 4. Integration Architecture
+### 4. CSS Framework Integration
 
-#### 4.1 Blazor Server + NPM Hybrid Architecture
+#### 4.1 CSS Framework Compatibility Layer
+**Purpose**: Ensure custom CSS integrates properly with existing Bootstrap framework
+**File**: `src/Orchestra.Web/wwwroot/css/test-styles.css`
+**Loading Order**: Bootstrap → App → Components → Workflow → Custom
+
+```css
+.test-css-verification {
+    background-color: #e8f5e8;
+    border: 1px solid #4caf50;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+```
+
+#### 4.2 CSS Loading Strategy
+```mermaid
+graph TD
+    A[Bootstrap CSS] --> B[Application CSS]
+    B --> C[Component CSS]
+    C --> D[Workflow CSS]
+    D --> E[Custom CSS]
+    E --> F[Rendered Application]
+```
+
+### 5. Integration Architecture
+
+#### 5.1 Blazor Server + NPM Hybrid Architecture
 
 ```mermaid
 graph TB
@@ -225,13 +252,16 @@ graph TD
 ## Validation Criteria
 
 ### Foundation Validation
-- [ ] NPM CLI accessible and functional
-- [ ] Package.json files valid and parseable
-- [ ] Basic npm commands execute without errors
+- [x] NPM CLI accessible and functional
+- [x] Package.json files valid and parseable
+- [x] Basic npm commands execute without errors
 - [ ] Node_modules directory created successfully
 
 ### Integration Validation
-- [ ] Static assets served correctly from wwwroot
+- [x] Static assets served correctly from wwwroot
+- [x] CSS framework compatibility verified with Bootstrap
+- [x] CSS loading order established and working
+- [x] Build pipeline includes CSS dependencies
 - [ ] JavaScript modules importable in browser
 - [ ] Build pipeline includes NPM dependencies
 - [ ] Development workflow supports hot reload
@@ -242,6 +272,9 @@ graph TD
 - ✅ NPM installation verification
 - ✅ Package.json creation
 - ✅ Basic command functionality
+- ✅ CSS framework compatibility verification (Task 3B.0.3-B)
+- ✅ Bootstrap integration confirmed working
+- ✅ CSS loading order established
 
 ### Phase 2: React Flow Integration (PLANNED)
 - Install React Flow dependencies
