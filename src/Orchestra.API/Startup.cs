@@ -1,4 +1,5 @@
 using Orchestra.Core;
+using Orchestra.Core.Data;
 using Orchestra.Core.Services;
 using Orchestra.API.Jobs;
 using Orchestra.API.Services;
@@ -9,6 +10,7 @@ using Hangfire;
 using Hangfire.Storage.SQLite;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Orchestra.API;
 
@@ -23,20 +25,42 @@ public class Startup
             });
 
         services.AddOpenApi();
+        // Add configuration for CORS origins
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json")
+            .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
+            .Build();
+
         services.AddCors(options =>
         {
-            options.AddDefaultPolicy(policy =>
+            options.AddPolicy("BlazorWasmPolicy", builder =>
             {
-                policy.AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .AllowCredentials()
-                      .SetIsOriginAllowed(origin => true); // Allow all origins with credentials for SignalR
+                var allowedOrigins = configuration.GetSection("Cors:BlazorOrigins").Get<string[]>()
+                    ?? new[] { "https://localhost:5001", "http://localhost:5000" };
+
+                builder
+                    .WithOrigins(allowedOrigins)
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials()
+                    .WithHeaders("Authorization", "Content-Type", "x-signalr-user-agent")
+                    .SetIsOriginAllowed(origin => true); // Allow dynamic origins for development
             });
         });
 
         // Database connection string for SQLite
         // Use unique database for tests to avoid conflicts
-        var connectionString = Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION") ?? "orchestra.db";
+        var dbFileName = Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION") ?? "orchestra.db";
+        var connectionString = $"Data Source={dbFileName}";
+
+        // Configure Entity Framework DbContext
+        services.AddDbContext<OrchestraDbContext>(options =>
+        {
+            options.UseSqlite(connectionString, b => b.MigrationsAssembly("Orchestra.API"));
+            options.EnableSensitiveDataLogging(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development");
+            options.EnableDetailedErrors(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development");
+        });
 
         // Hangfire configuration
         services.AddHangfire(configuration => configuration
@@ -97,7 +121,7 @@ public class Startup
         }
 
         app.UseRouting();
-        app.UseCors();
+        app.UseCors("BlazorWasmPolicy");
 
         // Enable static files (for coordinator.html)
         app.UseStaticFiles();

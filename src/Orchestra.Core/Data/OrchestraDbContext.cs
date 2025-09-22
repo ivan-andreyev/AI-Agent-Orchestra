@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Orchestra.Core.Data.Entities;
+using Orchestra.Core.Models.Chat;
 
 namespace Orchestra.Core.Data;
 
@@ -56,6 +57,16 @@ public class OrchestraDbContext : DbContext
     /// Метрики производительности агентов
     /// </summary>
     public DbSet<PerformanceMetric> PerformanceMetrics { get; set; }
+
+    /// <summary>
+    /// Сессии чата координатора
+    /// </summary>
+    public DbSet<ChatSession> ChatSessions { get; set; } = null!;
+
+    /// <summary>
+    /// Сообщения чата координатора
+    /// </summary>
+    public DbSet<ChatMessage> ChatMessages { get; set; } = null!;
 
     /// <summary>
     /// Конфигурирует модель данных при создании
@@ -296,6 +307,43 @@ public class OrchestraDbContext : DbContext
             entity.Property(e => e.Id).HasMaxLength(128);
             entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(1000);
+        });
+
+        // ChatSession Configuration
+        modelBuilder.Entity<ChatSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.InstanceId });
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.LastMessageAt);
+
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.InstanceId).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.UserId).HasMaxLength(128);
+        });
+
+        // ChatMessage Configuration
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.SessionId);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => new { e.SessionId, e.CreatedAt });
+
+            entity.Property(e => e.Author).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Content).HasMaxLength(4000).IsRequired();
+            entity.Property(e => e.Metadata).HasMaxLength(2000);
+
+            // Configure relationship with ChatSession
+            entity.HasOne(m => m.Session)
+                  .WithMany(s => s.Messages)
+                  .HasForeignKey(m => m.SessionId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure enum conversion
+            entity.Property(e => e.MessageType)
+                  .HasConversion<int>();
         });
     }
 
