@@ -2,6 +2,7 @@ using Orchestra.Core;
 using Orchestra.Core.Services;
 using Orchestra.API.Jobs;
 using Orchestra.API.Services;
+using Orchestra.API.Hubs;
 using Orchestra.Web.Services;
 using System.Text.Json.Serialization;
 using Hangfire;
@@ -75,6 +76,11 @@ public class Startup
         // Register HangfireOrchestrator - the critical integration bridge
         services.AddScoped<HangfireOrchestrator>();
 
+        // Register Agent Executor - configurable agent implementation
+        // Use ClaudeAgentExecutor for real Claude Code integration, SimulationAgentExecutor for testing
+        services.AddScoped<IAgentExecutor, ClaudeAgentExecutor>();
+        // Alternative for testing/fallback: services.AddScoped<IAgentExecutor, SimulationAgentExecutor>();
+
         // Register Web services for batch task execution
         services.AddHttpClient(); // Required for OrchestratorService
         services.AddScoped<IOrchestratorService, OrchestratorService>();
@@ -93,6 +99,9 @@ public class Startup
         app.UseRouting();
         app.UseCors();
 
+        // Enable static files (for coordinator.html)
+        app.UseStaticFiles();
+
         // Hangfire Dashboard with basic authorization
         app.UseHangfireDashboard("/hangfire", new DashboardOptions
         {
@@ -102,8 +111,9 @@ public class Startup
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
-            // Map SignalR hub for real-time agent communication
+            // Map SignalR hubs for real-time communication
             endpoints.MapHub<AgentCommunicationHub>("/agentHub");
+            endpoints.MapHub<CoordinatorChatHub>("/coordinatorHub");
         });
 
         // Schedule recurring jobs

@@ -3,6 +3,11 @@ using Microsoft.Extensions.Logging;
 using Hangfire;
 using Hangfire.Server;
 using System.Diagnostics;
+using Microsoft.AspNetCore.SignalR;
+using Orchestra.API.Hubs;
+using Orchestra.API.Services;
+using System.Text;
+using System.Text.Json;
 
 namespace Orchestra.API.Jobs;
 
@@ -14,11 +19,19 @@ public class TaskExecutionJob
 {
     private readonly SimpleOrchestrator _orchestrator;
     private readonly ILogger<TaskExecutionJob> _logger;
+    private readonly IHubContext<CoordinatorChatHub> _hubContext;
+    private readonly IAgentExecutor _agentExecutor;
 
-    public TaskExecutionJob(SimpleOrchestrator orchestrator, ILogger<TaskExecutionJob> logger)
+    public TaskExecutionJob(
+        SimpleOrchestrator orchestrator,
+        ILogger<TaskExecutionJob> logger,
+        IHubContext<CoordinatorChatHub> hubContext,
+        IAgentExecutor agentExecutor)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
+        _agentExecutor = agentExecutor ?? throw new ArgumentNullException(nameof(agentExecutor));
     }
 
     /// <summary>
@@ -282,15 +295,22 @@ public class TaskExecutionJob
             // Report progress during execution
             await progressReporter.ReportProgressAsync(50, "Executing command on agent");
 
-            // Simulate command execution (in real implementation, this would interface with actual agent)
+            // Execute command using real agent
+            _logger.LogInformation("Executing command via {AgentType} agent - TaskId: {TaskId}, Command: {Command}",
+                _agentExecutor.AgentType, taskId, command);
+
+            var agentResponse = await _agentExecutor.ExecuteCommandAsync(command, repositoryPath, combinedCancellation.Token);
+
+            // Convert agent response to task result
+            var status = agentResponse.Success ? Orchestra.Core.TaskStatus.Completed : Orchestra.Core.TaskStatus.Failed;
             var result = new TaskResult(
                 taskId,
                 agentId,
-                Orchestra.Core.TaskStatus.Completed,
-                $"Command executed successfully: {command}",
-                true,
+                status,
+                agentResponse.Output,
+                agentResponse.Success,
                 DateTime.UtcNow,
-                TimeSpan.FromSeconds(5)
+                agentResponse.ExecutionTime
             );
 
             await progressReporter.ReportProgressAsync(70, "Command execution completed");
@@ -320,6 +340,63 @@ public class TaskExecutionJob
         // STORE results with proper encoding (result is immutable, logging processed values)
         _logger.LogInformation("Task {TaskId} execution results processed - Success: {Success}, Duration: {Duration}ms, ExecutionTime: {ExecutionTime}ms",
             taskId, result.Success, executionDuration.TotalMilliseconds, result.ExecutionTime?.TotalMilliseconds ?? 0);
+
+        // Send result back to coordinator chat
+        await SendResultToChat(taskId, result, executionDuration);
+    }
+
+    /// <summary>
+    /// Sends task execution result back to the coordinator chat via SignalR
+    /// </summary>
+    private async Task SendResultToChat(string taskId, TaskResult result, TimeSpan executionDuration)
+    {
+        try
+        {
+            var message = FormatTaskResult(taskId, result, executionDuration);
+            var messageType = result.Success ? "success" : "error";
+
+            await _hubContext.Clients.All.SendAsync("ReceiveResponse", new
+            {
+                Message = message,
+                Type = messageType,
+                Timestamp = DateTime.UtcNow
+            });
+
+            _logger.LogDebug("Task result sent to chat - TaskId: {TaskId}, Success: {Success}", taskId, result.Success);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send task result to chat - TaskId: {TaskId}", taskId);
+        }
+    }
+
+    /// <summary>
+    /// Formats task result for display in chat
+    /// </summary>
+    private static string FormatTaskResult(string taskId, TaskResult result, TimeSpan executionDuration)
+    {
+        var status = result.Success ? "✅ **Task Completed**" : "❌ **Task Failed**";
+        var duration = $"{executionDuration.TotalSeconds:F1}s";
+        var taskIdShort = taskId.Length > 8 ? taskId[..8] : taskId;
+
+        var message = $"{status}\n" +
+                     $"Task ID: {taskIdShort}...\n" +
+                     $"Duration: {duration}\n";
+
+        if (!string.IsNullOrEmpty(result.Output))
+        {
+            var output = result.Output.Length > 500
+                ? result.Output[..500] + "... [TRUNCATED]"
+                : result.Output;
+            message += $"\n**Output:**\n```\n{output}\n```";
+        }
+
+        if (!string.IsNullOrEmpty(result.ErrorMessage))
+        {
+            message += $"\n**Error:**\n{result.ErrorMessage}";
+        }
+
+        return message;
     }
 
     private async Task UpdateTaskAndAgentStatus(string taskId, string agentId, TaskResult result, Orchestra.Core.TaskStatus finalStatus)

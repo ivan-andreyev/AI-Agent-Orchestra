@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Orchestra Coordinator Chat</title>
+    <style>
+        body { font-family: monospace; background: #1e1e1e; color: #d4d4d4; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background: #0d7377; }
+        .disconnected { background: #c62d42; }
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #444;
+            padding: 10px;
+            background: #252526;
+            margin: 10px 0;
+        }
+        .message { margin: 5px 0; padding: 5px; }
+        .message.command { color: #4fc3f7; }
+        .message.success { color: #81c784; }
+        .message.error { color: #e57373; }
+        .message.info { color: #ffb74d; }
+        .input-area { display: flex; gap: 10px; }
+        .input-area input {
+            flex: 1;
+            padding: 10px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+        }
+        .input-area button {
+            padding: 10px 20px;
+            background: #0e639c;
+            border: none;
+            color: white;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .input-area button:hover { background: #1177bb; }
+        .input-area button:disabled { background: #555; cursor: not-allowed; }
+        .quick-commands { margin: 10px 0; }
+        .quick-commands button {
+            margin: 5px;
+            padding: 5px 10px;
+            background: #2d2d30;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .quick-commands button:hover { background: #3e3e42; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Orchestra Coordinator Chat</h1>
+
+        <div id="status" class="status disconnected">
+            🔴 Disconnected
+        </div>
+
+        <div class="quick-commands">
+            <button onclick="sendQuickCommand('help')">Help</button>
+            <button onclick="sendQuickCommand('status')">Status</button>
+            <button onclick="sendQuickCommand('agents')">Agents</button>
+            <button onclick="sendQuickCommand('history')">History</button>
+            <button onclick="sendQuickCommand('ping')">Ping</button>
+        </div>
+
+        <div id="messages" class="messages"></div>
+
+        <div class="input-area">
+            <input type="text" id="commandInput" placeholder="Enter coordinator command..." />
+            <button onclick="sendCommand()" id="sendButton" disabled>Send</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/coordinatorHub")
+            .withAutomaticReconnect()
+            .build();
+
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        const commandInput = document.getElementById('commandInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // Update connection status
+        function updateStatus(connected) {
+            if (connected) {
+                statusEl.className = 'status connected';
+                statusEl.innerHTML = '🟢 Connected';
+                sendButton.disabled = false;
+            } else {
+                statusEl.className = 'status disconnected';
+                statusEl.innerHTML = '🔴 Disconnected';
+                sendButton.disabled = true;
+            }
+        }
+
+        // Add message to chat
+        function addMessage(message, type = 'info') {
+            const msgEl = document.createElement('div');
+            msgEl.className = `message ${type}`;
+            msgEl.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            messagesEl.appendChild(msgEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        // Send command
+        function sendCommand() {
+            const command = commandInput.value.trim();
+            if (!command) return;
+
+            addMessage(`> ${command}`, 'command');
+            connection.invoke("SendCommand", command).catch(err => {
+                addMessage(`❌ Error sending command: ${err}`, 'error');
+            });
+            commandInput.value = '';
+        }
+
+        // Send quick command
+        function sendQuickCommand(command) {
+            commandInput.value = command;
+            sendCommand();
+        }
+
+        // Handle Enter key
+        commandInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendCommand();
+            }
+        });
+
+        // Connection events
+        connection.start().then(function () {
+            updateStatus(true);
+            addMessage('Connected to coordinator', 'success');
+        }).catch(function (err) {
+            updateStatus(false);
+            addMessage(`Connection failed: ${err}`, 'error');
+        });
+
+        connection.onclose(function() {
+            updateStatus(false);
+            addMessage('Connection closed', 'error');
+        });
+
+        connection.onreconnecting(function() {
+            updateStatus(false);
+            addMessage('Reconnecting...', 'info');
+        });
+
+        connection.onreconnected(function() {
+            updateStatus(true);
+            addMessage('Reconnected', 'success');
+        });
+
+        // Handle responses
+        connection.on("ReceiveResponse", function (response) {
+            console.log('Received response:', response);
+            const message = response.Message || response.message || response;
+            const type = response.Type || response.type || 'info';
+
+            // Convert markdown-like formatting to HTML
+            const formattedMessage = message
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br/>');
+
+            addMessage(formattedMessage, type);
+        });
+    </script>
+</body>
+</html>
