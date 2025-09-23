@@ -209,6 +209,16 @@ public class Startup
                 memoryCache.Set("startup-validation", DateTime.UtcNow, cacheEntryOptions);
 
                 logger.LogInformation("Memory cache validation completed successfully");
+
+                // Warm up Claude Code CLI agents to avoid cold start delays
+                var orchestrator = scope.ServiceProvider.GetRequiredService<HangfireOrchestrator>();
+                Task.Run(async () =>
+                {
+                    await Task.Delay(5000); // Give Hangfire time to start up
+                    await orchestrator.WarmupClaudeCodeAgentsAsync();
+                });
+
+                logger.LogInformation("Claude Code CLI warm-up initiated");
             }
             catch (Exception ex)
             {

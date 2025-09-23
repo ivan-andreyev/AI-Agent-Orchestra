@@ -352,6 +352,8 @@ public class TaskExecutionJob
     {
         try
         {
+            _logger.LogInformation("Sending task result to chat - TaskId: {TaskId}", taskId);
+
             var message = FormatTaskResult(taskId, result, executionDuration);
             var messageType = result.Success ? "success" : "error";
 
@@ -359,10 +361,12 @@ public class TaskExecutionJob
             {
                 Message = message,
                 Type = messageType,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                TaskId = taskId
             });
 
-            _logger.LogDebug("Task result sent to chat - TaskId: {TaskId}, Success: {Success}", taskId, result.Success);
+            _logger.LogInformation("Task result sent to chat - TaskId: {TaskId}, Success: {Success}, MessageLength: {Length}",
+                taskId, result.Success, message.Length);
         }
         catch (Exception ex)
         {

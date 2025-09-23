@@ -138,6 +138,58 @@ public class HangfireOrchestrator
     public List<AgentHistoryEntry> GetAgentHistory(string sessionId, int maxEntries = 50) => _legacyOrchestrator.GetAgentHistory(sessionId, maxEntries);
 
     /// <summary>
+    /// Initializes Claude Code CLI agents with a warm-up command to avoid cold start delays.
+    /// This should be called on application startup.
+    /// </summary>
+    public async Task WarmupClaudeCodeAgentsAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Starting Claude Code CLI warm-up sequence");
+
+            var allAgents = _legacyOrchestrator.GetAllAgents();
+            var claudeCodeAgents = allAgents.Where(a => a.Type.Contains("ClaudeCode", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (!claudeCodeAgents.Any())
+            {
+                _logger.LogWarning("No Claude Code agents found for warm-up");
+                return;
+            }
+
+            foreach (var agent in claudeCodeAgents)
+            {
+                try
+                {
+                    // Queue a simple warm-up command with low priority
+                    var warmupTaskId = Guid.NewGuid().ToString();
+                    var jobId = _jobClient.Enqueue<TaskExecutionJob>(
+                        "low-priority",
+                        job => job.ExecuteAsync(
+                            warmupTaskId,
+                            agent.Id,
+                            "echo 'Claude Code CLI initialized'",
+                            agent.RepositoryPath ?? string.Empty,
+                            TaskPriority.Low,
+                            null!));
+
+                    _logger.LogInformation("Warm-up task queued for agent {AgentId} - TaskId: {TaskId}, JobId: {JobId}",
+                        agent.Id, warmupTaskId, jobId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to queue warm-up task for agent {AgentId}", agent.Id);
+                }
+            }
+
+            _logger.LogInformation("Claude Code CLI warm-up sequence completed - {Count} agents warmed up", claudeCodeAgents.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to warm up Claude Code agents");
+        }
+    }
+
+    /// <summary>
     /// Finds an available agent for the specified repository using existing orchestrator logic.
     /// </summary>
     /// <param name="repositoryPath">Repository path to find agent for</param>

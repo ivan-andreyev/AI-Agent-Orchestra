@@ -229,7 +229,11 @@ namespace Orchestra.Core.Services
                 // Добавляем в кеш с graceful handling
                 try
                 {
-                    _cache.Set(cacheKey, messages, _cacheExpiry);
+                    _cache.Set(cacheKey, messages, new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = _cacheExpiry,
+                        Size = 1
+                    });
                 }
                 catch (Exception cacheEx)
                 {
@@ -280,7 +284,11 @@ namespace Orchestra.Core.Services
                 // Добавляем в кеш с graceful handling
                 try
                 {
-                    _cache.Set(cacheKey, sessions, _cacheExpiry);
+                    _cache.Set(cacheKey, sessions, new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = _cacheExpiry,
+                        Size = 1
+                    });
                 }
                 catch (Exception cacheEx)
                 {
@@ -407,7 +415,11 @@ namespace Orchestra.Core.Services
             {
                 // Обновляем кеш сессии
                 var sessionCacheKey = GetSessionCacheKey(session.Id);
-                _cache.Set(sessionCacheKey, session, _cacheExpiry);
+                _cache.Set(sessionCacheKey, session, new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = _cacheExpiry,
+                    Size = 1
+                });
 
                 // Обновляем кеш пользовательских сессий, если есть UserId
                 if (!string.IsNullOrWhiteSpace(session.UserId))
@@ -420,7 +432,11 @@ namespace Orchestra.Core.Services
                         .OrderByDescending(s => s.LastMessageAt)
                         .ToListAsync(cancellationToken);
 
-                    _cache.Set(userSessionsCacheKey, userSessions, _cacheExpiry);
+                    _cache.Set(userSessionsCacheKey, userSessions, new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = _cacheExpiry,
+                        Size = 1
+                    });
                 }
             }
             catch (Exception cacheEx)

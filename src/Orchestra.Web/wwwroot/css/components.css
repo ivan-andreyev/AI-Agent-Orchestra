@@ -267,10 +267,10 @@
 
 .content-panels {
     display: grid;
-    grid-template-rows: minmax(300px, 1fr) minmax(300px, 1fr) minmax(400px, 1fr);
+    grid-template-rows: minmax(300px, 1fr) minmax(300px, 1fr) minmax(600px, auto);
     grid-area: content;
     gap: var(--gap-size);
-    height: calc(100vh - var(--header-height) - 40px);
+    min-height: calc(100vh - var(--header-height) - 40px);
     min-height: calc(100vh - var(--header-height) - 40px);
     /* Enhanced content grid for Phase 2.2 with coordinator panel */
     overflow-y: auto;
@@ -278,8 +278,7 @@
 }
 
 .history-panel,
-.queue-panel,
-.coordinator-panel {
+.queue-panel {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -288,9 +287,13 @@
 
 /* Coordinator Panel Styles */
 .coordinator-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
-    min-height: 400px;
+    min-height: 500px;
+    overflow: visible;
 }
 
 /* Coordinator Chat Styles */
@@ -346,7 +349,7 @@
     flex: 1;
     padding: 10px;
     overflow-y: auto;
-    min-height: 200px;
+    min-height: 400px;
 }
 
 .coordinator-chat .message {
@@ -396,6 +399,37 @@
 .coordinator-chat .message-content {
     color: var(--text-primary);
     line-height: 1.4;
+    font-size: 14px;
+}
+
+/* LLM/Success responses - smaller, less prominent font */
+.coordinator-chat .message-success .message-content {
+    font-size: 11px;
+    font-weight: normal;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+/* System messages (info, warning, error) - larger, more prominent font */
+.coordinator-chat .message-info .message-content,
+.coordinator-chat .message-warning .message-content,
+.coordinator-chat .message-error .message-content {
+    font-size: 15px;
+    font-weight: 500;
+    opacity: 1;
+    color: var(--text-primary);
+}
+
+/* Command messages - medium size */
+.coordinator-chat .message-command .message-content {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Code blocks - make them larger and more prominent */
+.coordinator-chat code {
+    font-size: 16px;
+    font-weight: 600;
 }
 
 .coordinator-chat .command-prompt {

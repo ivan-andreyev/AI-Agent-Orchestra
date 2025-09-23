@@ -66,7 +66,8 @@ namespace Orchestra.Core.Services
 
             var cacheOptions = new MemoryCacheEntryOptions()
                 .SetSlidingExpiration(_sessionExpiry)
-                .SetPriority(CacheItemPriority.Normal);
+                .SetPriority(CacheItemPriority.Normal)
+                .SetSize(1);
 
             _cache.Set(cacheKey, session, cacheOptions);
             _logger.LogDebug("Session cached for connection {ConnectionId} with {Expiry} expiry",
