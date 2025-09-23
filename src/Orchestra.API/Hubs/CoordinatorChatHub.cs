@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.SignalR;
 using Orchestra.Core;
 using Orchestra.Core.Models;
+using Orchestra.Core.Models.Chat;
+using Orchestra.Core.Services;
 using Orchestra.API.Services;
 using System.Text;
 
@@ -14,12 +16,24 @@ public class CoordinatorChatHub : Hub
 {
     private readonly SimpleOrchestrator _orchestrator;
     private readonly HangfireOrchestrator _hangfireOrchestrator;
+    private readonly IChatContextService _chatContextService;
+    private readonly IConnectionSessionService _sessionService;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<CoordinatorChatHub> _logger;
 
-    public CoordinatorChatHub(SimpleOrchestrator orchestrator, HangfireOrchestrator hangfireOrchestrator, ILogger<CoordinatorChatHub> logger)
+    public CoordinatorChatHub(
+        SimpleOrchestrator orchestrator,
+        HangfireOrchestrator hangfireOrchestrator,
+        IChatContextService chatContextService,
+        IConnectionSessionService sessionService,
+        IConfiguration configuration,
+        ILogger<CoordinatorChatHub> logger)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _hangfireOrchestrator = hangfireOrchestrator ?? throw new ArgumentNullException(nameof(hangfireOrchestrator));
+        _chatContextService = chatContextService ?? throw new ArgumentNullException(nameof(chatContextService));
+        _sessionService = sessionService ?? throw new ArgumentNullException(nameof(sessionService));
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -39,6 +53,9 @@ public class CoordinatorChatHub : Hub
 
             _logger.LogInformation("Coordinator command received: {Command} from {ConnectionId}",
                 command, Context.ConnectionId);
+
+            // Save user command to database
+            await SaveUserMessage(command.Trim());
 
             var response = await ProcessCommand(command.Trim());
             await SendResponse(response.Message, response.Type);
@@ -71,9 +88,10 @@ public class CoordinatorChatHub : Hub
             _logger.LogInformation("Delegating command to Claude Code agent: {Command}", command);
 
             // Queue the command as a task for the Claude agent using Hangfire
-            // Use the correct repository path for agents
-            var repositoryPath = @"C:\Users\mrred\RiderProjects\AI-Agent-Orchestra";
-            _logger.LogInformation("Using hardcoded repository path for testing: {RepositoryPath}", repositoryPath);
+            // Get repository path from configuration or use current directory
+            var repositoryPath = _configuration["AgentSettings:RepositoryPath"] ??
+                                Directory.GetCurrentDirectory();
+            _logger.LogInformation("Using repository path: {RepositoryPath}", repositoryPath);
             var jobId = await _hangfireOrchestrator.QueueTaskAsync(command, repositoryPath, TaskPriority.High);
 
             _logger.LogInformation("Task queued via Hangfire - JobId: {JobId}", jobId);
@@ -226,8 +244,10 @@ public class CoordinatorChatHub : Hub
     }
 
     /// <summary>
-    /// Queues a task for execution
+    /// Queues a task for execution with specified repository and command
     /// </summary>
+    /// <param name="args">Array containing repository path and command arguments</param>
+    /// <returns>Command response indicating success or failure of queuing operation</returns>
     private async Task<CommandResponse> QueueTaskCommand(string[] args)
     {
         if (args.Length < 2)
@@ -348,12 +368,30 @@ public class CoordinatorChatHub : Hub
     /// </summary>
     private async Task SendResponse(string message, string type)
     {
-        await Clients.Caller.SendAsync("ReceiveResponse", new
+        try
         {
-            Message = message,
-            Type = type,
-            Timestamp = DateTime.UtcNow
-        });
+            // Save response to database
+            await SaveSystemMessage(message, type);
+
+            await Clients.Caller.SendAsync("ReceiveResponse", new
+            {
+                Message = message,
+                Type = type,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending response to client");
+
+            // Still try to send to client even if database save fails
+            await Clients.Caller.SendAsync("ReceiveResponse", new
+            {
+                Message = message,
+                Type = type,
+                Timestamp = DateTime.UtcNow
+            });
+        }
     }
 
     /// <summary>
@@ -363,8 +401,25 @@ public class CoordinatorChatHub : Hub
     {
         _logger.LogInformation("Coordinator chat client connected: {ConnectionId}", Context.ConnectionId);
 
-        await SendResponse("🤖 **Coordinator Agent Connected**\n" +
-                          "Type 'help' for available commands or 'status' for system overview.", "info");
+        try
+        {
+            // Initialize chat session for this connection
+            await InitializeChatSession();
+
+            // Load and send chat history
+            await LoadAndSendChatHistory();
+
+            await SendResponse("🤖 **Coordinator Agent Connected**\n" +
+                              "Type 'help' for available commands or 'status' for system overview.", "info");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error initializing chat session for {ConnectionId}", Context.ConnectionId);
+
+            // Still send basic connection message if session initialization fails
+            await SendResponse("🤖 **Coordinator Agent Connected** (Session initialization failed)\n" +
+                              "Type 'help' for available commands or 'status' for system overview.", "info");
+        }
 
         await base.OnConnectedAsync();
     }
@@ -377,8 +432,178 @@ public class CoordinatorChatHub : Hub
         _logger.LogInformation("Coordinator chat client disconnected: {ConnectionId}. Reason: {Exception}",
             Context.ConnectionId, exception?.Message ?? "Normal disconnect");
 
+        // Clean up session data for this connection
+        try
+        {
+            await _sessionService.RemoveSessionAsync(Context.ConnectionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error cleaning up session data for disconnected connection {ConnectionId}", Context.ConnectionId);
+        }
+
         await base.OnDisconnectedAsync(exception);
     }
+
+    #region Chat Context Management Methods
+
+    /// <summary>
+    /// Initializes chat session for the current connection
+    /// </summary>
+    private async Task InitializeChatSession()
+    {
+        try
+        {
+            // Use ConnectionId as temporary user identification
+            var userId = Context.ConnectionId;
+            var instanceId = "coordinator-main"; // Static instance identifier for now
+
+            var session = await _chatContextService.GetOrCreateSessionAsync(userId, instanceId);
+            await _sessionService.SetSessionAsync(Context.ConnectionId, session);
+
+            _logger.LogInformation("Chat session initialized for connection {ConnectionId}, session {SessionId}",
+                Context.ConnectionId, session.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize chat session for connection {ConnectionId}", Context.ConnectionId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Loads and sends chat history to the connected client
+    /// </summary>
+    private async Task LoadAndSendChatHistory()
+    {
+        try
+        {
+            var session = await _sessionService.GetSessionAsync(Context.ConnectionId);
+            if (session == null)
+            {
+                _logger.LogWarning("No session found for connection {ConnectionId} when loading history", Context.ConnectionId);
+                return;
+            }
+
+            var history = await _chatContextService.GetSessionHistoryAsync(session.Id, limit: 50);
+
+            if (history.Any())
+            {
+                _logger.LogInformation("Loading {Count} messages from chat history for session {SessionId}",
+                    history.Count, session.Id);
+
+                // Send each historical message to client
+                foreach (var message in history)
+                {
+                    var messageType = message.MessageType switch
+                    {
+                        MessageType.User => "user",
+                        MessageType.System => "system",
+                        MessageType.Agent => "agent",
+                        _ => "info"
+                    };
+
+                    await Clients.Caller.SendAsync("ReceiveHistoryMessage", new
+                    {
+                        Message = message.Content,
+                        Type = messageType,
+                        Author = message.Author,
+                        Timestamp = message.CreatedAt
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load chat history for connection {ConnectionId}", Context.ConnectionId);
+            // Don't rethrow - history loading failure shouldn't prevent connection
+        }
+    }
+
+    /// <summary>
+    /// Saves user message to database
+    /// </summary>
+    /// <param name="content">The message content to save</param>
+    /// <returns>Task representing the asynchronous operation</returns>
+    private async Task SaveUserMessage(string content)
+    {
+        try
+        {
+            var session = await _sessionService.GetSessionAsync(Context.ConnectionId);
+            if (session == null)
+            {
+                _logger.LogWarning("No session found for connection {ConnectionId} when saving user message", Context.ConnectionId);
+                return;
+            }
+
+            await _chatContextService.SaveMessageAsync(
+                session.Id,
+                "User",
+                content,
+                MessageType.User,
+                metadata: $"{{\"connectionId\":\"{Context.ConnectionId}\"}}"
+            );
+
+            _logger.LogDebug("User message saved for session {SessionId}: {Content}",
+                session.Id, content.Length > 50 ? content[..50] + "..." : content);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save user message for connection {ConnectionId}", Context.ConnectionId);
+            // Don't rethrow - message saving failure shouldn't prevent command processing
+        }
+    }
+
+    /// <summary>
+    /// Saves system/agent response to database
+    /// </summary>
+    /// <param name="content">The message content to save</param>
+    /// <param name="messageType">Type of message (error, info, success)</param>
+    /// <returns>Task representing the asynchronous operation</returns>
+    private async Task SaveSystemMessage(string content, string messageType)
+    {
+        try
+        {
+            var session = await _sessionService.GetSessionAsync(Context.ConnectionId);
+            if (session == null)
+            {
+                _logger.LogWarning("No session found for connection {ConnectionId} when saving system message", Context.ConnectionId);
+                return;
+            }
+
+            var author = messageType switch
+            {
+                "error" => "System",
+                "info" => "System",
+                "success" => "Agent",
+                _ => "System"
+            };
+
+            var dbMessageType = messageType switch
+            {
+                "success" => MessageType.Agent,
+                _ => MessageType.System
+            };
+
+            await _chatContextService.SaveMessageAsync(
+                session.Id,
+                author,
+                content,
+                dbMessageType,
+                metadata: $"{{\"connectionId\":\"{Context.ConnectionId}\",\"responseType\":\"{messageType}\"}}"
+            );
+
+            _logger.LogDebug("System message saved for session {SessionId}: {Content}",
+                session.Id, content.Length > 50 ? content[..50] + "..." : content);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save system message for connection {ConnectionId}", Context.ConnectionId);
+            // Don't rethrow - message saving failure shouldn't prevent response sending
+        }
+    }
+
+    #endregion
 }
 
 /// <summary>

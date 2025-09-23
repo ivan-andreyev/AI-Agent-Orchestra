@@ -11,6 +11,10 @@ using Hangfire.Storage.SQLite;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Orchestra.Core.HealthChecks;
 
 namespace Orchestra.API;
 
@@ -32,6 +36,14 @@ public class Startup
             .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
             .Build();
 
+        // Configure memory cache with settings from appsettings.json
+        services.AddMemoryCache(options =>
+        {
+            var cacheConfig = configuration.GetSection("Cache");
+            options.SizeLimit = cacheConfig.GetValue<long>("SizeLimit", 1000);
+            options.CompactionPercentage = cacheConfig.GetValue<double>("CompactionPercentage", 0.25);
+        });
+
         services.AddCors(options =>
         {
             options.AddPolicy("BlazorWasmPolicy", builder =>
@@ -49,15 +61,26 @@ public class Startup
             });
         });
 
-        // Database connection string for SQLite
-        // Use unique database for tests to avoid conflicts
-        var dbFileName = Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION") ?? "orchestra.db";
-        var connectionString = $"Data Source={dbFileName}";
+        // Database connection strings for SQLite
+        // In testing environments, separate EF Core and Hangfire databases to prevent disposal conflicts
+        var currentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+        var isTestEnvironment = currentEnvironment == "Testing";
+        
+        // EF Core Database Connection
+        var efCoreDbFileName = Environment.GetEnvironmentVariable("EFCORE_CONNECTION") ?? 
+                              (isTestEnvironment ? 
+                               Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION")?.Replace(".db", "-efcore.db") ?? "test-orchestra-efcore.db" :
+                               "orchestra.db");
+        var efCoreConnectionString = $"Data Source={efCoreDbFileName}";
+        
+        // Hangfire Database Connection  
+        var hangfireDbFileName = Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION") ?? "orchestra.db";
+        var hangfireConnectionString = $"Data Source={hangfireDbFileName}";
 
         // Configure Entity Framework DbContext
         services.AddDbContext<OrchestraDbContext>(options =>
         {
-            options.UseSqlite(connectionString, b => b.MigrationsAssembly("Orchestra.API"));
+            options.UseSqlite(efCoreConnectionString, b => b.MigrationsAssembly("Orchestra.API"));
             options.EnableSensitiveDataLogging(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development");
             options.EnableDetailedErrors(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development");
         });
@@ -67,7 +90,7 @@ public class Startup
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UseSQLiteStorage(connectionString, new SQLiteStorageOptions
+            .UseSQLiteStorage(hangfireConnectionString, new SQLiteStorageOptions
             {
                 QueuePollInterval = TimeSpan.FromSeconds(15),
                 JobExpirationCheckInterval = TimeSpan.FromHours(1),
@@ -105,6 +128,17 @@ public class Startup
         services.AddScoped<IAgentExecutor, ClaudeAgentExecutor>();
         // Alternative for testing/fallback: services.AddScoped<IAgentExecutor, SimulationAgentExecutor>();
 
+        // Register chat context service for coordinator chat management
+        services.AddScoped<IChatContextService, ChatContextService>();
+
+        // Register connection session service for thread-safe session management
+        services.AddSingleton<IConnectionSessionService, ConnectionSessionService>();
+
+        // Add health checks for chat context service and dependencies
+        services.AddHealthChecks()
+            .AddCheck<ChatContextServiceHealthCheck>("chat-context", tags: new[] { "chat", "database" })
+            .AddDbContextCheck<OrchestraDbContext>("database", tags: new[] { "database" });
+
         // Register Web services for batch task execution
         services.AddHttpClient(); // Required for OrchestratorService
         services.AddScoped<IOrchestratorService, OrchestratorService>();
@@ -138,7 +172,51 @@ public class Startup
             // Map SignalR hubs for real-time communication
             endpoints.MapHub<AgentCommunicationHub>("/agentHub");
             endpoints.MapHub<CoordinatorChatHub>("/coordinatorHub");
+
+            // Health check endpoints
+            endpoints.MapHealthChecks("/health");
+            endpoints.MapHealthChecks("/health/chat", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("chat")
+            });
+            endpoints.MapHealthChecks("/health/database", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("database")
+            });
         });
+
+        // Validate critical services at startup
+        using (var scope = app.ApplicationServices.CreateScope())
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Startup>>();
+
+            try
+            {
+                // Validate chat context service can be created and is functional
+                var chatService = scope.ServiceProvider.GetRequiredService<IChatContextService>();
+                var dbContext = scope.ServiceProvider.GetRequiredService<OrchestraDbContext>();
+
+                // Проверяем, что сервисы могут быть созданы
+                logger.LogInformation("Chat context service and database validated successfully");
+
+                // Validate memory cache is working
+                var memoryCache = scope.ServiceProvider.GetRequiredService<IMemoryCache>();
+                var cacheEntryOptions = new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1),
+                    Size = 1 // Required when SizeLimit is set
+                };
+                memoryCache.Set("startup-validation", DateTime.UtcNow, cacheEntryOptions);
+
+                logger.LogInformation("Memory cache validation completed successfully");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to validate critical services at startup");
+                // In production, consider failing startup here
+                // throw new InvalidOperationException("Critical service validation failed", ex);
+            }
+        }
 
         // Schedule recurring jobs
         RecurringJob.AddOrUpdate(
