@@ -1,0 +1,103 @@
+Используются параметры запуска из C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.API\Properties\launchSettings.json...
+info: Orchestra.Core.AgentScheduler[0]
+      Agent Scheduler started
+info: Orchestra.Core.AgentScheduler[0]
+      Registered agent: Claude Agent 1
+info: Orchestra.Core.AgentScheduler[0]
+      Registered agent: Claude Agent 2
+info: Orchestra.Core.Services.BackgroundTaskAssignmentService[0]
+      Starting Background Task Assignment Service
+info: Orchestra.Core.Services.BackgroundTaskAssignmentService[0]
+      Background Task Assignment Service started
+info: Orchestra.API.Startup[0]
+      Chat context service and database validated successfully
+fail: Orchestra.API.Startup[0]
+      Failed to validate critical services at startup
+      System.InvalidOperationException: Cache entry must specify a value for Size when SizeLimit is set.
+         at Microsoft.Extensions.Caching.Memory.MemoryCache.SetEntry(CacheEntry entry)
+         at Microsoft.Extensions.Caching.Memory.CacheExtensions.Set[TItem](IMemoryCache cache, Object key, TItem value, TimeSpan absoluteExpirationRelativeToNow)
+         at Microsoft.Extensions.Caching.Memory.CacheExtensions.Set[TItem](IMemoryCache cache, Object key, TItem value, TimeSpan absoluteExpirationRelativeToNow)
+         at Orchestra.API.Startup.Configure(IApplicationBuilder app, IWebHostEnvironment env) in C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.API\Startup.cs:line 201
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5002
+info: Hangfire.BackgroundJobServer[0]
+      Starting Hangfire Server using job storage: 'Database path: Data Source=orchestra.db,  prefix: hangfire'
+info: Hangfire.BackgroundJobServer[0]
+      Using the following options for Hangfire Server:
+          Worker count: 64
+          Listening queues: 'default', 'high-priority', 'long-running', 'maintenance'
+          Shutdown timeout: 00:00:15
+          Schedule polling interval: 00:00:15
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.API
+info: Hangfire.Server.BackgroundServerProcess[0]
+      Server desktop-c4ff2f6:50280:268d317e successfully announced in 3.8139 ms
+info: Hangfire.Server.BackgroundServerProcess[0]
+      Server desktop-c4ff2f6:50280:268d317e is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, Worker, DelayedJobScheduler, RecurringJobScheduler...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'AggregatedCounter' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'AggregatedCounter' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'Counter' table...
+info: Hangfire.Server.BackgroundServerProcess[0]
+      Server desktop-c4ff2f6:50280:268d317e all the dispatchers started
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'Counter' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'Job' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'Job' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'List' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'List' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'Set' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'Set' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'Hash' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'Hash' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'State' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'State' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Removing outdated records from the 'JobParameter' table...
+info: Hangfire.Storage.SQLite.ExpirationManager[0]
+      Outdated records removed from the 'JobParameter' table...
+Task cleanup job executed at 9/23/2025 8:39:56 AM
+warn: Microsoft.EntityFrameworkCore.Model.Validation[10622]
+      Entity 'Agent' has a global query filter defined and is the required end of a relationship with the entity 'PerformanceMetric'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+warn: Microsoft.EntityFrameworkCore.Model.Validation[10400]
+      Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (6ms) [Parameters=[@__userId_0='health-check-79e43e78df9f4c259e4b85134335d5ee' (Size = 45)], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."Id", "c"."CreatedAt", "c"."InstanceId", "c"."LastMessageAt", "c"."Title", "c"."UserId"
+      FROM "ChatSessions" AS "c"
+      WHERE "c"."UserId" = @__userId_0
+      ORDER BY "c"."LastMessageAt" DESC
+warn: Orchestra.Core.Services.ChatContextService[0]
+      Failed to cache sessions for user health-check-79e43e78df9f4c259e4b85134335d5ee, continuing without cache
+      System.InvalidOperationException: Cache entry must specify a value for Size when SizeLimit is set.
+         at Microsoft.Extensions.Caching.Memory.MemoryCache.SetEntry(CacheEntry entry)
+         at Microsoft.Extensions.Caching.Memory.CacheExtensions.Set[TItem](IMemoryCache cache, Object key, TItem value, TimeSpan absoluteExpirationRelativeToNow)
+         at Orchestra.Core.Services.ChatContextService.GetUserSessionsAsync(String userId, CancellationToken cancellationToken) in C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\Services\ChatContextService.cs:line 283
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__userId_0='health-check-462784737b3f4b878d5166481b193e37' (Size = 45)], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."Id", "c"."CreatedAt", "c"."InstanceId", "c"."LastMessageAt", "c"."Title", "c"."UserId"
+      FROM "ChatSessions" AS "c"
+      WHERE "c"."UserId" = @__userId_0
+      ORDER BY "c"."LastMessageAt" DESC
+warn: Orchestra.Core.Services.ChatContextService[0]
+      Failed to cache sessions for user health-check-462784737b3f4b878d5166481b193e37, continuing without cache
+      System.InvalidOperationException: Cache entry must specify a value for Size when SizeLimit is set.
+         at Microsoft.Extensions.Caching.Memory.MemoryCache.SetEntry(CacheEntry entry)
+         at Microsoft.Extensions.Caching.Memory.CacheExtensions.Set[TItem](IMemoryCache cache, Object key, TItem value, TimeSpan absoluteExpirationRelativeToNow)
+         at Orchestra.Core.Services.ChatContextService.GetUserSessionsAsync(String userId, CancellationToken cancellationToken) in C:\Users\mrred\RiderProjects\AI-Agent-Orchestra\src\Orchestra.Core\Services\ChatContextService.cs:line 283

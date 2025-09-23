@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using Orchestra.Core.Services;
 
 namespace Orchestra.Core;
 
@@ -10,6 +11,7 @@ public class AgentScheduler : BackgroundService
     private readonly ILogger<AgentScheduler> _logger;
     private readonly AgentConfiguration _config;
     private readonly TimeSpan _pingInterval;
+    private readonly MarkdownPlanReader _planReader;
 
     public AgentScheduler(
         SimpleOrchestrator orchestrator,
@@ -20,6 +22,7 @@ public class AgentScheduler : BackgroundService
         _logger = logger;
         _config = config;
         _pingInterval = TimeSpan.FromSeconds(config.PingIntervalSeconds);
+        _planReader = new MarkdownPlanReader();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -35,6 +38,7 @@ public class AgentScheduler : BackgroundService
             {
                 await PingAllAgents();
                 await ProcessTaskQueue();
+                await ProcessMarkdownPlans();
 
                 _logger.LogDebug("Scheduler cycle completed");
                 await Task.Delay(_pingInterval, stoppingToken);
@@ -128,6 +132,50 @@ public class AgentScheduler : BackgroundService
                 // Пока просто обновляем статус
                 _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Working, task.Command);
             }
+        }
+    }
+
+    /// <summary>
+    /// Обрабатывает markdown планы работ агентов
+    /// </summary>
+    private async Task ProcessMarkdownPlans()
+    {
+        try
+        {
+            var activePlans = _planReader.GetActivePlans();
+
+            foreach (var plan in activePlans)
+            {
+                // Проверяем статус агента
+                var agent = _orchestrator.GetAgentById(plan.AgentId);
+                if (agent == null)
+                {
+                    _logger.LogWarning("Agent {AgentId} from plan {PlanName} not found", plan.AgentId, plan.PlanName);
+                    continue;
+                }
+
+                // Обновляем прогресс в markdown если агент работает
+                if (agent.Status == AgentStatus.Working)
+                {
+                    _planReader.UpdatePlanProgress(plan.AgentId, $"Agent working on: {agent.CurrentTask}");
+                    _logger.LogDebug("Updated progress for agent {AgentId}: {Progress}%", plan.AgentId, plan.ProgressPercent);
+                }
+
+                // Проверяем застрявших агентов (не обновлялись более 10 минут)
+                if (plan.LastPing.HasValue &&
+                    DateTime.UtcNow - plan.LastPing.Value > TimeSpan.FromMinutes(10))
+                {
+                    _logger.LogWarning("Agent {AgentId} appears stuck - last ping {LastPing}",
+                        plan.AgentId, plan.LastPing);
+
+                    // Здесь можно добавить логику пинга агента или уведомления
+                    _planReader.UpdatePlanProgress(plan.AgentId, "⚠️ Agent appears stuck - coordinator intervention needed");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing markdown plans");
         }
     }
 }

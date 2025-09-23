@@ -360,22 +360,11 @@ public class ExpressionEvaluator : IExpressionEvaluator
 
         expression = expression.Trim();
 
-        // Обработка скобок
-        if (expression.StartsWith('(') && expression.EndsWith(')'))
+        // Обработка скобок - используем правильную проверку внешних скобок
+        var withoutOuterParens = RemoveOuterParentheses(expression);
+        if (withoutOuterParens != expression)
         {
-            var innerExpression = expression[1..^1].Trim();
-            return ParseLogicalExpression(innerExpression);
-        }
-
-        // Обработка NOT оператора
-        if (expression.ToUpperInvariant().StartsWith("NOT "))
-        {
-            var innerExpression = expression[4..].Trim();
-            var innerNode = ParseLogicalExpression(innerExpression);
-            if (innerNode != null)
-            {
-                return new LogicalOperatorNode("NOT", innerNode);
-            }
+            return ParseLogicalExpression(withoutOuterParens);
         }
 
         // Поиск основного логического оператора (OR имеет меньший приоритет)
@@ -384,6 +373,10 @@ public class ExpressionEvaluator : IExpressionEvaluator
         {
             var leftPart = expression[..orIndex].Trim();
             var rightPart = expression[(orIndex + 2)..].Trim();
+
+            // Убираем внешние скобки если они есть
+            leftPart = RemoveOuterParentheses(leftPart);
+            rightPart = RemoveOuterParentheses(rightPart);
 
             var leftNode = ParseLogicalExpression(leftPart);
             var rightNode = ParseLogicalExpression(rightPart);
@@ -401,12 +394,27 @@ public class ExpressionEvaluator : IExpressionEvaluator
             var leftPart = expression[..andIndex].Trim();
             var rightPart = expression[(andIndex + 3)..].Trim();
 
+            // Убираем внешние скобки если они есть
+            leftPart = RemoveOuterParentheses(leftPart);
+            rightPart = RemoveOuterParentheses(rightPart);
+
             var leftNode = ParseLogicalExpression(leftPart);
             var rightNode = ParseLogicalExpression(rightPart);
 
             if (leftNode != null && rightNode != null)
             {
                 return new LogicalOperatorNode("AND", leftNode, rightNode);
+            }
+        }
+
+        // Обработка NOT оператора (высокий приоритет, но ниже скобок)
+        if (expression.ToUpperInvariant().StartsWith("NOT "))
+        {
+            var innerExpression = expression[4..].Trim();
+            var innerNode = ParseLogicalExpression(innerExpression);
+            if (innerNode != null)
+            {
+                return new LogicalOperatorNode("NOT", innerNode);
             }
         }
 
@@ -450,6 +458,42 @@ public class ExpressionEvaluator : IExpressionEvaluator
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// Убирает внешние скобки из выражения, если они охватывают всё выражение
+    /// </summary>
+    private string RemoveOuterParentheses(string expression)
+    {
+        expression = expression.Trim();
+
+        if (!expression.StartsWith('(') || !expression.EndsWith(')'))
+        {
+            return expression;
+        }
+
+        // Проверяем, что скобки действительно охватывают всё выражение
+        var parenthesesLevel = 0;
+        for (int i = 0; i < expression.Length; i++)
+        {
+            if (expression[i] == '(')
+            {
+                parenthesesLevel++;
+            }
+            else if (expression[i] == ')')
+            {
+                parenthesesLevel--;
+
+                // Если скобки закрылись раньше конца, то внешние скобки не охватывают всё выражение
+                if (parenthesesLevel == 0 && i < expression.Length - 1)
+                {
+                    return expression;
+                }
+            }
+        }
+
+        // Если скобки охватывают всё выражение, убираем их
+        return expression[1..^1].Trim();
     }
 
     /// <summary>
@@ -693,6 +737,13 @@ public class ExpressionEvaluator : IExpressionEvaluator
             return !equality;
         }
 
+        // Сначала проверяем, являются ли оба операнда булевыми
+        if (left is bool leftBool && right is bool rightBool)
+        {
+            var boolEqual = leftBool == rightBool;
+            return equality ? boolEqual : !boolEqual;
+        }
+
         // Приведение типов для сравнения
         if (left.GetType() != right.GetType())
         {
@@ -709,11 +760,35 @@ public class ExpressionEvaluator : IExpressionEvaluator
     }
 
     /// <summary>
+    /// Проверяет, является ли значение булевым или представлением булева
+    /// </summary>
+    private bool IsBooleanLike(object? value)
+    {
+        if (value is bool)
+            return true;
+            
+        if (value is string str)
+        {
+            return str.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                   str.Equals("false", StringComparison.OrdinalIgnoreCase);
+        }
+        
+        return false;
+    }
+
+    /// <summary>
     /// Числовое сравнение
     /// </summary>
     private async Task<bool> CompareNumericAsync(object? left, object? right, Func<double, double, bool> comparison)
     {
         await Task.Yield();
+
+        // Проверяем, не является ли один из операндов булевым или представлением булева
+        if (IsBooleanLike(left) || IsBooleanLike(right))
+        {
+            // Булевы значения не должны участвовать в числовых сравнениях
+            throw new InvalidOperationException("Boolean values cannot be used in numeric comparisons. Use equality operators (== or !=) instead.");
+        }
 
         if (!TryConvertToDouble(left, out var leftDouble) ||
             !TryConvertToDouble(right, out var rightDouble))
@@ -782,6 +857,17 @@ public class ExpressionEvaluator : IExpressionEvaluator
         convertedLeft = left;
         convertedRight = right;
 
+        // Если один из операндов boolean, пытаемся привести другой к boolean
+        if (left is bool || right is bool)
+        {
+            if (TryConvertToBoolean(left, out var leftBool) && TryConvertToBoolean(right, out var rightBool))
+            {
+                convertedLeft = leftBool;
+                convertedRight = rightBool;
+                return true;
+            }
+        }
+
         // Попытка привести к числам
         if (TryConvertToDouble(left, out var leftDouble) && TryConvertToDouble(right, out var rightDouble))
         {
@@ -833,5 +919,39 @@ public class ExpressionEvaluator : IExpressionEvaluator
         }
 
         return double.TryParse(value.ToString(), out result);
+    }
+
+    /// <summary>
+    /// Попытка конвертации значения в boolean
+    /// </summary>
+    private bool TryConvertToBoolean(object? value, out bool result)
+    {
+        result = false;
+
+        if (value == null)
+        {
+            return false;
+        }
+
+        if (value is bool b)
+        {
+            result = b;
+            return true;
+        }
+
+        // Приведение строк к boolean
+        if (value is string str)
+        {
+            return bool.TryParse(str, out result);
+        }
+
+        // Числовые значения: 0 = false, остальное = true
+        if (TryConvertToDouble(value, out var doubleValue))
+        {
+            result = doubleValue != 0;
+            return true;
+        }
+
+        return false;
     }
 }

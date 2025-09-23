@@ -76,7 +76,7 @@ public class WorkflowModelsTests
     public void WorkflowStep_WithRetryPolicy_ShouldCreateCorrectly()
     {
         // Arrange
-        var retryPolicy = new RetryPolicy(3, TimeSpan.FromSeconds(5), true);
+        var retryPolicy = new RetryPolicy(3);
         var step = new WorkflowStep(
             "step-1",
             WorkflowStepType.Task,
@@ -89,9 +89,9 @@ public class WorkflowModelsTests
 
         // Assert
         Assert.NotNull(step.RetryPolicy);
-        Assert.Equal(3, step.RetryPolicy.MaxRetries);
-        Assert.Equal(TimeSpan.FromSeconds(5), step.RetryPolicy.DelayBetweenRetries);
-        Assert.True(step.RetryPolicy.ExponentialBackoff);
+        Assert.Equal(3, step.RetryPolicy.MaxRetryCount);
+        Assert.Equal(TimeSpan.FromSeconds(1), step.RetryPolicy.BaseDelay);
+        Assert.Equal(2.0, step.RetryPolicy.BackoffMultiplier);
     }
 
     [Fact]

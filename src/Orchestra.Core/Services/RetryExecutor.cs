@@ -37,6 +37,8 @@ public class RetryExecutor
 
         for (int attempt = 1; attempt <= retryPolicy.MaxRetryCount; attempt++)
         {
+            // Проверяем отмену перед попыткой
+            cancellationToken.ThrowIfCancellationRequested();
             var attemptTimer = Stopwatch.StartNew();
 
             try
@@ -135,14 +137,14 @@ public class RetryExecutor
     {
         // Экспоненциальный backoff: BaseDelay * (BackoffMultiplier ^ (attemptNumber - 1))
         var delay = TimeSpan.FromMilliseconds(
-            retryPolicy.BaseDelay.TotalMilliseconds *
+            retryPolicy.EffectiveBaseDelay.TotalMilliseconds *
             Math.Pow(retryPolicy.BackoffMultiplier, attemptNumber - 1)
         );
 
         // Ограничиваем максимальной задержкой
-        if (delay > retryPolicy.MaxDelay)
+        if (delay > retryPolicy.EffectiveMaxDelay)
         {
-            delay = retryPolicy.MaxDelay;
+            delay = retryPolicy.EffectiveMaxDelay;
         }
 
         return delay;

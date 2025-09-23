@@ -1,0 +1,237 @@
+@using Orchestra.Web.Services
+@inject LoggingService LoggingService
+
+<div class="simple-workflow-viewer">
+    <div class="viewer-header">
+        <h4>🔧 Workflow Viewer (Pure Blazor - No JavaScript)</h4>
+        <div class="viewer-actions">
+            <button class="btn btn-sm btn-success" @onclick="LoadSampleWorkflow">📋 Load Sample</button>
+            <button class="btn btn-sm btn-primary" @onclick="RefreshData">🔄 Refresh</button>
+        </div>
+    </div>
+
+    <div class="workflow-content">
+        @if (_workflowSteps.Any())
+        {
+            <div class="workflow-steps">
+                @foreach (var (step, index) in _workflowSteps.Select((s, i) => (s, i)))
+                {
+                    <div class="workflow-step @GetStepTypeClass(step.Type)" @onclick="() => SelectStep(index)">
+                        <div class="step-header">
+                            <div class="step-number">@(index + 1)</div>
+                            <div class="step-title">@step.Name</div>
+                            <div class="step-status @step.Status.ToString().ToLower()">@step.Status</div>
+                        </div>
+                        <div class="step-details">
+                            <div class="step-type">@step.Type</div>
+                            @if (!string.IsNullOrEmpty(step.Command))
+                            {
+                                <div class="step-command">@step.Command</div>
+                            }
+                            @if (step.Duration.HasValue)
+                            {
+                                <div class="step-duration">Duration: @step.Duration.Value.TotalSeconds.ToString("F1")s</div>
+                            }
+                        </div>
+                        @if (index < _workflowSteps.Count - 1)
+                        {
+                            <div class="step-connector">
+                                <div class="connector-line"></div>
+                                <div class="connector-arrow">▼</div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-workflow">
+                <div class="empty-state">
+                    <span class="empty-icon">🔧</span>
+                    <p>No workflow loaded</p>
+                    <button class="btn btn-primary" @onclick="LoadSampleWorkflow">Load Sample Workflow</button>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (_selectedStepIndex >= 0 && _selectedStepIndex < _workflowSteps.Count)
+    {
+        <div class="step-details-panel">
+            <h5>Step Details: @_workflowSteps[_selectedStepIndex].Name</h5>
+            <div class="details-content">
+                <div class="detail-item">
+                    <label>Type:</label>
+                    <span>@_workflowSteps[_selectedStepIndex].Type</span>
+                </div>
+                <div class="detail-item">
+                    <label>Status:</label>
+                    <span class="status @_workflowSteps[_selectedStepIndex].Status.ToString().ToLower()">
+                        @_workflowSteps[_selectedStepIndex].Status
+                    </span>
+                </div>
+                @if (!string.IsNullOrEmpty(_workflowSteps[_selectedStepIndex].Command))
+                {
+                    <div class="detail-item">
+                        <label>Command:</label>
+                        <code>@_workflowSteps[_selectedStepIndex].Command</code>
+                    </div>
+                }
+                @if (_workflowSteps[_selectedStepIndex].Duration.HasValue)
+                {
+                    <div class="detail-item">
+                        <label>Duration:</label>
+                        <span>@_workflowSteps[_selectedStepIndex].Duration.Value.ToString(@"mm\:ss\.fff")</span>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(_workflowSteps[_selectedStepIndex].ErrorMessage))
+                {
+                    <div class="detail-item error">
+                        <label>Error:</label>
+                        <pre>@_workflowSteps[_selectedStepIndex].ErrorMessage</pre>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<SimpleWorkflowStep> _workflowSteps = new();
+    private int _selectedStepIndex = -1;
+
+    public enum SimpleStepType
+    {
+        Command,
+        Condition,
+        Loop,
+        Delay
+    }
+
+    public enum SimpleStepStatus
+    {
+        Pending,
+        Running,
+        Completed,
+        Failed,
+        Skipped
+    }
+
+    public class SimpleWorkflowStep
+    {
+        public string Name { get; set; } = string.Empty;
+        public SimpleStepType Type { get; set; }
+        public string Command { get; set; } = string.Empty;
+        public SimpleStepStatus Status { get; set; }
+        public TimeSpan? Duration { get; set; }
+        public string? ErrorMessage { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        LoggingService.LogComponentLifecycle("SimpleWorkflowViewer", "Initialized");
+    }
+
+    private void SelectStep(int index)
+    {
+        _selectedStepIndex = index;
+        LoggingService.LogUserInteraction("SimpleWorkflowViewer", "SelectStep", new { Index = index });
+    }
+
+    private void LoadSampleWorkflow()
+    {
+        using (LoggingService.MeasureOperation("SimpleWorkflowViewer", "LoadSampleWorkflow"))
+        {
+            _workflowSteps.Clear();
+
+            _workflowSteps.AddRange(new[]
+            {
+                new SimpleWorkflowStep
+                {
+                    Name = "Initialize Environment",
+                    Type = SimpleStepType.Command,
+                    Command = "dotnet --version",
+                    Status = SimpleStepStatus.Completed,
+                    Duration = TimeSpan.FromSeconds(0.5)
+                },
+                new SimpleWorkflowStep
+                {
+                    Name = "Build Project",
+                    Type = SimpleStepType.Command,
+                    Command = "dotnet build",
+                    Status = SimpleStepStatus.Completed,
+                    Duration = TimeSpan.FromSeconds(12.3)
+                },
+                new SimpleWorkflowStep
+                {
+                    Name = "Check Build Success",
+                    Type = SimpleStepType.Condition,
+                    Command = "$LAST_EXIT_CODE == 0",
+                    Status = SimpleStepStatus.Completed,
+                    Duration = TimeSpan.FromMilliseconds(50)
+                },
+                new SimpleWorkflowStep
+                {
+                    Name = "Run Tests",
+                    Type = SimpleStepType.Command,
+                    Command = "dotnet test",
+                    Status = SimpleStepStatus.Running,
+                    Duration = null
+                },
+                new SimpleWorkflowStep
+                {
+                    Name = "Deploy to Staging",
+                    Type = SimpleStepType.Command,
+                    Command = "kubectl apply -f k8s/staging/",
+                    Status = SimpleStepStatus.Pending,
+                    Duration = null
+                }
+            });
+
+            _selectedStepIndex = 0;
+
+            LoggingService.LogUserInteraction("SimpleWorkflowViewer", "LoadSampleWorkflow",
+                new { StepCount = _workflowSteps.Count });
+        }
+    }
+
+    private void RefreshData()
+    {
+        using (LoggingService.MeasureOperation("SimpleWorkflowViewer", "RefreshData"))
+        {
+            // Simulate updating step statuses
+            var random = new Random();
+            foreach (var step in _workflowSteps.Where(s => s.Status == SimpleStepStatus.Running))
+            {
+                if (random.Next(100) < 30) // 30% chance to complete
+                {
+                    step.Status = SimpleStepStatus.Completed;
+                    step.Duration = TimeSpan.FromSeconds(random.NextDouble() * 30);
+                }
+            }
+
+            foreach (var step in _workflowSteps.Where(s => s.Status == SimpleStepStatus.Pending))
+            {
+                if (random.Next(100) < 20) // 20% chance to start
+                {
+                    step.Status = SimpleStepStatus.Running;
+                }
+            }
+
+            LoggingService.LogDataRefresh("SimpleWorkflowViewer", "WorkflowSteps", true, 100, _workflowSteps.Count);
+        }
+    }
+
+    private string GetStepTypeClass(SimpleStepType type)
+    {
+        return type switch
+        {
+            SimpleStepType.Command => "step-command",
+            SimpleStepType.Condition => "step-condition",
+            SimpleStepType.Loop => "step-loop",
+            SimpleStepType.Delay => "step-delay",
+            _ => "step-default"
+        };
+    }
+}

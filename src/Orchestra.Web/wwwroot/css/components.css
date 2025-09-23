@@ -267,22 +267,450 @@
 
 .content-panels {
     display: grid;
-    grid-template-rows: minmax(300px, 1fr) minmax(300px, 1fr);
+    grid-template-rows: minmax(300px, 1fr) minmax(300px, 1fr) minmax(400px, 1fr);
     grid-area: content;
     gap: var(--gap-size);
-    height: calc(100vh - var(--header-height) - 40px); /* Optimized space utilization */
+    height: calc(100vh - var(--header-height) - 40px);
     min-height: calc(100vh - var(--header-height) - 40px);
-    /* Enhanced content grid for Phase 2.2 */
-    overflow: hidden;
+    /* Enhanced content grid for Phase 2.2 with coordinator panel */
+    overflow-y: auto;
     align-content: stretch;
 }
 
 .history-panel,
-.queue-panel {
+.queue-panel,
+.coordinator-panel {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
+}
+
+/* Coordinator Panel Styles */
+.coordinator-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+}
+
+/* Coordinator Chat Styles */
+.coordinator-chat {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 100%;
+    background: var(--bg-secondary);
+    border-radius: var(--section-radius);
+    border: var(--section-border);
+}
+
+.coordinator-chat .chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: var(--section-border);
+    background: var(--bg-hover);
+}
+
+.coordinator-chat .chat-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-family: var(--emoji-font);
+}
+
+.coordinator-chat .connection-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.coordinator-chat .connection-status.connected {
+    background: rgba(40, 167, 69, 0.2);
+    color: var(--status-working);
+}
+
+.coordinator-chat .connection-status.disconnected {
+    background: rgba(220, 53, 69, 0.2);
+    color: var(--status-error);
+}
+
+.coordinator-chat .connection-status.connecting,
+.coordinator-chat .connection-status.reconnecting {
+    background: rgba(255, 193, 7, 0.2);
+    color: var(--status-idle);
+}
+
+.coordinator-chat .chat-messages {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    min-height: 200px;
+}
+
+.coordinator-chat .message {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border-left: 3px solid transparent;
+}
+
+.coordinator-chat .message-command {
+    background: rgba(0, 122, 204, 0.1);
+    border-left-color: var(--accent-color);
+}
+
+.coordinator-chat .message-success {
+    background: rgba(40, 167, 69, 0.1);
+    border-left-color: var(--status-working);
+}
+
+.coordinator-chat .message-error {
+    background: rgba(220, 53, 69, 0.1);
+    border-left-color: var(--status-error);
+}
+
+.coordinator-chat .message-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-left-color: var(--status-idle);
+}
+
+.coordinator-chat .message-info {
+    background: rgba(108, 117, 125, 0.1);
+    border-left-color: var(--status-offline);
+}
+
+.coordinator-chat .message-processing {
+    background: rgba(255, 193, 7, 0.1);
+    border-left-color: var(--status-idle);
+    opacity: 0.8;
+}
+
+.coordinator-chat .message-timestamp {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.coordinator-chat .message-content {
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.coordinator-chat .command-prompt {
+    color: var(--accent-color);
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+.coordinator-chat .chat-input {
+    padding: 15px;
+    border-top: var(--section-border);
+    background: var(--bg-hover);
+}
+
+.coordinator-chat .input-group-text {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+.coordinator-chat .form-control {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.coordinator-chat .form-control:focus {
+    background: var(--bg-primary);
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(0, 122, 204, 0.25);
+}
+
+.coordinator-chat .form-control::placeholder {
+    color: var(--text-secondary);
+}
+
+.coordinator-chat .btn-primary {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.coordinator-chat .btn-primary:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+}
+
+.coordinator-chat .btn-primary:disabled {
+    background: var(--status-offline);
+    border-color: var(--status-offline);
+}
+
+.coordinator-chat .command-history {
+    margin-top: 8px;
+    text-align: center;
+}
+
+.coordinator-chat .spinner-border-sm {
+    width: 0.875rem;
+    height: 0.875rem;
+}
+
+/* Simple Workflow Viewer Styles */
+.simple-workflow-viewer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-secondary);
+    border-radius: var(--section-radius);
+    border: var(--section-border);
+}
+
+.simple-workflow-viewer .viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: var(--section-border);
+    background: var(--bg-hover);
+}
+
+.simple-workflow-viewer .viewer-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-family: var(--emoji-font);
+}
+
+.simple-workflow-viewer .viewer-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.simple-workflow-viewer .workflow-content {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+}
+
+.simple-workflow-viewer .workflow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.simple-workflow-viewer .workflow-step {
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.simple-workflow-viewer .workflow-step:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-hover);
+}
+
+.simple-workflow-viewer .workflow-step.step-command {
+    border-left-color: var(--accent-color);
+}
+
+.simple-workflow-viewer .workflow-step.step-condition {
+    border-left-color: var(--status-idle);
+}
+
+.simple-workflow-viewer .workflow-step.step-loop {
+    border-left-color: var(--status-working);
+}
+
+.simple-workflow-viewer .workflow-step.step-delay {
+    border-left-color: var(--status-offline);
+}
+
+.simple-workflow-viewer .step-header {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    gap: 12px;
+}
+
+.simple-workflow-viewer .step-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.simple-workflow-viewer .step-title {
+    flex: 1;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.simple-workflow-viewer .step-status {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.simple-workflow-viewer .step-status.pending {
+    background: rgba(108, 117, 125, 0.2);
+    color: var(--status-offline);
+}
+
+.simple-workflow-viewer .step-status.running {
+    background: rgba(255, 193, 7, 0.2);
+    color: var(--status-idle);
+}
+
+.simple-workflow-viewer .step-status.completed {
+    background: rgba(40, 167, 69, 0.2);
+    color: var(--status-working);
+}
+
+.simple-workflow-viewer .step-status.failed {
+    background: rgba(220, 53, 69, 0.2);
+    color: var(--status-error);
+}
+
+.simple-workflow-viewer .step-status.skipped {
+    background: rgba(108, 117, 125, 0.1);
+    color: var(--text-secondary);
+}
+
+.simple-workflow-viewer .step-details {
+    padding: 0 12px 12px 54px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.simple-workflow-viewer .step-type {
+    font-weight: bold;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.simple-workflow-viewer .step-command,
+.simple-workflow-viewer .step-duration {
+    font-family: monospace;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.simple-workflow-viewer .step-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 5px 0;
+}
+
+.simple-workflow-viewer .connector-line {
+    width: 2px;
+    height: 20px;
+    background: var(--border-color);
+}
+
+.simple-workflow-viewer .connector-arrow {
+    color: var(--border-color);
+    font-size: 12px;
+    margin-top: -2px;
+}
+
+.simple-workflow-viewer .empty-workflow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+.simple-workflow-viewer .empty-state {
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.simple-workflow-viewer .empty-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 16px;
+}
+
+.simple-workflow-viewer .step-details-panel {
+    border-top: var(--section-border);
+    padding: 15px;
+    background: var(--bg-hover);
+}
+
+.simple-workflow-viewer .step-details-panel h5 {
+    margin: 0 0 15px 0;
+    color: var(--text-primary);
+}
+
+.simple-workflow-viewer .details-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.simple-workflow-viewer .detail-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.simple-workflow-viewer .detail-item label {
+    color: var(--text-secondary);
+    font-weight: 500;
+    min-width: 80px;
+}
+
+.simple-workflow-viewer .detail-item code {
+    background: var(--bg-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: var(--text-primary);
+}
+
+.simple-workflow-viewer .detail-item pre {
+    background: var(--bg-primary);
+    padding: 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: var(--status-error);
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.simple-workflow-viewer .detail-item.error {
+    background: rgba(220, 53, 69, 0.1);
+    padding: 8px;
+    border-radius: 4px;
+    border-left: 3px solid var(--status-error);
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
 }
 
 .loading {

@@ -6,7 +6,7 @@
 
 <div class="task-queue">
     <div class="queue-header">
-        <h3>Task Queue</h3>
+        <h3>Task Queue @(_showAllTasks ? "(All Repositories)" : "")</h3>
         <div class="queue-controls">
             <button class="refresh-button" @onclick="RefreshQueue" disabled="@_isLoading">
                 @if (_isLoading)
@@ -30,7 +30,21 @@
         @if (string.IsNullOrEmpty(SelectedRepository))
         {
             <div class="no-selection">
-                <p>Select a repository to view its task queue</p>
+                <div class="selection-help">
+                    <h4>📋 Task Queue Help</h4>
+                    <p><strong>How to view tasks:</strong></p>
+                    <ol>
+                        <li>Go to <strong>Agent Status</strong> tab</li>
+                        <li>Click on any agent in the list</li>
+                        <li>Their repository tasks will appear here</li>
+                    </ol>
+                    <p><em>Or select a repository from the sidebar to see all its tasks</em></p>
+                </div>
+                <div class="global-queue-option">
+                    <button class="btn btn-secondary" @onclick="ShowAllTasks">
+                        🌐 Show All Tasks (All Repositories)
+                    </button>
+                </div>
             </div>
         }
         else if (_isLoading && (_tasks == null || !_tasks.Any()))
@@ -77,6 +91,12 @@
                         </div>
                         <div class="task-details">
                             <div class="task-id">ID: @task.Id[..8]...</div>
+                            @if (_showAllTasks && !string.IsNullOrEmpty(task.RepositoryPath))
+                            {
+                                <div class="task-repository" title="@task.RepositoryPath">
+                                    📁 @GetRepositoryDisplayName(task.RepositoryPath)
+                                </div>
+                            }
                             @if (!string.IsNullOrEmpty(task.AgentId))
                             {
                                 <div class="assigned-agent" title="@task.AgentId">
@@ -125,6 +145,7 @@
     private string? _lastRepository;
     private Dictionary<string, AgentInfo> _allAgents = new();
     private List<string> _taskLog = new();
+    private bool _showAllTasks = false;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -150,7 +171,7 @@
     private async Task LoadTasks()
     {
         // Fast-return pattern for early validation
-        if (string.IsNullOrEmpty(SelectedRepository) || string.IsNullOrEmpty(RepositoryPath))
+        if (!_showAllTasks && (string.IsNullOrEmpty(SelectedRepository) || string.IsNullOrEmpty(RepositoryPath)))
         {
             _tasks = new List<Orchestra.Web.Models.TaskRequest>();
             return;
@@ -185,7 +206,7 @@
         var previousTaskIds = _tasks.Select(t => t.Id).ToHashSet();
 
         _tasks = state.TaskQueue
-            .Where(t => t.RepositoryPath == RepositoryPath)
+            .Where(t => _showAllTasks || t.RepositoryPath == RepositoryPath)
             .OrderBy(t => GetPriorityValue(t.Priority))
             .ThenBy(t => t.CreatedAt)
             .ToList();
@@ -366,6 +387,25 @@
 
         // Log to browser console for debugging
         Console.WriteLine($"TaskQueue: {logEntry}");
+    }
+
+    private async Task ShowAllTasks()
+    {
+        _showAllTasks = true;
+        await LoadTasks();
+        StateHasChanged();
+    }
+
+    private static string GetRepositoryDisplayName(string repositoryPath)
+    {
+        if (string.IsNullOrEmpty(repositoryPath))
+        {
+            return "Unknown";
+        }
+
+        // Extract just the folder name from the path
+        var directoryName = Path.GetFileName(repositoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        return string.IsNullOrEmpty(directoryName) ? repositoryPath : directoryName;
     }
 
 }

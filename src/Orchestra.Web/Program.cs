@@ -26,4 +26,7 @@ builder.Services.AddScoped<BatchTaskExecutor>();
 // Configure logging for performance monitoring
 builder.Services.AddLogging();
 
+// Register centralized logging service
+builder.Services.AddScoped<LoggingService>();
+
 await builder.Build().RunAsync();

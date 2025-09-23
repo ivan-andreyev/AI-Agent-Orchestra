@@ -351,6 +351,19 @@
       "LastActiveTime": "2025-09-17T19:38:22.3081736+04:00",
       "TasksCompleted": 0
     },
+    "DigitalMe_8a91138c-af0c-405b-94e7-2dfebdd7a52e": {
+      "Id": "DigitalMe_8a91138c-af0c-405b-94e7-2dfebdd7a52e",
+      "Name": "Claude Code - DigitalMe (8a91138c)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Sources\\DigitalMe",
+      "Status": 4,
+      "LastPing": "2025-09-21T00:48:44.6953373+04:00",
+      "CurrentTask": null,
+      "SessionId": "8a91138c-af0c-405b-94e7-2dfebdd7a52e",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-21T00:48:44.6953373+04:00",
+      "TasksCompleted": 0
+    },
     "DigitalMe_92223cf1-93da-46fb-9f8a-8476d6bdab79": {
       "Id": "DigitalMe_92223cf1-93da-46fb-9f8a-8476d6bdab79",
       "Name": "Claude Code - DigitalMe (92223cf1)",
@@ -362,6 +375,19 @@
       "SessionId": "92223cf1-93da-46fb-9f8a-8476d6bdab79",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-04T21:47:32.828541+04:00",
+      "TasksCompleted": 0
+    },
+    "DigitalMe_9ad224da-dbbd-4b6e-bead-45162a1b5c6b": {
+      "Id": "DigitalMe_9ad224da-dbbd-4b6e-bead-45162a1b5c6b",
+      "Name": "Claude Code - DigitalMe (9ad224da)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Sources\\DigitalMe",
+      "Status": 0,
+      "LastPing": "2025-09-23T00:19:52.0729419+04:00",
+      "CurrentTask": null,
+      "SessionId": "9ad224da-dbbd-4b6e-bead-45162a1b5c6b",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-23T00:19:52.0729419+04:00",
       "TasksCompleted": 0
     },
     "DigitalMe_9d889d63-0445-4a95-97bf-19165414dc84": {
@@ -388,6 +414,19 @@
       "SessionId": "9da5fe99-6a7d-4e3e-890a-db118bd9354e",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-08-28T03:00:46.5084806+04:00",
+      "TasksCompleted": 0
+    },
+    "DigitalMe_9f0005d8-88fe-4e02-9129-4b7ef5450c1b": {
+      "Id": "DigitalMe_9f0005d8-88fe-4e02-9129-4b7ef5450c1b",
+      "Name": "Claude Code - DigitalMe (9f0005d8)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Sources\\DigitalMe",
+      "Status": 4,
+      "LastPing": "2025-09-21T00:53:59.3830893+04:00",
+      "CurrentTask": null,
+      "SessionId": "9f0005d8-88fe-4e02-9129-4b7ef5450c1b",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-21T00:53:59.3830893+04:00",
       "TasksCompleted": 0
     },
     "DigitalMe_a2cf9989-4c7f-4e10-9753-75fc07a1a19b": {
@@ -603,12 +642,12 @@
       "Name": "Claude Code - DigitalMe (dd5d3680)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Sources\\DigitalMe",
-      "Status": 1,
-      "LastPing": "2025-09-20T02:34:26.0189122+04:00",
+      "Status": 4,
+      "LastPing": "2025-09-20T16:42:33.812738+04:00",
       "CurrentTask": null,
       "SessionId": "dd5d3680-0711-4005-b94d-469209efe85b",
       "CurrentTaskId": null,
-      "LastActiveTime": "2025-09-20T02:34:26.0189122+04:00",
+      "LastActiveTime": "2025-09-20T16:42:33.812738+04:00",
       "TasksCompleted": 0
     },
     "DigitalMe_de76a4d3-900d-47ac-95e7-1335882e72c9": {
@@ -707,7 +746,7 @@
       "Name": "Claude Code - AI-Agent-Orchestra (0c062eb5)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "Status": 0,
+      "Status": 4,
       "LastPing": "2025-09-19T12:10:17.1644332+04:00",
       "CurrentTask": null,
       "SessionId": "0c062eb5-e2f6-4955-b432-fa4e2ac080c4",
@@ -728,6 +767,19 @@
       "LastActiveTime": "2025-09-18T18:30:34.4537359+04:00",
       "TasksCompleted": 0
     },
+    "AI-Agent-Orchestra_2bd3bbb7-b58b-4b1b-935e-7b8daeeaf8c0": {
+      "Id": "AI-Agent-Orchestra_2bd3bbb7-b58b-4b1b-935e-7b8daeeaf8c0",
+      "Name": "Claude Code - AI-Agent-Orchestra (2bd3bbb7)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-22T19:51:43.3656382+04:00",
+      "CurrentTask": null,
+      "SessionId": "2bd3bbb7-b58b-4b1b-935e-7b8daeeaf8c0",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-22T19:51:43.3656382+04:00",
+      "TasksCompleted": 0
+    },
     "AI-Agent-Orchestra_2ee68d94-dde4-4789-8fe6-8422b2beea8b": {
       "Id": "AI-Agent-Orchestra_2ee68d94-dde4-4789-8fe6-8422b2beea8b",
       "Name": "Claude Code - AI-Agent-Orchestra (2ee68d94)",
@@ -741,17 +793,56 @@
       "LastActiveTime": "2025-09-17T19:00:20.2665438+04:00",
       "TasksCompleted": 0
     },
+    "AI-Agent-Orchestra_349a8a7a-acc5-4432-a10c-64b4d170cf16": {
+      "Id": "AI-Agent-Orchestra_349a8a7a-acc5-4432-a10c-64b4d170cf16",
+      "Name": "Claude Code - AI-Agent-Orchestra (349a8a7a)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-22T18:21:58.8005398+04:00",
+      "CurrentTask": null,
+      "SessionId": "349a8a7a-acc5-4432-a10c-64b4d170cf16",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-22T18:21:58.8005398+04:00",
+      "TasksCompleted": 0
+    },
     "AI-Agent-Orchestra_44ad94f2-dbb5-48db-80cb-bc2b315e7826": {
       "Id": "AI-Agent-Orchestra_44ad94f2-dbb5-48db-80cb-bc2b315e7826",
       "Name": "Claude Code - AI-Agent-Orchestra (44ad94f2)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "Status": 0,
+      "Status": 4,
       "LastPing": "2025-09-19T17:43:58.2647072+04:00",
       "CurrentTask": null,
       "SessionId": "44ad94f2-dbb5-48db-80cb-bc2b315e7826",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-19T17:43:58.2647072+04:00",
+      "TasksCompleted": 0
+    },
+    "AI-Agent-Orchestra_49c2a3aa-bc63-43f0-9c4e-531f7016bf2b": {
+      "Id": "AI-Agent-Orchestra_49c2a3aa-bc63-43f0-9c4e-531f7016bf2b",
+      "Name": "Claude Code - AI-Agent-Orchestra (49c2a3aa)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-23T00:37:10.483747+04:00",
+      "CurrentTask": null,
+      "SessionId": "49c2a3aa-bc63-43f0-9c4e-531f7016bf2b",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-23T00:37:10.483747+04:00",
+      "TasksCompleted": 0
+    },
+    "AI-Agent-Orchestra_51ed6a00-c7bd-44d9-babd-9c8988f29131": {
+      "Id": "AI-Agent-Orchestra_51ed6a00-c7bd-44d9-babd-9c8988f29131",
+      "Name": "Claude Code - AI-Agent-Orchestra (51ed6a00)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 4,
+      "LastPing": "2025-09-21T12:39:03.9692568+04:00",
+      "CurrentTask": null,
+      "SessionId": "51ed6a00-c7bd-44d9-babd-9c8988f29131",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-21T12:39:03.9692568+04:00",
       "TasksCompleted": 0
     },
     "AI-Agent-Orchestra_559cc30e-0123-4945-87ba-4d10929e9eb1": {
@@ -767,17 +858,82 @@
       "LastActiveTime": "2025-09-17T19:43:29.8979795+04:00",
       "TasksCompleted": 0
     },
+    "AI-Agent-Orchestra_5672d31b-7960-41e3-a4e7-cf97eea44976": {
+      "Id": "AI-Agent-Orchestra_5672d31b-7960-41e3-a4e7-cf97eea44976",
+      "Name": "Claude Code - AI-Agent-Orchestra (5672d31b)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-22T23:02:41.0289834+04:00",
+      "CurrentTask": null,
+      "SessionId": "5672d31b-7960-41e3-a4e7-cf97eea44976",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-22T23:02:41.0289834+04:00",
+      "TasksCompleted": 0
+    },
+    "AI-Agent-Orchestra_58e936d2-1eea-49af-b77f-0f6fd49ed1d5": {
+      "Id": "AI-Agent-Orchestra_58e936d2-1eea-49af-b77f-0f6fd49ed1d5",
+      "Name": "Claude Code - AI-Agent-Orchestra (58e936d2)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 4,
+      "LastPing": "2025-09-21T19:37:57.4273481+04:00",
+      "CurrentTask": null,
+      "SessionId": "58e936d2-1eea-49af-b77f-0f6fd49ed1d5",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-21T19:37:57.4273481+04:00",
+      "TasksCompleted": 0
+    },
+    "AI-Agent-Orchestra_5cdaa97d-4e91-4f60-9854-5e884022a972": {
+      "Id": "AI-Agent-Orchestra_5cdaa97d-4e91-4f60-9854-5e884022a972",
+      "Name": "Claude Code - AI-Agent-Orchestra (5cdaa97d)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-22T19:52:07.7258073+04:00",
+      "CurrentTask": null,
+      "SessionId": "5cdaa97d-4e91-4f60-9854-5e884022a972",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-22T19:52:07.7258073+04:00",
+      "TasksCompleted": 0
+    },
+    "AI-Agent-Orchestra_749f1173-6bc7-401b-993b-3bdcaffe72a7": {
+      "Id": "AI-Agent-Orchestra_749f1173-6bc7-401b-993b-3bdcaffe72a7",
+      "Name": "Claude Code - AI-Agent-Orchestra (749f1173)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-22T19:48:05.8384196+04:00",
+      "CurrentTask": null,
+      "SessionId": "749f1173-6bc7-401b-993b-3bdcaffe72a7",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-22T19:48:05.8384196+04:00",
+      "TasksCompleted": 0
+    },
+    "AI-Agent-Orchestra_a06fee62-ae7d-4379-9ae1-2ed775d4791b": {
+      "Id": "AI-Agent-Orchestra_a06fee62-ae7d-4379-9ae1-2ed775d4791b",
+      "Name": "Claude Code - AI-Agent-Orchestra (a06fee62)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-22T18:21:27.2120805+04:00",
+      "CurrentTask": null,
+      "SessionId": "a06fee62-ae7d-4379-9ae1-2ed775d4791b",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-22T18:21:27.2120805+04:00",
+      "TasksCompleted": 0
+    },
     "AI-Agent-Orchestra_aa2936c2-7191-419c-850a-12e471672ac2": {
       "Id": "AI-Agent-Orchestra_aa2936c2-7191-419c-850a-12e471672ac2",
       "Name": "Claude Code - AI-Agent-Orchestra (aa2936c2)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "Status": 0,
-      "LastPing": "2025-09-20T02:29:46.5797084+04:00",
+      "Status": 4,
+      "LastPing": "2025-09-20T16:12:15.1504304+04:00",
       "CurrentTask": null,
       "SessionId": "aa2936c2-7191-419c-850a-12e471672ac2",
       "CurrentTaskId": null,
-      "LastActiveTime": "2025-09-20T02:29:46.5797084+04:00",
+      "LastActiveTime": "2025-09-20T16:12:15.1504304+04:00",
       "TasksCompleted": 0
     },
     "AI-Agent-Orchestra_b0f7f9d8-cec5-4862-b487-084a0ec46337": {
@@ -785,7 +941,7 @@
       "Name": "Claude Code - AI-Agent-Orchestra (b0f7f9d8)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-      "Status": 0,
+      "Status": 4,
       "LastPing": "2025-09-19T12:13:06.6232388+04:00",
       "CurrentTask": null,
       "SessionId": "b0f7f9d8-cec5-4862-b487-084a0ec46337",
@@ -804,6 +960,19 @@
       "SessionId": "d95053bf-5d3c-4eb2-b1ff-ec11202e1606",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-17T19:00:24.1774807+04:00",
+      "TasksCompleted": 0
+    },
+    "AI-Agent-Orchestra_e3309f1e-a6cd-4d76-b3c4-19de9719ca97": {
+      "Id": "AI-Agent-Orchestra_e3309f1e-a6cd-4d76-b3c4-19de9719ca97",
+      "Name": "Claude Code - AI-Agent-Orchestra (e3309f1e)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+      "Status": 0,
+      "LastPing": "2025-09-22T23:02:49.8218186+04:00",
+      "CurrentTask": null,
+      "SessionId": "e3309f1e-a6cd-4d76-b3c4-19de9719ca97",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-22T23:02:49.8218186+04:00",
       "TasksCompleted": 0
     },
     "Elly_0e07b95e-e9a7-4ef4-9834-2951852b457b": {
@@ -884,6 +1053,19 @@
       "LastActiveTime": "2025-09-10T19:39:51.907547+04:00",
       "TasksCompleted": 0
     },
+    "Elly2_11963578-ff3d-4ffd-aa26-e765f0432bcc": {
+      "Id": "Elly2_11963578-ff3d-4ffd-aa26-e765f0432bcc",
+      "Name": "Claude Code - Elly2 (11963578)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+      "Status": 0,
+      "LastPing": "2025-09-23T00:26:59.3697708+04:00",
+      "CurrentTask": null,
+      "SessionId": "11963578-ff3d-4ffd-aa26-e765f0432bcc",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-23T00:26:59.3697708+04:00",
+      "TasksCompleted": 0
+    },
     "Elly2_1723f0cd-d231-4438-8c54-1e27da8f7c42": {
       "Id": "Elly2_1723f0cd-d231-4438-8c54-1e27da8f7c42",
       "Name": "Claude Code - Elly2 (1723f0cd)",
@@ -897,17 +1079,17 @@
       "LastActiveTime": "2025-08-29T23:22:40.1373588+04:00",
       "TasksCompleted": 0
     },
-    "Elly2_21bc7b2f-2ff4-4e51-91be-b71eb4a194b9": {
-      "Id": "Elly2_21bc7b2f-2ff4-4e51-91be-b71eb4a194b9",
-      "Name": "Claude Code - Elly2 (21bc7b2f)",
+    "Elly2_2053f55f-f4e7-4b89-b36a-1039030d05ce": {
+      "Id": "Elly2_2053f55f-f4e7-4b89-b36a-1039030d05ce",
+      "Name": "Claude Code - Elly2 (2053f55f)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
       "Status": 4,
-      "LastPing": "2025-08-22T02:11:04.8135489+04:00",
+      "LastPing": "2025-09-20T20:09:03.1074528+04:00",
       "CurrentTask": null,
-      "SessionId": "21bc7b2f-2ff4-4e51-91be-b71eb4a194b9",
+      "SessionId": "2053f55f-f4e7-4b89-b36a-1039030d05ce",
       "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-22T02:11:04.8135489+04:00",
+      "LastActiveTime": "2025-09-20T20:09:03.1074528+04:00",
       "TasksCompleted": 0
     },
     "Elly2_241a8c19-987e-4c07-9b99-3f8736c48eff": {
@@ -1053,19 +1235,6 @@
       "LastActiveTime": "2025-09-17T03:37:39.7179969+04:00",
       "TasksCompleted": 0
     },
-    "Elly2_5bc2a429-cfcd-490d-82dd-82705523b644": {
-      "Id": "Elly2_5bc2a429-cfcd-490d-82dd-82705523b644",
-      "Name": "Claude Code - Elly2 (5bc2a429)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-      "Status": 4,
-      "LastPing": "2025-08-22T19:03:33.727986+04:00",
-      "CurrentTask": null,
-      "SessionId": "5bc2a429-cfcd-490d-82dd-82705523b644",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-22T19:03:33.727986+04:00",
-      "TasksCompleted": 0
-    },
     "Elly2_5e33742d-f0ba-4bb0-80bb-7889fbb75166": {
       "Id": "Elly2_5e33742d-f0ba-4bb0-80bb-7889fbb75166",
       "Name": "Claude Code - Elly2 (5e33742d)",
@@ -1196,6 +1365,19 @@
       "LastActiveTime": "2025-09-13T23:47:30.5203838+04:00",
       "TasksCompleted": 0
     },
+    "Elly2_a0d42257-cf4e-43fa-931f-31730c116809": {
+      "Id": "Elly2_a0d42257-cf4e-43fa-931f-31730c116809",
+      "Name": "Claude Code - Elly2 (a0d42257)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+      "Status": 0,
+      "LastPing": "2025-09-22T15:39:12.9962113+04:00",
+      "CurrentTask": null,
+      "SessionId": "a0d42257-cf4e-43fa-931f-31730c116809",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-22T15:39:12.9962113+04:00",
+      "TasksCompleted": 0
+    },
     "Elly2_a0f1055b-8a11-46df-a62c-48e3b4492d0a": {
       "Id": "Elly2_a0f1055b-8a11-46df-a62c-48e3b4492d0a",
       "Name": "Claude Code - Elly2 (a0f1055b)",
@@ -1274,19 +1456,6 @@
       "LastActiveTime": "2025-08-29T18:53:53.3232116+04:00",
       "TasksCompleted": 0
     },
-    "Elly2_b2b41a6a-36ce-48cf-80d2-c7e8f2be9658": {
-      "Id": "Elly2_b2b41a6a-36ce-48cf-80d2-c7e8f2be9658",
-      "Name": "Claude Code - Elly2 (b2b41a6a)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-      "Status": 4,
-      "LastPing": "2025-08-22T20:07:12.0743137+04:00",
-      "CurrentTask": null,
-      "SessionId": "b2b41a6a-36ce-48cf-80d2-c7e8f2be9658",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-22T20:07:12.0743137+04:00",
-      "TasksCompleted": 0
-    },
     "Elly2_bc823cec-9a53-49d8-8faf-1296554c9931": {
       "Id": "Elly2_bc823cec-9a53-49d8-8faf-1296554c9931",
       "Name": "Claude Code - Elly2 (bc823cec)",
@@ -1326,19 +1495,6 @@
       "LastActiveTime": "2025-09-08T22:46:29.6786395+04:00",
       "TasksCompleted": 0
     },
-    "Elly2_c47852a9-4e1f-458b-870a-05a917a52b76": {
-      "Id": "Elly2_c47852a9-4e1f-458b-870a-05a917a52b76",
-      "Name": "Claude Code - Elly2 (c47852a9)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-      "Status": 4,
-      "LastPing": "2025-08-23T20:24:52.5177831+04:00",
-      "CurrentTask": null,
-      "SessionId": "c47852a9-4e1f-458b-870a-05a917a52b76",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T20:24:52.5177831+04:00",
-      "TasksCompleted": 0
-    },
     "Elly2_c59246f7-b4f9-4644-868e-6b73e9a14fdb": {
       "Id": "Elly2_c59246f7-b4f9-4644-868e-6b73e9a14fdb",
       "Name": "Claude Code - Elly2 (c59246f7)",
@@ -1370,12 +1526,12 @@
       "Name": "Claude Code - Elly2 (cb212b92)",
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-      "Status": 0,
-      "LastPing": "2025-09-20T02:31:22.4215216+04:00",
+      "Status": 4,
+      "LastPing": "2025-09-20T16:44:00.8498671+04:00",
       "CurrentTask": null,
       "SessionId": "cb212b92-bac1-4fd1-a4cc-d8516a85513c",
       "CurrentTaskId": null,
-      "LastActiveTime": "2025-09-20T02:31:22.4215216+04:00",
+      "LastActiveTime": "2025-09-20T16:44:00.8498671+04:00",
       "TasksCompleted": 0
     },
     "Elly2_cccf9904-2568-48a6-9152-85ee7af666c6": {
@@ -1391,6 +1547,19 @@
       "LastActiveTime": "2025-09-07T20:16:32.2746835+04:00",
       "TasksCompleted": 0
     },
+    "Elly2_cdc5ad1c-7d2e-42a9-9ce4-377a15a26d92": {
+      "Id": "Elly2_cdc5ad1c-7d2e-42a9-9ce4-377a15a26d92",
+      "Name": "Claude Code - Elly2 (cdc5ad1c)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+      "Status": 4,
+      "LastPing": "2025-09-20T22:21:05.4739615+04:00",
+      "CurrentTask": null,
+      "SessionId": "cdc5ad1c-7d2e-42a9-9ce4-377a15a26d92",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-20T22:21:05.4739615+04:00",
+      "TasksCompleted": 0
+    },
     "Elly2_d64d4600-333e-40cf-b51e-14eee41ef65e": {
       "Id": "Elly2_d64d4600-333e-40cf-b51e-14eee41ef65e",
       "Name": "Claude Code - Elly2 (d64d4600)",
@@ -1402,6 +1571,19 @@
       "SessionId": "d64d4600-333e-40cf-b51e-14eee41ef65e",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-09T12:17:35.9043266+04:00",
+      "TasksCompleted": 0
+    },
+    "Elly2_e0d25e67-1f14-45f7-b674-073304706cce": {
+      "Id": "Elly2_e0d25e67-1f14-45f7-b674-073304706cce",
+      "Name": "Claude Code - Elly2 (e0d25e67)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+      "Status": 0,
+      "LastPing": "2025-09-22T15:59:18.4879969+04:00",
+      "CurrentTask": null,
+      "SessionId": "e0d25e67-1f14-45f7-b674-073304706cce",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-22T15:59:18.4879969+04:00",
       "TasksCompleted": 0
     },
     "Elly2_f0bfdeec-0e3b-4e7d-b56f-3d15a29eeecb": {
@@ -1428,6 +1610,19 @@
       "SessionId": "f1a2477a-e246-4da6-b924-2b8bea76d5b1",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-06T18:39:18.4398725+04:00",
+      "TasksCompleted": 0
+    },
+    "Elly2_f3e90eec-10b2-48aa-b46d-d2f219a9b138": {
+      "Id": "Elly2_f3e90eec-10b2-48aa-b46d-d2f219a9b138",
+      "Name": "Claude Code - Elly2 (f3e90eec)",
+      "Type": "claude-code",
+      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+      "Status": 4,
+      "LastPing": "2025-09-20T23:15:18.8133187+04:00",
+      "CurrentTask": null,
+      "SessionId": "f3e90eec-10b2-48aa-b46d-d2f219a9b138",
+      "CurrentTaskId": null,
+      "LastActiveTime": "2025-09-20T23:15:18.8133187+04:00",
       "TasksCompleted": 0
     },
     "Elly2_f7248319-2675-46f7-8935-34b86a55b9f7": {
@@ -1560,19 +1755,6 @@
       "LastActiveTime": "2025-08-25T02:54:40.7885045+04:00",
       "TasksCompleted": 0
     },
-    "Galactic-Idlers_166a5484-062b-4a64-8695-eed2b4886c74": {
-      "Id": "Galactic-Idlers_166a5484-062b-4a64-8695-eed2b4886c74",
-      "Name": "Claude Code - Galactic-Idlers (166a5484)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T17:18:30.8966279+04:00",
-      "CurrentTask": null,
-      "SessionId": "166a5484-062b-4a64-8695-eed2b4886c74",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T17:18:30.8966279+04:00",
-      "TasksCompleted": 0
-    },
     "Galactic-Idlers_251a4762-03b7-41bf-b49c-84daf5fc023f": {
       "Id": "Galactic-Idlers_251a4762-03b7-41bf-b49c-84daf5fc023f",
       "Name": "Claude Code - Galactic-Idlers (251a4762)",
@@ -1623,19 +1805,6 @@
       "SessionId": "313c6b39-ce9f-439a-a198-d58b99b31b49",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-08-26T00:56:12.3289419+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_32109e08-cb30-453c-bb3a-4c8939f2be1f": {
-      "Id": "Galactic-Idlers_32109e08-cb30-453c-bb3a-4c8939f2be1f",
-      "Name": "Claude Code - Galactic-Idlers (32109e08)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-21T15:09:06.816017+04:00",
-      "CurrentTask": null,
-      "SessionId": "32109e08-cb30-453c-bb3a-4c8939f2be1f",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-21T15:09:06.816017+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_33111967-86e3-4c11-9b03-876cb0fd7e3c": {
@@ -1755,32 +1924,6 @@
       "LastActiveTime": "2025-08-26T22:09:50.1130347+04:00",
       "TasksCompleted": 0
     },
-    "Galactic-Idlers_4438fde1-d2bf-4798-beec-4581591b5634": {
-      "Id": "Galactic-Idlers_4438fde1-d2bf-4798-beec-4581591b5634",
-      "Name": "Claude Code - Galactic-Idlers (4438fde1)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T01:56:33.4863843+04:00",
-      "CurrentTask": null,
-      "SessionId": "4438fde1-d2bf-4798-beec-4581591b5634",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T01:56:33.4863843+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_44b3de15-3029-42e1-b627-e948bb7b4080": {
-      "Id": "Galactic-Idlers_44b3de15-3029-42e1-b627-e948bb7b4080",
-      "Name": "Claude Code - Galactic-Idlers (44b3de15)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T15:33:00.5294792+04:00",
-      "CurrentTask": null,
-      "SessionId": "44b3de15-3029-42e1-b627-e948bb7b4080",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T15:33:00.5294792+04:00",
-      "TasksCompleted": 0
-    },
     "Galactic-Idlers_47d0ed15-430f-4e81-a253-3f746c57f7c5": {
       "Id": "Galactic-Idlers_47d0ed15-430f-4e81-a253-3f746c57f7c5",
       "Name": "Claude Code - Galactic-Idlers (47d0ed15)",
@@ -1846,32 +1989,6 @@
       "LastActiveTime": "2025-08-26T22:01:06.6646639+04:00",
       "TasksCompleted": 0
     },
-    "Galactic-Idlers_53abed9e-a874-4700-a6e3-7e8457abe7b8": {
-      "Id": "Galactic-Idlers_53abed9e-a874-4700-a6e3-7e8457abe7b8",
-      "Name": "Claude Code - Galactic-Idlers (53abed9e)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-21T20:05:00.542219+04:00",
-      "CurrentTask": null,
-      "SessionId": "53abed9e-a874-4700-a6e3-7e8457abe7b8",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-21T20:05:00.542219+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_53fb8679-8cad-4a3a-b1cf-ee77bffd1e12": {
-      "Id": "Galactic-Idlers_53fb8679-8cad-4a3a-b1cf-ee77bffd1e12",
-      "Name": "Claude Code - Galactic-Idlers (53fb8679)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T16:27:27.7928971+04:00",
-      "CurrentTask": null,
-      "SessionId": "53fb8679-8cad-4a3a-b1cf-ee77bffd1e12",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T16:27:27.7928971+04:00",
-      "TasksCompleted": 0
-    },
     "Galactic-Idlers_541edcc0-34d9-4214-889b-673d25e32f08": {
       "Id": "Galactic-Idlers_541edcc0-34d9-4214-889b-673d25e32f08",
       "Name": "Claude Code - Galactic-Idlers (541edcc0)",
@@ -1909,32 +2026,6 @@
       "SessionId": "54e06bf0-847e-4efd-a4c4-55898b0b702b",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-08-28T02:44:53.3871222+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_5670dc8b-12f2-4a31-96eb-2f9d3cb69f5d": {
-      "Id": "Galactic-Idlers_5670dc8b-12f2-4a31-96eb-2f9d3cb69f5d",
-      "Name": "Claude Code - Galactic-Idlers (5670dc8b)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T16:11:02.7710512+04:00",
-      "CurrentTask": null,
-      "SessionId": "5670dc8b-12f2-4a31-96eb-2f9d3cb69f5d",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T16:11:02.7710512+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_57b4f93a-7d6f-4ade-89ee-d35556cada48": {
-      "Id": "Galactic-Idlers_57b4f93a-7d6f-4ade-89ee-d35556cada48",
-      "Name": "Claude Code - Galactic-Idlers (57b4f93a)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T01:34:18.0951409+04:00",
-      "CurrentTask": null,
-      "SessionId": "57b4f93a-7d6f-4ade-89ee-d35556cada48",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T01:34:18.0951409+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_58b94594-95ce-447b-8f13-f3f6eb7762f2": {
@@ -2000,19 +2091,6 @@
       "SessionId": "60a14cbc-7206-48b6-8b07-a7c394aa561b",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-17T13:48:45.9913252+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_6a6e78e2-d8a5-452a-b2ee-e62ee95cb408": {
-      "Id": "Galactic-Idlers_6a6e78e2-d8a5-452a-b2ee-e62ee95cb408",
-      "Name": "Claude Code - Galactic-Idlers (6a6e78e2)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T14:21:50.2604318+04:00",
-      "CurrentTask": null,
-      "SessionId": "6a6e78e2-d8a5-452a-b2ee-e62ee95cb408",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T14:21:50.2604318+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_6dc149c7-c92e-434c-bbce-0abb2a770980": {
@@ -2236,19 +2314,6 @@
       "LastActiveTime": "2025-08-30T20:18:14.413936+04:00",
       "TasksCompleted": 0
     },
-    "Galactic-Idlers_988f2a81-4210-4a8c-9b88-c3683864b854": {
-      "Id": "Galactic-Idlers_988f2a81-4210-4a8c-9b88-c3683864b854",
-      "Name": "Claude Code - Galactic-Idlers (988f2a81)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T16:28:12.6927999+04:00",
-      "CurrentTask": null,
-      "SessionId": "988f2a81-4210-4a8c-9b88-c3683864b854",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T16:28:12.6927999+04:00",
-      "TasksCompleted": 0
-    },
     "Galactic-Idlers_99043369-027f-4182-9dd4-9a4be6b160dc": {
       "Id": "Galactic-Idlers_99043369-027f-4182-9dd4-9a4be6b160dc",
       "Name": "Claude Code - Galactic-Idlers (99043369)",
@@ -2273,32 +2338,6 @@
       "SessionId": "993d76fc-d8fb-4d17-b8e8-55671ae9ca43",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-08-24T16:16:26.3475273+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_9b95608d-b513-409f-8fd7-7c2ab524cd41": {
-      "Id": "Galactic-Idlers_9b95608d-b513-409f-8fd7-7c2ab524cd41",
-      "Name": "Claude Code - Galactic-Idlers (9b95608d)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T19:11:30.5418992+04:00",
-      "CurrentTask": null,
-      "SessionId": "9b95608d-b513-409f-8fd7-7c2ab524cd41",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T19:11:30.5418992+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_9bd284e9-6b38-4027-b091-b1820510f3e7": {
-      "Id": "Galactic-Idlers_9bd284e9-6b38-4027-b091-b1820510f3e7",
-      "Name": "Claude Code - Galactic-Idlers (9bd284e9)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T01:09:11.2245698+04:00",
-      "CurrentTask": null,
-      "SessionId": "9bd284e9-6b38-4027-b091-b1820510f3e7",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T01:09:11.2245698+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_a06a439a-6840-4449-8039-03013ccc8ab0": {
@@ -2340,19 +2379,6 @@
       "LastActiveTime": "2025-09-05T23:20:54.0772528+04:00",
       "TasksCompleted": 0
     },
-    "Galactic-Idlers_abac7e32-6ff6-4e8b-9d46-062ea28e9dff": {
-      "Id": "Galactic-Idlers_abac7e32-6ff6-4e8b-9d46-062ea28e9dff",
-      "Name": "Claude Code - Galactic-Idlers (abac7e32)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T03:07:30.4144016+04:00",
-      "CurrentTask": null,
-      "SessionId": "abac7e32-6ff6-4e8b-9d46-062ea28e9dff",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T03:07:30.4144016+04:00",
-      "TasksCompleted": 0
-    },
     "Galactic-Idlers_abf6e99f-d611-4cbc-9fa3-049fb9aefa5b": {
       "Id": "Galactic-Idlers_abf6e99f-d611-4cbc-9fa3-049fb9aefa5b",
       "Name": "Claude Code - Galactic-Idlers (abf6e99f)",
@@ -2364,19 +2390,6 @@
       "SessionId": "abf6e99f-d611-4cbc-9fa3-049fb9aefa5b",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-08-24T16:13:56.4062104+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_ac878bc7-863e-4a76-ba51-826754336bfb": {
-      "Id": "Galactic-Idlers_ac878bc7-863e-4a76-ba51-826754336bfb",
-      "Name": "Claude Code - Galactic-Idlers (ac878bc7)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T17:29:04.8617888+04:00",
-      "CurrentTask": null,
-      "SessionId": "ac878bc7-863e-4a76-ba51-826754336bfb",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T17:29:04.8617888+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_ad460b28-d542-42e6-a72b-c248c3740a45": {
@@ -2470,19 +2483,6 @@
       "LastActiveTime": "2025-09-17T12:45:47.4624525+04:00",
       "TasksCompleted": 0
     },
-    "Galactic-Idlers_bf6d4769-f3a7-4410-8940-d7ab87e7e2ff": {
-      "Id": "Galactic-Idlers_bf6d4769-f3a7-4410-8940-d7ab87e7e2ff",
-      "Name": "Claude Code - Galactic-Idlers (bf6d4769)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T02:23:02.6795838+04:00",
-      "CurrentTask": null,
-      "SessionId": "bf6d4769-f3a7-4410-8940-d7ab87e7e2ff",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T02:23:02.6795838+04:00",
-      "TasksCompleted": 0
-    },
     "Galactic-Idlers_c0333364-e301-4993-a62f-95b053b5c659": {
       "Id": "Galactic-Idlers_c0333364-e301-4993-a62f-95b053b5c659",
       "Name": "Claude Code - Galactic-Idlers (c0333364)",
@@ -2546,19 +2546,6 @@
       "SessionId": "c852f228-321f-4bad-b3aa-4510d31ba457",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-03T02:32:57.598744+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_cea30e76-fc89-4d42-afe9-bcd45c3cb7a9": {
-      "Id": "Galactic-Idlers_cea30e76-fc89-4d42-afe9-bcd45c3cb7a9",
-      "Name": "Claude Code - Galactic-Idlers (cea30e76)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T17:19:34.1831188+04:00",
-      "CurrentTask": null,
-      "SessionId": "cea30e76-fc89-4d42-afe9-bcd45c3cb7a9",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T17:19:34.1831188+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_cf28ebb0-b87a-44fd-a03e-79e2a999152f": {
@@ -2639,19 +2626,6 @@
       "LastActiveTime": "2025-08-26T21:59:43.2742756+04:00",
       "TasksCompleted": 0
     },
-    "Galactic-Idlers_e005ff6c-4365-4945-84fe-63a7868b7086": {
-      "Id": "Galactic-Idlers_e005ff6c-4365-4945-84fe-63a7868b7086",
-      "Name": "Claude Code - Galactic-Idlers (e005ff6c)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-22T21:21:30.7998395+04:00",
-      "CurrentTask": null,
-      "SessionId": "e005ff6c-4365-4945-84fe-63a7868b7086",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-22T21:21:30.7998395+04:00",
-      "TasksCompleted": 0
-    },
     "Galactic-Idlers_e2327cab-82ce-43d0-91e2-fe66ec1d3a1f": {
       "Id": "Galactic-Idlers_e2327cab-82ce-43d0-91e2-fe66ec1d3a1f",
       "Name": "Claude Code - Galactic-Idlers (e2327cab)",
@@ -2663,19 +2637,6 @@
       "SessionId": "e2327cab-82ce-43d0-91e2-fe66ec1d3a1f",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-08-25T22:46:50.0573281+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_e24d510b-3ce6-427f-ae4b-56518b5f0b9c": {
-      "Id": "Galactic-Idlers_e24d510b-3ce6-427f-ae4b-56518b5f0b9c",
-      "Name": "Claude Code - Galactic-Idlers (e24d510b)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T19:24:53.4456566+04:00",
-      "CurrentTask": null,
-      "SessionId": "e24d510b-3ce6-427f-ae4b-56518b5f0b9c",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T19:24:53.4456566+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_e42c8aca-0817-48f0-8590-f504fe2c30ec": {
@@ -2704,19 +2665,6 @@
       "LastActiveTime": "2025-08-25T01:03:08.8830748+04:00",
       "TasksCompleted": 0
     },
-    "Galactic-Idlers_e8e082fb-2ed6-4145-bb1a-9c58d3810082": {
-      "Id": "Galactic-Idlers_e8e082fb-2ed6-4145-bb1a-9c58d3810082",
-      "Name": "Claude Code - Galactic-Idlers (e8e082fb)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T16:27:52.5366306+04:00",
-      "CurrentTask": null,
-      "SessionId": "e8e082fb-2ed6-4145-bb1a-9c58d3810082",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T16:27:52.5366306+04:00",
-      "TasksCompleted": 0
-    },
     "Galactic-Idlers_ea5da323-ed11-44ec-ba35-c372467621af": {
       "Id": "Galactic-Idlers_ea5da323-ed11-44ec-ba35-c372467621af",
       "Name": "Claude Code - Galactic-Idlers (ea5da323)",
@@ -2741,19 +2689,6 @@
       "SessionId": "ecf2d195-a4b4-4cf7-90d3-58b71cc7e69b",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-02T15:53:06.1867667+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_edb188b9-2802-4b31-98b5-27be55038439": {
-      "Id": "Galactic-Idlers_edb188b9-2802-4b31-98b5-27be55038439",
-      "Name": "Claude Code - Galactic-Idlers (edb188b9)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T18:52:31.5525479+04:00",
-      "CurrentTask": null,
-      "SessionId": "edb188b9-2802-4b31-98b5-27be55038439",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T18:52:31.5525479+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_eeeab090-f51c-4458-aa87-5b34079add70": {
@@ -2782,19 +2717,6 @@
       "LastActiveTime": "2025-09-09T13:02:10.429679+04:00",
       "TasksCompleted": 0
     },
-    "Galactic-Idlers_f23f423c-c4c4-4772-a512-73fe932332a5": {
-      "Id": "Galactic-Idlers_f23f423c-c4c4-4772-a512-73fe932332a5",
-      "Name": "Claude Code - Galactic-Idlers (f23f423c)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-22T21:22:44.130633+04:00",
-      "CurrentTask": null,
-      "SessionId": "f23f423c-c4c4-4772-a512-73fe932332a5",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-22T21:22:44.130633+04:00",
-      "TasksCompleted": 0
-    },
     "Galactic-Idlers_f2d008fc-4b35-4329-a400-22b0b4a942ca": {
       "Id": "Galactic-Idlers_f2d008fc-4b35-4329-a400-22b0b4a942ca",
       "Name": "Claude Code - Galactic-Idlers (f2d008fc)",
@@ -2806,19 +2728,6 @@
       "SessionId": "f2d008fc-4b35-4329-a400-22b0b4a942ca",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-08-24T19:36:03.2561171+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_f6efc5df-1999-4842-ba78-45e0c47c713a": {
-      "Id": "Galactic-Idlers_f6efc5df-1999-4842-ba78-45e0c47c713a",
-      "Name": "Claude Code - Galactic-Idlers (f6efc5df)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T17:28:55.2806009+04:00",
-      "CurrentTask": null,
-      "SessionId": "f6efc5df-1999-4842-ba78-45e0c47c713a",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T17:28:55.2806009+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_faa2f5a6-578e-4eda-8975-33f70028ef5f": {
@@ -2845,19 +2754,6 @@
       "SessionId": "fc6dcb8a-096a-48e0-9d58-678a21e0af84",
       "CurrentTaskId": null,
       "LastActiveTime": "2025-09-17T13:48:45.3155768+04:00",
-      "TasksCompleted": 0
-    },
-    "Galactic-Idlers_fdac74c9-73da-4377-8434-fa0eebb65084": {
-      "Id": "Galactic-Idlers_fdac74c9-73da-4377-8434-fa0eebb65084",
-      "Name": "Claude Code - Galactic-Idlers (fdac74c9)",
-      "Type": "claude-code",
-      "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-      "Status": 4,
-      "LastPing": "2025-08-23T02:26:37.599455+04:00",
-      "CurrentTask": null,
-      "SessionId": "fdac74c9-73da-4377-8434-fa0eebb65084",
-      "CurrentTaskId": null,
-      "LastActiveTime": "2025-08-23T02:26:37.599455+04:00",
       "TasksCompleted": 0
     },
     "Galactic-Idlers_fde04c3e-98d1-4452-af31-68a3285b823d": {
@@ -2892,11 +2788,11 @@
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
       "Status": 0,
-      "LastPing": "2025-09-20T17:44:52.572934+04:00",
+      "LastPing": "2025-09-23T12:49:33.7082569+04:00",
       "CurrentTask": null,
       "SessionId": null,
       "CurrentTaskId": null,
-      "LastActiveTime": "2025-09-20T17:10:21.7447337+04:00",
+      "LastActiveTime": "2025-09-23T12:49:33.6969093+04:00",
       "TasksCompleted": 0
     },
     "claude-2": {
@@ -2905,16 +2801,16 @@
       "Type": "claude-code",
       "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
       "Status": 0,
-      "LastPing": "2025-09-20T17:44:52.5802258+04:00",
+      "LastPing": "2025-09-23T12:49:33.7133425+04:00",
       "CurrentTask": null,
       "SessionId": null,
       "CurrentTaskId": null,
-      "LastActiveTime": "2025-09-20T17:10:21.752307+04:00",
+      "LastActiveTime": "2025-09-23T12:49:33.7053165+04:00",
       "TasksCompleted": 0
     }
   },
   "TaskQueue": [],
-  "LastUpdate": "2025-09-20T17:44:52.5802622+04:00",
+  "LastUpdate": "2025-09-23T12:49:33.7134282+04:00",
   "Repositories": {
     "DaersTools": {
       "Name": "DaersTools",
@@ -2977,7 +2873,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 4,
-      "LastUpdate": "2025-09-20T17:44:52.5802552+04:00"
+      "LastUpdate": "2025-09-23T12:49:33.7134121+04:00"
     },
     "ServiceTerminal": {
       "Name": "ServiceTerminal",
@@ -3001,7 +2897,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 1,
-      "LastUpdate": "2025-09-20T17:44:52.5802557+04:00"
+      "LastUpdate": "2025-09-23T12:49:33.7134135+04:00"
     },
     "DigitalMe": {
       "Name": "DigitalMe",
@@ -3294,6 +3190,19 @@
           "TasksCompleted": 0
         },
         {
+          "Id": "DigitalMe_8a91138c-af0c-405b-94e7-2dfebdd7a52e",
+          "Name": "Claude Code - DigitalMe (8a91138c)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Sources\\DigitalMe",
+          "Status": 4,
+          "LastPing": "2025-09-21T00:48:44.6953373+04:00",
+          "CurrentTask": null,
+          "SessionId": "8a91138c-af0c-405b-94e7-2dfebdd7a52e",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-21T00:48:44.6953373+04:00",
+          "TasksCompleted": 0
+        },
+        {
           "Id": "DigitalMe_92223cf1-93da-46fb-9f8a-8476d6bdab79",
           "Name": "Claude Code - DigitalMe (92223cf1)",
           "Type": "claude-code",
@@ -3304,6 +3213,19 @@
           "SessionId": "92223cf1-93da-46fb-9f8a-8476d6bdab79",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-04T21:47:32.828541+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "DigitalMe_9ad224da-dbbd-4b6e-bead-45162a1b5c6b",
+          "Name": "Claude Code - DigitalMe (9ad224da)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Sources\\DigitalMe",
+          "Status": 0,
+          "LastPing": "2025-09-23T00:19:52.0729419+04:00",
+          "CurrentTask": null,
+          "SessionId": "9ad224da-dbbd-4b6e-bead-45162a1b5c6b",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-23T00:19:52.0729419+04:00",
           "TasksCompleted": 0
         },
         {
@@ -3330,6 +3252,19 @@
           "SessionId": "9da5fe99-6a7d-4e3e-890a-db118bd9354e",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-08-28T03:00:46.5084806+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "DigitalMe_9f0005d8-88fe-4e02-9129-4b7ef5450c1b",
+          "Name": "Claude Code - DigitalMe (9f0005d8)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Sources\\DigitalMe",
+          "Status": 4,
+          "LastPing": "2025-09-21T00:53:59.3830893+04:00",
+          "CurrentTask": null,
+          "SessionId": "9f0005d8-88fe-4e02-9129-4b7ef5450c1b",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-21T00:53:59.3830893+04:00",
           "TasksCompleted": 0
         },
         {
@@ -3545,12 +3480,12 @@
           "Name": "Claude Code - DigitalMe (dd5d3680)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Sources\\DigitalMe",
-          "Status": 1,
-          "LastPing": "2025-09-20T02:34:26.0189122+04:00",
+          "Status": 4,
+          "LastPing": "2025-09-20T16:42:33.812738+04:00",
           "CurrentTask": null,
           "SessionId": "dd5d3680-0711-4005-b94d-469209efe85b",
           "CurrentTaskId": null,
-          "LastActiveTime": "2025-09-20T02:34:26.0189122+04:00",
+          "LastActiveTime": "2025-09-20T16:42:33.812738+04:00",
           "TasksCompleted": 0
         },
         {
@@ -3619,11 +3554,11 @@
           "TasksCompleted": 0
         }
       ],
-      "IdleCount": 0,
-      "WorkingCount": 1,
+      "IdleCount": 1,
+      "WorkingCount": 0,
       "ErrorCount": 0,
-      "OfflineCount": 46,
-      "LastUpdate": "2025-09-20T17:44:52.5802566+04:00"
+      "OfflineCount": 49,
+      "LastUpdate": "2025-09-23T12:49:33.7134164+04:00"
     },
     "SharedWorkspace": {
       "Name": "SharedWorkspace",
@@ -3660,7 +3595,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-20T17:44:52.5802578+04:00"
+      "LastUpdate": "2025-09-23T12:49:33.7134172+04:00"
     },
     "AI-Agent-Orchestra": {
       "Name": "AI-Agent-Orchestra",
@@ -3671,7 +3606,7 @@
           "Name": "Claude Code - AI-Agent-Orchestra (0c062eb5)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-          "Status": 0,
+          "Status": 4,
           "LastPing": "2025-09-19T12:10:17.1644332+04:00",
           "CurrentTask": null,
           "SessionId": "0c062eb5-e2f6-4955-b432-fa4e2ac080c4",
@@ -3693,6 +3628,19 @@
           "TasksCompleted": 0
         },
         {
+          "Id": "AI-Agent-Orchestra_2bd3bbb7-b58b-4b1b-935e-7b8daeeaf8c0",
+          "Name": "Claude Code - AI-Agent-Orchestra (2bd3bbb7)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-22T19:51:43.3656382+04:00",
+          "CurrentTask": null,
+          "SessionId": "2bd3bbb7-b58b-4b1b-935e-7b8daeeaf8c0",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-22T19:51:43.3656382+04:00",
+          "TasksCompleted": 0
+        },
+        {
           "Id": "AI-Agent-Orchestra_2ee68d94-dde4-4789-8fe6-8422b2beea8b",
           "Name": "Claude Code - AI-Agent-Orchestra (2ee68d94)",
           "Type": "claude-code",
@@ -3706,16 +3654,55 @@
           "TasksCompleted": 0
         },
         {
+          "Id": "AI-Agent-Orchestra_349a8a7a-acc5-4432-a10c-64b4d170cf16",
+          "Name": "Claude Code - AI-Agent-Orchestra (349a8a7a)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-22T18:21:58.8005398+04:00",
+          "CurrentTask": null,
+          "SessionId": "349a8a7a-acc5-4432-a10c-64b4d170cf16",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-22T18:21:58.8005398+04:00",
+          "TasksCompleted": 0
+        },
+        {
           "Id": "AI-Agent-Orchestra_44ad94f2-dbb5-48db-80cb-bc2b315e7826",
           "Name": "Claude Code - AI-Agent-Orchestra (44ad94f2)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-          "Status": 0,
+          "Status": 4,
           "LastPing": "2025-09-19T17:43:58.2647072+04:00",
           "CurrentTask": null,
           "SessionId": "44ad94f2-dbb5-48db-80cb-bc2b315e7826",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-19T17:43:58.2647072+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "AI-Agent-Orchestra_49c2a3aa-bc63-43f0-9c4e-531f7016bf2b",
+          "Name": "Claude Code - AI-Agent-Orchestra (49c2a3aa)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-23T00:37:10.483747+04:00",
+          "CurrentTask": null,
+          "SessionId": "49c2a3aa-bc63-43f0-9c4e-531f7016bf2b",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-23T00:37:10.483747+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "AI-Agent-Orchestra_51ed6a00-c7bd-44d9-babd-9c8988f29131",
+          "Name": "Claude Code - AI-Agent-Orchestra (51ed6a00)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 4,
+          "LastPing": "2025-09-21T12:39:03.9692568+04:00",
+          "CurrentTask": null,
+          "SessionId": "51ed6a00-c7bd-44d9-babd-9c8988f29131",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-21T12:39:03.9692568+04:00",
           "TasksCompleted": 0
         },
         {
@@ -3732,16 +3719,81 @@
           "TasksCompleted": 0
         },
         {
+          "Id": "AI-Agent-Orchestra_5672d31b-7960-41e3-a4e7-cf97eea44976",
+          "Name": "Claude Code - AI-Agent-Orchestra (5672d31b)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-22T23:02:41.0289834+04:00",
+          "CurrentTask": null,
+          "SessionId": "5672d31b-7960-41e3-a4e7-cf97eea44976",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-22T23:02:41.0289834+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "AI-Agent-Orchestra_58e936d2-1eea-49af-b77f-0f6fd49ed1d5",
+          "Name": "Claude Code - AI-Agent-Orchestra (58e936d2)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 4,
+          "LastPing": "2025-09-21T19:37:57.4273481+04:00",
+          "CurrentTask": null,
+          "SessionId": "58e936d2-1eea-49af-b77f-0f6fd49ed1d5",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-21T19:37:57.4273481+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "AI-Agent-Orchestra_5cdaa97d-4e91-4f60-9854-5e884022a972",
+          "Name": "Claude Code - AI-Agent-Orchestra (5cdaa97d)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-22T19:52:07.7258073+04:00",
+          "CurrentTask": null,
+          "SessionId": "5cdaa97d-4e91-4f60-9854-5e884022a972",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-22T19:52:07.7258073+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "AI-Agent-Orchestra_749f1173-6bc7-401b-993b-3bdcaffe72a7",
+          "Name": "Claude Code - AI-Agent-Orchestra (749f1173)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-22T19:48:05.8384196+04:00",
+          "CurrentTask": null,
+          "SessionId": "749f1173-6bc7-401b-993b-3bdcaffe72a7",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-22T19:48:05.8384196+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "AI-Agent-Orchestra_a06fee62-ae7d-4379-9ae1-2ed775d4791b",
+          "Name": "Claude Code - AI-Agent-Orchestra (a06fee62)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-22T18:21:27.2120805+04:00",
+          "CurrentTask": null,
+          "SessionId": "a06fee62-ae7d-4379-9ae1-2ed775d4791b",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-22T18:21:27.2120805+04:00",
+          "TasksCompleted": 0
+        },
+        {
           "Id": "AI-Agent-Orchestra_aa2936c2-7191-419c-850a-12e471672ac2",
           "Name": "Claude Code - AI-Agent-Orchestra (aa2936c2)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-          "Status": 0,
-          "LastPing": "2025-09-20T02:29:46.5797084+04:00",
+          "Status": 4,
+          "LastPing": "2025-09-20T16:12:15.1504304+04:00",
           "CurrentTask": null,
           "SessionId": "aa2936c2-7191-419c-850a-12e471672ac2",
           "CurrentTaskId": null,
-          "LastActiveTime": "2025-09-20T02:29:46.5797084+04:00",
+          "LastActiveTime": "2025-09-20T16:12:15.1504304+04:00",
           "TasksCompleted": 0
         },
         {
@@ -3749,7 +3801,7 @@
           "Name": "Claude Code - AI-Agent-Orchestra (b0f7f9d8)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
-          "Status": 0,
+          "Status": 4,
           "LastPing": "2025-09-19T12:13:06.6232388+04:00",
           "CurrentTask": null,
           "SessionId": "b0f7f9d8-cec5-4862-b487-084a0ec46337",
@@ -3771,24 +3823,37 @@
           "TasksCompleted": 0
         },
         {
+          "Id": "AI-Agent-Orchestra_e3309f1e-a6cd-4d76-b3c4-19de9719ca97",
+          "Name": "Claude Code - AI-Agent-Orchestra (e3309f1e)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
+          "Status": 0,
+          "LastPing": "2025-09-22T23:02:49.8218186+04:00",
+          "CurrentTask": null,
+          "SessionId": "e3309f1e-a6cd-4d76-b3c4-19de9719ca97",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-22T23:02:49.8218186+04:00",
+          "TasksCompleted": 0
+        },
+        {
           "Id": "claude-2",
           "Name": "Claude Agent 2",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra",
           "Status": 0,
-          "LastPing": "2025-09-20T17:44:52.5802258+04:00",
+          "LastPing": "2025-09-23T12:49:33.7133425+04:00",
           "CurrentTask": null,
           "SessionId": null,
           "CurrentTaskId": null,
-          "LastActiveTime": "2025-09-20T17:10:21.752307+04:00",
+          "LastActiveTime": "2025-09-23T12:49:33.7053165+04:00",
           "TasksCompleted": 0
         }
       ],
-      "IdleCount": 5,
+      "IdleCount": 9,
       "WorkingCount": 0,
       "ErrorCount": 0,
-      "OfflineCount": 4,
-      "LastUpdate": "2025-09-20T17:44:52.5802585+04:00"
+      "OfflineCount": 10,
+      "LastUpdate": "2025-09-23T12:49:33.7134197+04:00"
     },
     "Elly": {
       "Name": "Elly",
@@ -3825,7 +3890,7 @@
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 2,
-      "LastUpdate": "2025-09-20T17:44:52.5802588+04:00"
+      "LastUpdate": "2025-09-23T12:49:33.7134205+04:00"
     },
     "Elly2": {
       "Name": "Elly2",
@@ -3884,6 +3949,19 @@
           "TasksCompleted": 0
         },
         {
+          "Id": "Elly2_11963578-ff3d-4ffd-aa26-e765f0432bcc",
+          "Name": "Claude Code - Elly2 (11963578)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+          "Status": 0,
+          "LastPing": "2025-09-23T00:26:59.3697708+04:00",
+          "CurrentTask": null,
+          "SessionId": "11963578-ff3d-4ffd-aa26-e765f0432bcc",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-23T00:26:59.3697708+04:00",
+          "TasksCompleted": 0
+        },
+        {
           "Id": "Elly2_1723f0cd-d231-4438-8c54-1e27da8f7c42",
           "Name": "Claude Code - Elly2 (1723f0cd)",
           "Type": "claude-code",
@@ -3897,16 +3975,16 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Elly2_21bc7b2f-2ff4-4e51-91be-b71eb4a194b9",
-          "Name": "Claude Code - Elly2 (21bc7b2f)",
+          "Id": "Elly2_2053f55f-f4e7-4b89-b36a-1039030d05ce",
+          "Name": "Claude Code - Elly2 (2053f55f)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
           "Status": 4,
-          "LastPing": "2025-08-22T02:11:04.8135489+04:00",
+          "LastPing": "2025-09-20T20:09:03.1074528+04:00",
           "CurrentTask": null,
-          "SessionId": "21bc7b2f-2ff4-4e51-91be-b71eb4a194b9",
+          "SessionId": "2053f55f-f4e7-4b89-b36a-1039030d05ce",
           "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-22T02:11:04.8135489+04:00",
+          "LastActiveTime": "2025-09-20T20:09:03.1074528+04:00",
           "TasksCompleted": 0
         },
         {
@@ -4053,19 +4131,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Elly2_5bc2a429-cfcd-490d-82dd-82705523b644",
-          "Name": "Claude Code - Elly2 (5bc2a429)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-          "Status": 4,
-          "LastPing": "2025-08-22T19:03:33.727986+04:00",
-          "CurrentTask": null,
-          "SessionId": "5bc2a429-cfcd-490d-82dd-82705523b644",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-22T19:03:33.727986+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Elly2_5e33742d-f0ba-4bb0-80bb-7889fbb75166",
           "Name": "Claude Code - Elly2 (5e33742d)",
           "Type": "claude-code",
@@ -4196,6 +4261,19 @@
           "TasksCompleted": 0
         },
         {
+          "Id": "Elly2_a0d42257-cf4e-43fa-931f-31730c116809",
+          "Name": "Claude Code - Elly2 (a0d42257)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+          "Status": 0,
+          "LastPing": "2025-09-22T15:39:12.9962113+04:00",
+          "CurrentTask": null,
+          "SessionId": "a0d42257-cf4e-43fa-931f-31730c116809",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-22T15:39:12.9962113+04:00",
+          "TasksCompleted": 0
+        },
+        {
           "Id": "Elly2_a0f1055b-8a11-46df-a62c-48e3b4492d0a",
           "Name": "Claude Code - Elly2 (a0f1055b)",
           "Type": "claude-code",
@@ -4274,19 +4352,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Elly2_b2b41a6a-36ce-48cf-80d2-c7e8f2be9658",
-          "Name": "Claude Code - Elly2 (b2b41a6a)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-          "Status": 4,
-          "LastPing": "2025-08-22T20:07:12.0743137+04:00",
-          "CurrentTask": null,
-          "SessionId": "b2b41a6a-36ce-48cf-80d2-c7e8f2be9658",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-22T20:07:12.0743137+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Elly2_bc823cec-9a53-49d8-8faf-1296554c9931",
           "Name": "Claude Code - Elly2 (bc823cec)",
           "Type": "claude-code",
@@ -4326,19 +4391,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Elly2_c47852a9-4e1f-458b-870a-05a917a52b76",
-          "Name": "Claude Code - Elly2 (c47852a9)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-          "Status": 4,
-          "LastPing": "2025-08-23T20:24:52.5177831+04:00",
-          "CurrentTask": null,
-          "SessionId": "c47852a9-4e1f-458b-870a-05a917a52b76",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T20:24:52.5177831+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Elly2_c59246f7-b4f9-4644-868e-6b73e9a14fdb",
           "Name": "Claude Code - Elly2 (c59246f7)",
           "Type": "claude-code",
@@ -4369,12 +4421,12 @@
           "Name": "Claude Code - Elly2 (cb212b92)",
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
-          "Status": 0,
-          "LastPing": "2025-09-20T02:31:22.4215216+04:00",
+          "Status": 4,
+          "LastPing": "2025-09-20T16:44:00.8498671+04:00",
           "CurrentTask": null,
           "SessionId": "cb212b92-bac1-4fd1-a4cc-d8516a85513c",
           "CurrentTaskId": null,
-          "LastActiveTime": "2025-09-20T02:31:22.4215216+04:00",
+          "LastActiveTime": "2025-09-20T16:44:00.8498671+04:00",
           "TasksCompleted": 0
         },
         {
@@ -4391,6 +4443,19 @@
           "TasksCompleted": 0
         },
         {
+          "Id": "Elly2_cdc5ad1c-7d2e-42a9-9ce4-377a15a26d92",
+          "Name": "Claude Code - Elly2 (cdc5ad1c)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+          "Status": 4,
+          "LastPing": "2025-09-20T22:21:05.4739615+04:00",
+          "CurrentTask": null,
+          "SessionId": "cdc5ad1c-7d2e-42a9-9ce4-377a15a26d92",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-20T22:21:05.4739615+04:00",
+          "TasksCompleted": 0
+        },
+        {
           "Id": "Elly2_d64d4600-333e-40cf-b51e-14eee41ef65e",
           "Name": "Claude Code - Elly2 (d64d4600)",
           "Type": "claude-code",
@@ -4401,6 +4466,19 @@
           "SessionId": "d64d4600-333e-40cf-b51e-14eee41ef65e",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-09T12:17:35.9043266+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "Elly2_e0d25e67-1f14-45f7-b674-073304706cce",
+          "Name": "Claude Code - Elly2 (e0d25e67)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+          "Status": 0,
+          "LastPing": "2025-09-22T15:59:18.4879969+04:00",
+          "CurrentTask": null,
+          "SessionId": "e0d25e67-1f14-45f7-b674-073304706cce",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-22T15:59:18.4879969+04:00",
           "TasksCompleted": 0
         },
         {
@@ -4427,6 +4505,19 @@
           "SessionId": "f1a2477a-e246-4da6-b924-2b8bea76d5b1",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-06T18:39:18.4398725+04:00",
+          "TasksCompleted": 0
+        },
+        {
+          "Id": "Elly2_f3e90eec-10b2-48aa-b46d-d2f219a9b138",
+          "Name": "Claude Code - Elly2 (f3e90eec)",
+          "Type": "claude-code",
+          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Elly2",
+          "Status": 4,
+          "LastPing": "2025-09-20T23:15:18.8133187+04:00",
+          "CurrentTask": null,
+          "SessionId": "f3e90eec-10b2-48aa-b46d-d2f219a9b138",
+          "CurrentTaskId": null,
+          "LastActiveTime": "2025-09-20T23:15:18.8133187+04:00",
           "TasksCompleted": 0
         },
         {
@@ -4469,11 +4560,11 @@
           "TasksCompleted": 0
         }
       ],
-      "IdleCount": 1,
+      "IdleCount": 3,
       "WorkingCount": 0,
       "ErrorCount": 0,
       "OfflineCount": 48,
-      "LastUpdate": "2025-09-20T17:44:52.5802599+04:00"
+      "LastUpdate": "2025-09-23T12:49:33.7134235+04:00"
     },
     "Galactic-Idlers": {
       "Name": "Galactic-Idlers",
@@ -4571,19 +4662,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Galactic-Idlers_166a5484-062b-4a64-8695-eed2b4886c74",
-          "Name": "Claude Code - Galactic-Idlers (166a5484)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T17:18:30.8966279+04:00",
-          "CurrentTask": null,
-          "SessionId": "166a5484-062b-4a64-8695-eed2b4886c74",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T17:18:30.8966279+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Galactic-Idlers_251a4762-03b7-41bf-b49c-84daf5fc023f",
           "Name": "Claude Code - Galactic-Idlers (251a4762)",
           "Type": "claude-code",
@@ -4633,19 +4711,6 @@
           "SessionId": "313c6b39-ce9f-439a-a198-d58b99b31b49",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-08-26T00:56:12.3289419+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_32109e08-cb30-453c-bb3a-4c8939f2be1f",
-          "Name": "Claude Code - Galactic-Idlers (32109e08)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-21T15:09:06.816017+04:00",
-          "CurrentTask": null,
-          "SessionId": "32109e08-cb30-453c-bb3a-4c8939f2be1f",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-21T15:09:06.816017+04:00",
           "TasksCompleted": 0
         },
         {
@@ -4766,32 +4831,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Galactic-Idlers_4438fde1-d2bf-4798-beec-4581591b5634",
-          "Name": "Claude Code - Galactic-Idlers (4438fde1)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T01:56:33.4863843+04:00",
-          "CurrentTask": null,
-          "SessionId": "4438fde1-d2bf-4798-beec-4581591b5634",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T01:56:33.4863843+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_44b3de15-3029-42e1-b627-e948bb7b4080",
-          "Name": "Claude Code - Galactic-Idlers (44b3de15)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T15:33:00.5294792+04:00",
-          "CurrentTask": null,
-          "SessionId": "44b3de15-3029-42e1-b627-e948bb7b4080",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T15:33:00.5294792+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Galactic-Idlers_47d0ed15-430f-4e81-a253-3f746c57f7c5",
           "Name": "Claude Code - Galactic-Idlers (47d0ed15)",
           "Type": "claude-code",
@@ -4857,32 +4896,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Galactic-Idlers_53abed9e-a874-4700-a6e3-7e8457abe7b8",
-          "Name": "Claude Code - Galactic-Idlers (53abed9e)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-21T20:05:00.542219+04:00",
-          "CurrentTask": null,
-          "SessionId": "53abed9e-a874-4700-a6e3-7e8457abe7b8",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-21T20:05:00.542219+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_53fb8679-8cad-4a3a-b1cf-ee77bffd1e12",
-          "Name": "Claude Code - Galactic-Idlers (53fb8679)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T16:27:27.7928971+04:00",
-          "CurrentTask": null,
-          "SessionId": "53fb8679-8cad-4a3a-b1cf-ee77bffd1e12",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T16:27:27.7928971+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Galactic-Idlers_541edcc0-34d9-4214-889b-673d25e32f08",
           "Name": "Claude Code - Galactic-Idlers (541edcc0)",
           "Type": "claude-code",
@@ -4919,32 +4932,6 @@
           "SessionId": "54e06bf0-847e-4efd-a4c4-55898b0b702b",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-08-28T02:44:53.3871222+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_5670dc8b-12f2-4a31-96eb-2f9d3cb69f5d",
-          "Name": "Claude Code - Galactic-Idlers (5670dc8b)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T16:11:02.7710512+04:00",
-          "CurrentTask": null,
-          "SessionId": "5670dc8b-12f2-4a31-96eb-2f9d3cb69f5d",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T16:11:02.7710512+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_57b4f93a-7d6f-4ade-89ee-d35556cada48",
-          "Name": "Claude Code - Galactic-Idlers (57b4f93a)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T01:34:18.0951409+04:00",
-          "CurrentTask": null,
-          "SessionId": "57b4f93a-7d6f-4ade-89ee-d35556cada48",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T01:34:18.0951409+04:00",
           "TasksCompleted": 0
         },
         {
@@ -5010,19 +4997,6 @@
           "SessionId": "60a14cbc-7206-48b6-8b07-a7c394aa561b",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-17T13:48:45.9913252+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_6a6e78e2-d8a5-452a-b2ee-e62ee95cb408",
-          "Name": "Claude Code - Galactic-Idlers (6a6e78e2)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T14:21:50.2604318+04:00",
-          "CurrentTask": null,
-          "SessionId": "6a6e78e2-d8a5-452a-b2ee-e62ee95cb408",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T14:21:50.2604318+04:00",
           "TasksCompleted": 0
         },
         {
@@ -5247,19 +5221,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Galactic-Idlers_988f2a81-4210-4a8c-9b88-c3683864b854",
-          "Name": "Claude Code - Galactic-Idlers (988f2a81)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T16:28:12.6927999+04:00",
-          "CurrentTask": null,
-          "SessionId": "988f2a81-4210-4a8c-9b88-c3683864b854",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T16:28:12.6927999+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Galactic-Idlers_99043369-027f-4182-9dd4-9a4be6b160dc",
           "Name": "Claude Code - Galactic-Idlers (99043369)",
           "Type": "claude-code",
@@ -5283,32 +5244,6 @@
           "SessionId": "993d76fc-d8fb-4d17-b8e8-55671ae9ca43",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-08-24T16:16:26.3475273+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_9b95608d-b513-409f-8fd7-7c2ab524cd41",
-          "Name": "Claude Code - Galactic-Idlers (9b95608d)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T19:11:30.5418992+04:00",
-          "CurrentTask": null,
-          "SessionId": "9b95608d-b513-409f-8fd7-7c2ab524cd41",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T19:11:30.5418992+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_9bd284e9-6b38-4027-b091-b1820510f3e7",
-          "Name": "Claude Code - Galactic-Idlers (9bd284e9)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T01:09:11.2245698+04:00",
-          "CurrentTask": null,
-          "SessionId": "9bd284e9-6b38-4027-b091-b1820510f3e7",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T01:09:11.2245698+04:00",
           "TasksCompleted": 0
         },
         {
@@ -5351,19 +5286,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Galactic-Idlers_abac7e32-6ff6-4e8b-9d46-062ea28e9dff",
-          "Name": "Claude Code - Galactic-Idlers (abac7e32)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T03:07:30.4144016+04:00",
-          "CurrentTask": null,
-          "SessionId": "abac7e32-6ff6-4e8b-9d46-062ea28e9dff",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T03:07:30.4144016+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Galactic-Idlers_abf6e99f-d611-4cbc-9fa3-049fb9aefa5b",
           "Name": "Claude Code - Galactic-Idlers (abf6e99f)",
           "Type": "claude-code",
@@ -5374,19 +5296,6 @@
           "SessionId": "abf6e99f-d611-4cbc-9fa3-049fb9aefa5b",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-08-24T16:13:56.4062104+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_ac878bc7-863e-4a76-ba51-826754336bfb",
-          "Name": "Claude Code - Galactic-Idlers (ac878bc7)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T17:29:04.8617888+04:00",
-          "CurrentTask": null,
-          "SessionId": "ac878bc7-863e-4a76-ba51-826754336bfb",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T17:29:04.8617888+04:00",
           "TasksCompleted": 0
         },
         {
@@ -5481,19 +5390,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Galactic-Idlers_bf6d4769-f3a7-4410-8940-d7ab87e7e2ff",
-          "Name": "Claude Code - Galactic-Idlers (bf6d4769)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T02:23:02.6795838+04:00",
-          "CurrentTask": null,
-          "SessionId": "bf6d4769-f3a7-4410-8940-d7ab87e7e2ff",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T02:23:02.6795838+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Galactic-Idlers_c0333364-e301-4993-a62f-95b053b5c659",
           "Name": "Claude Code - Galactic-Idlers (c0333364)",
           "Type": "claude-code",
@@ -5556,19 +5452,6 @@
           "SessionId": "c852f228-321f-4bad-b3aa-4510d31ba457",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-03T02:32:57.598744+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_cea30e76-fc89-4d42-afe9-bcd45c3cb7a9",
-          "Name": "Claude Code - Galactic-Idlers (cea30e76)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T17:19:34.1831188+04:00",
-          "CurrentTask": null,
-          "SessionId": "cea30e76-fc89-4d42-afe9-bcd45c3cb7a9",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T17:19:34.1831188+04:00",
           "TasksCompleted": 0
         },
         {
@@ -5650,19 +5533,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Galactic-Idlers_e005ff6c-4365-4945-84fe-63a7868b7086",
-          "Name": "Claude Code - Galactic-Idlers (e005ff6c)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-22T21:21:30.7998395+04:00",
-          "CurrentTask": null,
-          "SessionId": "e005ff6c-4365-4945-84fe-63a7868b7086",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-22T21:21:30.7998395+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Galactic-Idlers_e2327cab-82ce-43d0-91e2-fe66ec1d3a1f",
           "Name": "Claude Code - Galactic-Idlers (e2327cab)",
           "Type": "claude-code",
@@ -5673,19 +5543,6 @@
           "SessionId": "e2327cab-82ce-43d0-91e2-fe66ec1d3a1f",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-08-25T22:46:50.0573281+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_e24d510b-3ce6-427f-ae4b-56518b5f0b9c",
-          "Name": "Claude Code - Galactic-Idlers (e24d510b)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T19:24:53.4456566+04:00",
-          "CurrentTask": null,
-          "SessionId": "e24d510b-3ce6-427f-ae4b-56518b5f0b9c",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T19:24:53.4456566+04:00",
           "TasksCompleted": 0
         },
         {
@@ -5715,19 +5572,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Galactic-Idlers_e8e082fb-2ed6-4145-bb1a-9c58d3810082",
-          "Name": "Claude Code - Galactic-Idlers (e8e082fb)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T16:27:52.5366306+04:00",
-          "CurrentTask": null,
-          "SessionId": "e8e082fb-2ed6-4145-bb1a-9c58d3810082",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T16:27:52.5366306+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Galactic-Idlers_ea5da323-ed11-44ec-ba35-c372467621af",
           "Name": "Claude Code - Galactic-Idlers (ea5da323)",
           "Type": "claude-code",
@@ -5751,19 +5595,6 @@
           "SessionId": "ecf2d195-a4b4-4cf7-90d3-58b71cc7e69b",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-02T15:53:06.1867667+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_edb188b9-2802-4b31-98b5-27be55038439",
-          "Name": "Claude Code - Galactic-Idlers (edb188b9)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T18:52:31.5525479+04:00",
-          "CurrentTask": null,
-          "SessionId": "edb188b9-2802-4b31-98b5-27be55038439",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T18:52:31.5525479+04:00",
           "TasksCompleted": 0
         },
         {
@@ -5793,19 +5624,6 @@
           "TasksCompleted": 0
         },
         {
-          "Id": "Galactic-Idlers_f23f423c-c4c4-4772-a512-73fe932332a5",
-          "Name": "Claude Code - Galactic-Idlers (f23f423c)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-22T21:22:44.130633+04:00",
-          "CurrentTask": null,
-          "SessionId": "f23f423c-c4c4-4772-a512-73fe932332a5",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-22T21:22:44.130633+04:00",
-          "TasksCompleted": 0
-        },
-        {
           "Id": "Galactic-Idlers_f2d008fc-4b35-4329-a400-22b0b4a942ca",
           "Name": "Claude Code - Galactic-Idlers (f2d008fc)",
           "Type": "claude-code",
@@ -5816,19 +5634,6 @@
           "SessionId": "f2d008fc-4b35-4329-a400-22b0b4a942ca",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-08-24T19:36:03.2561171+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_f6efc5df-1999-4842-ba78-45e0c47c713a",
-          "Name": "Claude Code - Galactic-Idlers (f6efc5df)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T17:28:55.2806009+04:00",
-          "CurrentTask": null,
-          "SessionId": "f6efc5df-1999-4842-ba78-45e0c47c713a",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T17:28:55.2806009+04:00",
           "TasksCompleted": 0
         },
         {
@@ -5855,19 +5660,6 @@
           "SessionId": "fc6dcb8a-096a-48e0-9d58-678a21e0af84",
           "CurrentTaskId": null,
           "LastActiveTime": "2025-09-17T13:48:45.3155768+04:00",
-          "TasksCompleted": 0
-        },
-        {
-          "Id": "Galactic-Idlers_fdac74c9-73da-4377-8434-fa0eebb65084",
-          "Name": "Claude Code - Galactic-Idlers (fdac74c9)",
-          "Type": "claude-code",
-          "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
-          "Status": 4,
-          "LastPing": "2025-08-23T02:26:37.599455+04:00",
-          "CurrentTask": null,
-          "SessionId": "fdac74c9-73da-4377-8434-fa0eebb65084",
-          "CurrentTaskId": null,
-          "LastActiveTime": "2025-08-23T02:26:37.599455+04:00",
           "TasksCompleted": 0
         },
         {
@@ -5902,19 +5694,19 @@
           "Type": "claude-code",
           "RepositoryPath": "C:\\Users\\mrred\\RiderProjects\\Galactic-Idlers",
           "Status": 0,
-          "LastPing": "2025-09-20T17:44:52.572934+04:00",
+          "LastPing": "2025-09-23T12:49:33.7082569+04:00",
           "CurrentTask": null,
           "SessionId": null,
           "CurrentTaskId": null,
-          "LastActiveTime": "2025-09-20T17:10:21.7447337+04:00",
+          "LastActiveTime": "2025-09-23T12:49:33.6969093+04:00",
           "TasksCompleted": 0
         }
       ],
       "IdleCount": 1,
       "WorkingCount": 0,
       "ErrorCount": 0,
-      "OfflineCount": 109,
-      "LastUpdate": "2025-09-20T17:44:52.580262+04:00"
+      "OfflineCount": 86,
+      "LastUpdate": "2025-09-23T12:49:33.7134277+04:00"
     }
   }
 }

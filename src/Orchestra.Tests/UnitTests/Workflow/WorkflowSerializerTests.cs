@@ -136,8 +136,8 @@ public class WorkflowSerializerTests
         // Check step with retry policy
         var retryStep = deserialized.Steps.FirstOrDefault(s => s.RetryPolicy != null);
         Assert.NotNull(retryStep);
-        Assert.Equal(3, retryStep.RetryPolicy!.MaxRetries);
-        Assert.True(retryStep.RetryPolicy.ExponentialBackoff);
+        Assert.Equal(3, retryStep.RetryPolicy!.MaxRetryCount);
+        Assert.Equal(2.0, retryStep.RetryPolicy.BackoffMultiplier);
     }
 
     [Fact]
@@ -186,7 +186,7 @@ public class WorkflowSerializerTests
 
         // Assert
         var retryStep = deserialized.Steps.First(s => s.RetryPolicy != null);
-        Assert.Equal(TimeSpan.FromMinutes(5), retryStep.RetryPolicy!.DelayBetweenRetries);
+        Assert.Equal(TimeSpan.FromMinutes(5), retryStep.RetryPolicy!.MaxDelay);
     }
 
     private static WorkflowDefinition CreateTestWorkflow()
@@ -255,9 +255,9 @@ public class WorkflowSerializerTests
         );
 
         var retryPolicy = new RetryPolicy(
-            MaxRetries: 3,
-            DelayBetweenRetries: TimeSpan.FromSeconds(30),
-            ExponentialBackoff: true
+            MaxRetryCount: 3,
+            BaseDelay: TimeSpan.FromSeconds(30),
+            BackoffMultiplier: 2.0
         );
 
         var steps = new List<WorkflowStep>
@@ -300,9 +300,9 @@ public class WorkflowSerializerTests
         );
 
         var retryPolicy = new RetryPolicy(
-            MaxRetries: 2,
-            DelayBetweenRetries: TimeSpan.FromMinutes(5),
-            ExponentialBackoff: false
+            MaxRetryCount: 2,
+            MaxDelay: TimeSpan.FromMinutes(5),
+            BackoffMultiplier: 1.0
         );
 
         var steps = new List<WorkflowStep>

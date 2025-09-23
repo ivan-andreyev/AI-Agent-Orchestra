@@ -2,6 +2,7 @@
 @using Orchestra.Web.Models
 @using Orchestra.Web.Services
 @using Orchestra.Web.Components
+@using System.Text.Json
 @inject MonitoredOrchestratorService OrchestratorService
 @inject PerformanceMonitoringService PerformanceService
 @inject IJSRuntime JSRuntime
@@ -52,8 +53,6 @@
         <div class="header-controls">
             <!-- CSS Framework Test Element (Task 3B.0.3-B) -->
             <div class="test-css-verification">CSS Framework compatibility verified</div>
-            <!-- JSInterop Test Element (Task 3B.0.4-B) -->
-            <button class="debug-button" @onclick="TestJSInterop">🔧 Test JSInterop</button>
             <div class="status-indicator @(_isConnected ? "connected" : "disconnected")">
                 @(_isConnected ? "🟢 Connected" : "🔴 Disconnected")
             </div>
@@ -110,6 +109,9 @@
                     <div class="content-panel queue-panel">
                         <TaskQueue SelectedRepository="@_selectedRepository"
                                   RepositoryPath="@GetSelectedRepositoryPath()" />
+                    </div>
+                    <div class="content-panel coordinator-panel">
+                        <CoordinatorChat />
                     </div>
                 </div>
             </div>
@@ -217,10 +219,6 @@
         await RefreshData();
     }
 
-    private async Task TestJSInterop()
-    {
-        await JSRuntime.InvokeVoidAsync("testJSInterop");
-    }
 
     private Task OnAgentSelected(string agentId)
     {
@@ -343,4 +341,3 @@
     }
 }
 
-<script src="~/js/test-integration.js"></script>

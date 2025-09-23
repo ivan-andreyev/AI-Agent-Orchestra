@@ -62,6 +62,16 @@ public record RetryPolicy(
         RetryCondition: null)
     {
     }
+
+    /// <summary>
+    /// Получает эффективное значение BaseDelay (если 0, возвращает значение по умолчанию)
+    /// </summary>
+    public TimeSpan EffectiveBaseDelay => BaseDelay == TimeSpan.Zero ? TimeSpan.FromSeconds(1) : BaseDelay;
+
+    /// <summary>
+    /// Получает эффективное значение MaxDelay (если 0, возвращает значение по умолчанию)
+    /// </summary>
+    public TimeSpan EffectiveMaxDelay => MaxDelay == TimeSpan.Zero ? TimeSpan.FromMinutes(5) : MaxDelay;
 }
 
 /// <summary>

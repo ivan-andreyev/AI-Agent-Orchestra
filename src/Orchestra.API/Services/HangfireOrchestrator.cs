@@ -157,10 +157,11 @@ public class HangfireOrchestrator
         }
 
         // Find agents that are available (Idle or Working) and match the repository
+        // Use flexible path matching to handle subdirectory paths
         var availableAgent = allAgents
             .Where(agent => agent.Status == AgentStatus.Idle || agent.Status == AgentStatus.Working)
             .Where(agent => string.IsNullOrEmpty(repositoryPath) ||
-                           agent.RepositoryPath?.Equals(repositoryPath, StringComparison.OrdinalIgnoreCase) == true)
+                           IsRepositoryPathMatch(agent.RepositoryPath, repositoryPath))
             .OrderBy(agent => agent.LastActiveTime) // Prefer least recently used
             .FirstOrDefault();
 
@@ -168,13 +169,22 @@ public class HangfireOrchestrator
         {
             _logger.LogDebug("Found available agent: {AgentId} for repository: {RepositoryPath}",
                 availableAgent.Id, repositoryPath);
-        }
-        else
-        {
-            _logger.LogDebug("No available agents found for repository: {RepositoryPath}", repositoryPath);
+            return availableAgent;
         }
 
-        return availableAgent;
+        // If no agent found, try to create one automatically for the coordinator
+        _logger.LogInformation("No available agents found for repository: {RepositoryPath}. Attempting to create a new agent.", repositoryPath);
+
+        var newAgent = await CreateAgentForRepositoryAsync(repositoryPath);
+        if (newAgent != null)
+        {
+            _logger.LogInformation("Successfully created new agent: {AgentId} for repository: {RepositoryPath}",
+                newAgent.Id, repositoryPath);
+            return newAgent;
+        }
+
+        _logger.LogWarning("Failed to create agent for repository: {RepositoryPath}", repositoryPath);
+        return null;
     }
 
     /// <summary>
@@ -191,5 +201,69 @@ public class HangfireOrchestrator
             TaskPriority.Low => "default",
             _ => "default"
         };
+    }
+
+    /// <summary>
+    /// Flexible repository path matching that handles subdirectory paths
+    /// </summary>
+    /// <param name="agentPath">Agent's repository path</param>
+    /// <param name="requestPath">Requested repository path</param>
+    /// <returns>True if paths match or are related</returns>
+    private static bool IsRepositoryPathMatch(string? agentPath, string requestPath)
+    {
+        if (string.IsNullOrEmpty(agentPath) || string.IsNullOrEmpty(requestPath))
+            return false;
+
+        // Normalize paths
+        var normalizedAgentPath = Path.GetFullPath(agentPath).TrimEnd(Path.DirectorySeparatorChar);
+        var normalizedRequestPath = Path.GetFullPath(requestPath).TrimEnd(Path.DirectorySeparatorChar);
+
+        // Exact match
+        if (normalizedAgentPath.Equals(normalizedRequestPath, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Check if request path is a subdirectory of agent path
+        if (normalizedRequestPath.StartsWith(normalizedAgentPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Check if agent path is a subdirectory of request path
+        if (normalizedAgentPath.StartsWith(normalizedRequestPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Creates a new agent for the specified repository automatically.
+    /// This makes the coordinator system "smart" by auto-provisioning agents as needed.
+    /// </summary>
+    /// <param name="repositoryPath">Repository path to create agent for</param>
+    /// <returns>Newly created agent or null if creation failed</returns>
+    private async Task<AgentInfo?> CreateAgentForRepositoryAsync(string repositoryPath)
+    {
+        try
+        {
+            // Generate unique agent ID
+            var agentId = $"claude-coordinator-{Guid.NewGuid().ToString()[..8]}";
+            var agentName = $"Claude Code Agent (Auto-created for Coordinator)";
+
+            _logger.LogInformation("Creating new agent: {AgentId} for repository: {RepositoryPath}", agentId, repositoryPath);
+
+            // Create new agent info using constructor
+            var newAgent = new AgentInfo(agentId, agentName, "claude-code", repositoryPath, AgentStatus.Idle, DateTime.Now);
+
+            // Register agent with the orchestrator
+            _legacyOrchestrator.RegisterAgent(newAgent.Id, newAgent.Name, newAgent.Type, newAgent.RepositoryPath);
+
+            _logger.LogInformation("Successfully created and registered agent: {AgentId} for repository: {RepositoryPath}",
+                agentId, repositoryPath);
+
+            return newAgent;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create agent for repository: {RepositoryPath}", repositoryPath);
+            return null;
+        }
     }
 }
