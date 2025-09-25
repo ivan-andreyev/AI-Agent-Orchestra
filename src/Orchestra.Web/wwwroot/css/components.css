@@ -3457,6 +3457,7 @@ input, select, textarea {
     counter-reset: step-counter;
 }
 
+/* DEPRECATED: Phase 3 Bootstrap Integration - Replace with Bootstrap .list-group-item */
 .step-item {
     position: relative;
     padding: 8px 12px 8px 32px;
@@ -3518,6 +3519,7 @@ input, select, textarea {
     margin-top: 16px;
 }
 
+/* DEPRECATED: Phase 3 Bootstrap Integration - Replace with Bootstrap .row .g-2 */
 .parameters-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -3525,6 +3527,7 @@ input, select, textarea {
     margin-bottom: 12px;
 }
 
+/* DEPRECATED: Phase 3 Bootstrap Integration - Use Bootstrap .form-label with dark theme */
 .parameter-item .form-label {
     font-size: 0.8rem;
     color: var(--text-secondary);
@@ -3532,6 +3535,7 @@ input, select, textarea {
     font-weight: 500;
 }
 
+/* DEPRECATED: Phase 3 Bootstrap Integration - Use Bootstrap .form-control with data-bs-theme="dark" */
 .parameter-item .form-control {
     font-size: 0.85rem;
     background: var(--bg-primary);
@@ -3644,6 +3648,7 @@ input, select, textarea {
     font-weight: 600;
 }
 
+/* DEPRECATED: Phase 3 Bootstrap Integration - Use Bootstrap .form-control with data-bs-theme="dark" */
 .quick-actions-section .form-control {
     background: var(--bg-primary);
     border-color: var(--border-color);
@@ -3793,6 +3798,7 @@ input, select, textarea {
     border-color: var(--border-color) !important;
 }
 
+/* DEPRECATED: Phase 3 Bootstrap Integration - Replace with data-bs-theme="dark" */
 .form-control.bg-dark {
     background-color: var(--bg-secondary) !important;
     border-color: var(--border-color) !important;
