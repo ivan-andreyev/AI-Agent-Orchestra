@@ -67,51 +67,61 @@
     @if (_state != null)
     {
 
-        <div class="main-layout">
-            <!-- Enhanced Sidebar per Design Specifications -->
-            <div class="enhanced-sidebar sidebar">
-                <!-- Repository Context Section -->
-                <div class="sidebar-section repository-context sidebar-compact">
-                    <RepositorySelector Repositories="@_repositories"
-                                       SelectedRepository="@_selectedRepository"
-                                       OnRepositoryChanged="OnRepositoryChanged"
-                                       OnRefreshRequested="OnRefreshRequested"
-                                       IsLoading="@_isRefreshing" />
-                </div>
-
-                <!-- Orchestration Control Panel Section (Actions Block Refactoring Phase 1) -->
-                <div class="sidebar-section orchestration-control-section sidebar-compact">
-                    <OrchestrationControlPanel SelectedRepository="@_selectedRepository"
-                                             RepositoryPath="@GetSelectedRepositoryPath()"
-                                             Repositories="@_repositories"
-                                             OnTaskQueued="OnTaskQueued" />
-                </div>
-
-                <!-- Agent List Section -->
-                <div class="sidebar-section agent-list-section">
-                    <AgentSidebar Agents="@GetSelectedRepositoryAgents()"
-                                 SelectedAgentId="_selectedAgentId"
-                                 OnAgentSelected="OnAgentSelected" />
-                </div>
-
-                <!-- Performance Monitoring Section (Phase 0.2) -->
-                <div class="sidebar-section performance-monitoring-section">
-                    <PerformanceMonitor />
-                </div>
-            </div>
-
-            <!-- Enhanced Main Content per Design Specifications -->
-            <div class="enhanced-main-content main-content">
-                <div class="content-panels">
-                    <div class="content-panel history-panel">
-                        <AgentHistory SelectedAgentId="@GetSelectedAgentSessionId()" />
+        <!-- Bootstrap Grid Phase 1 Implementation: Replace main-layout with container-fluid and row -->
+        <div class="container-fluid" data-bs-theme="dark">
+            <div class="row g-3 vh-100" style="margin-top: var(--gap-size);">
+                <!-- Enhanced Sidebar per Design Specifications -->
+                <div class="col-md-3 enhanced-sidebar sidebar">
+                    <!-- Repository Context Section -->
+                    <div class="sidebar-section repository-context sidebar-compact">
+                        <RepositorySelector Repositories="@_repositories"
+                                           SelectedRepository="@_selectedRepository"
+                                           OnRepositoryChanged="OnRepositoryChanged"
+                                           OnRefreshRequested="OnRefreshRequested"
+                                           IsLoading="@_isRefreshing" />
                     </div>
-                    <div class="content-panel queue-panel">
-                        <TaskQueue SelectedRepository="@_selectedRepository"
-                                  RepositoryPath="@GetSelectedRepositoryPath()" />
+
+                    <!-- Orchestration Control Panel Section (Actions Block Refactoring Phase 1) -->
+                    <div class="sidebar-section orchestration-control-section sidebar-compact">
+                        <OrchestrationControlPanel SelectedRepository="@_selectedRepository"
+                                                 RepositoryPath="@GetSelectedRepositoryPath()"
+                                                 Repositories="@_repositories"
+                                                 OnTaskQueued="OnTaskQueued" />
                     </div>
-                    <div class="content-panel coordinator-panel">
-                        <CoordinatorChat />
+
+                    <!-- Agent List Section -->
+                    <div class="sidebar-section agent-list-section">
+                        <AgentSidebar Agents="@GetSelectedRepositoryAgents()"
+                                     SelectedAgentId="_selectedAgentId"
+                                     OnAgentSelected="OnAgentSelected" />
+                    </div>
+
+                    <!-- Performance Monitoring Section (Phase 0.2) -->
+                    <div class="sidebar-section performance-monitoring-section">
+                        <PerformanceMonitor />
+                    </div>
+                </div>
+
+                <!-- Enhanced Main Content per Design Specifications -->
+                <div class="col-md-9 enhanced-main-content main-content">
+                    <!-- Bootstrap Grid Phase 1 Implementation: Replace content-panels with row -->
+                    <div class="row g-3">
+                        <div class="col-12 mb-3">
+                            <div class="content-panel history-panel">
+                                <AgentHistory SelectedAgentId="@GetSelectedAgentSessionId()" />
+                            </div>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <div class="content-panel queue-panel">
+                                <TaskQueue SelectedRepository="@_selectedRepository"
+                                          RepositoryPath="@GetSelectedRepositoryPath()" />
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="content-panel coordinator-panel">
+                                <CoordinatorChat />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

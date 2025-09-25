@@ -1,0 +1,276 @@
+/*
+ * BOOTSTRAP INTEGRATION REFACTORING PLAN
+ * Phase 4: Bootstrap CSS Framework Integration
+ *
+ * This file documents the systematic replacement of custom CSS with Bootstrap 5 utilities
+ * to reduce bundle size while preserving dark theme functionality and existing features.
+ *
+ * IMPLEMENTATION PRIORITY:
+ * 1. High-impact replacements (largest bundle reduction)
+ * 2. Layout and grid systems
+ * 3. Component styles (cards, buttons, forms)
+ * 4. Utility classes (spacing, colors, typography)
+ *
+ * PRESERVATION REQUIREMENTS:
+ * - Dark theme using CSS custom properties must be maintained
+ * - Responsive breakpoints alignment with Bootstrap
+ * - Performance optimizations (will-change properties)
+ * - Accessibility features and ARIA support
+ */
+
+/* ============================================================================
+ * PHASE 1: GRID SYSTEM REPLACEMENT (High Impact)
+ * Current: Custom CSS Grid with ~200 lines
+ * Replace with: Bootstrap Grid System (.container, .row, .col-*)
+ * Bundle Reduction: ~8KB
+ * ============================================================================ */
+
+/* REPLACE: Dashboard grid layout */
+.dashboard-grid {
+    /* OLD: Custom grid implementation
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--dashboard-gap);
+    padding: var(--dashboard-padding);
+    margin-bottom: var(--dashboard-margin);
+    */
+
+    /* NEW: Use Bootstrap classes in HTML */
+    /* <div class="container-fluid"> */
+    /*   <div class="row g-3"> */
+    /*     <div class="col-xl-6 col-lg-12"> */
+}
+
+/* REPLACE: Dashboard sections */
+.dashboard-section {
+    /* OLD: Custom card-like styling
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--section-radius);
+    padding: var(--section-padding);
+    box-shadow: var(--box-shadow-light);
+    */
+
+    /* NEW: Use Bootstrap .card with dark theme override */
+    /* <div class="card bg-dark border-secondary"> */
+    /*   <div class="card-body"> */
+}
+
+/* ============================================================================
+ * PHASE 2: COMPONENT REPLACEMENT (High Impact)
+ * Current: Custom components duplicating Bootstrap
+ * Replace with: Bootstrap native components
+ * Bundle Reduction: ~12KB
+ * ============================================================================ */
+
+/* REPLACE: Performance monitoring cards (Phase 0.2) */
+.performance-monitoring-section {
+    /* OLD: Custom performance card
+    background: var(--performance-bg);
+    border: 1px solid var(--performance-border);
+    border-radius: var(--section-radius);
+    */
+
+    /* NEW: Bootstrap card with custom theme */
+    /* <div class="card border-primary bg-dark"> */
+    /*   <div class="card-header bg-primary bg-opacity-10"> */
+    /*     <h5 class="card-title text-primary">Performance</h5> */
+    /*   </div> */
+    /*   <div class="card-body"> */
+}
+
+/* REPLACE: Orchestration control panel (Phase 1) */
+.orchestration-control-panel {
+    /* OLD: Custom tab-like panel
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--section-radius);
+    */
+
+    /* NEW: Bootstrap nav-tabs with dark theme */
+    /* <div class="card bg-dark"> */
+    /*   <div class="card-header"> */
+    /*     <ul class="nav nav-tabs card-header-tabs" data-bs-theme="dark"> */
+}
+
+/* REPLACE: Task template cards */
+.template-card {
+    /* OLD: Custom card implementation
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    */
+
+    /* NEW: Bootstrap card with dark theme */
+    /* <div class="card bg-dark border-secondary h-100"> */
+    /*   <div class="card-body"> */
+}
+
+/* ============================================================================
+ * PHASE 3: FORM COMPONENTS REPLACEMENT (Medium Impact)
+ * Current: Custom form styling
+ * Replace with: Bootstrap form controls
+ * Bundle Reduction: ~6KB
+ * ============================================================================ */
+
+/* REPLACE: Parameter grids */
+.parameter-grid {
+    /* OLD: Custom grid for parameters
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 10px;
+    */
+
+    /* NEW: Bootstrap form grid */
+    /* <div class="row g-2"> */
+    /*   <div class="col-4"><label class="col-form-label">Parameter:</label></div> */
+    /*   <div class="col-8"><input class="form-control bg-dark text-light"></div> */
+}
+
+/* REPLACE: Step lists */
+.step-list {
+    /* OLD: Custom numbered list
+    counter-reset: step-counter;
+    list-style: none;
+    padding: 0;
+    */
+
+    /* NEW: Bootstrap list group */
+    /* <ol class="list-group list-group-numbered list-group-flush"> */
+    /*   <li class="list-group-item bg-dark text-light border-secondary"> */
+}
+
+/* ============================================================================
+ * PHASE 4: UTILITY CLASSES REPLACEMENT (Medium Impact)
+ * Current: Custom utility classes
+ * Replace with: Bootstrap utilities
+ * Bundle Reduction: ~4KB
+ * ============================================================================ */
+
+/* REPLACE: Spacing utilities */
+.mt-custom, .mb-custom, .p-custom {
+    /* OLD: Custom spacing classes
+    margin-top: var(--gap-size);
+    margin-bottom: var(--gap-size);
+    padding: var(--section-padding);
+    */
+
+    /* NEW: Use Bootstrap spacing utilities */
+    /* .mt-3, .mb-3, .p-3 */
+}
+
+/* REPLACE: Text utilities */
+.text-muted-custom, .text-primary-custom {
+    /* OLD: Custom text colors
+    color: var(--text-secondary);
+    color: var(--accent-color);
+    */
+
+    /* NEW: Bootstrap text utilities with theme override */
+    /* .text-muted, .text-primary */
+}
+
+/* ============================================================================
+ * PHASE 5: RESPONSIVE UTILITIES REPLACEMENT (Low Impact)
+ * Current: Custom breakpoints matching Bootstrap exactly
+ * Replace with: Bootstrap responsive utilities
+ * Bundle Reduction: ~3KB
+ * ============================================================================ */
+
+/* REPLACE: Custom responsive breakpoints */
+@media (max-width: 1399px) { /* --breakpoint-xl */
+    /* OLD: Custom responsive rules */
+
+    /* NEW: Use Bootstrap responsive utilities */
+    /* .d-xl-block, .d-xl-none, .col-xl-* */
+}
+
+/* ============================================================================
+ * PHASE 6: ANIMATION & INTERACTION REPLACEMENT (Low Impact)
+ * Current: Custom hover effects and transitions
+ * Replace with: Bootstrap utilities + minimal custom CSS
+ * Bundle Reduction: ~2KB
+ * ============================================================================ */
+
+/* REPLACE: Skeleton loading animations */
+.skeleton-item {
+    /* OLD: Custom skeleton implementation
+    background: linear-gradient(90deg,
+        var(--bg-secondary) 25%,
+        var(--bg-hover) 50%,
+        var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+    */
+
+    /* NEW: Bootstrap 5 placeholder utilities */
+    /* <div class="placeholder-glow"> */
+    /*   <span class="placeholder col-12 bg-secondary"></span> */
+}
+
+/* ============================================================================
+ * DARK THEME PRESERVATION STRATEGY
+ * Bootstrap 5 data-bs-theme="dark" integration
+ * ============================================================================ */
+
+/* Override Bootstrap's dark theme with our custom variables */
+[data-bs-theme="dark"] {
+    --bs-body-bg: var(--bg-primary);
+    --bs-body-color: var(--text-primary);
+    --bs-border-color: var(--border-color);
+    --bs-secondary-bg: var(--bg-secondary);
+    --bs-tertiary-bg: var(--bg-hover);
+
+    /* Performance monitoring colors */
+    --bs-primary: var(--accent-color);
+    --bs-success: var(--performance-good);
+    --bs-warning: var(--performance-warning);
+    --bs-danger: var(--performance-danger);
+}
+
+/* ============================================================================
+ * IMPLEMENTATION CHECKLIST
+ * ============================================================================ */
+
+/*
+ * [ ] Phase 1: Grid System (8KB reduction)
+ *   [ ] Replace .dashboard-grid with Bootstrap .container-fluid .row .col-*
+ *   [ ] Replace .dashboard-section with Bootstrap .card
+ *   [ ] Update HTML templates to use Bootstrap grid classes
+ *
+ * [ ] Phase 2: Components (12KB reduction)
+ *   [ ] Replace .performance-monitoring-section with Bootstrap .card
+ *   [ ] Replace .orchestration-control-panel with Bootstrap .nav-tabs
+ *   [ ] Replace .template-card with Bootstrap .card
+ *   [ ] Replace custom accordions with Bootstrap .accordion
+ *
+ * [ ] Phase 3: Forms (6KB reduction)
+ *   [ ] Replace .parameter-grid with Bootstrap form grid
+ *   [ ] Replace .step-list with Bootstrap .list-group
+ *   [ ] Replace custom form controls with Bootstrap .form-control
+ *
+ * [ ] Phase 4: Utilities (4KB reduction)
+ *   [ ] Replace custom spacing with Bootstrap utilities (.mt-*, .p-*)
+ *   [ ] Replace custom text utilities with Bootstrap (.text-*, .fw-*)
+ *   [ ] Replace custom display utilities with Bootstrap (.d-*, .flex-*)
+ *
+ * [ ] Phase 5: Responsive (3KB reduction)
+ *   [ ] Remove custom breakpoint CSS
+ *   [ ] Use Bootstrap responsive utilities (.d-lg-*, .col-md-*)
+ *   [ ] Test responsive behavior across all breakpoints
+ *
+ * [ ] Phase 6: Animations (2KB reduction)
+ *   [ ] Replace skeleton loading with Bootstrap placeholders
+ *   [ ] Simplify hover effects using Bootstrap utilities
+ *   [ ] Preserve critical performance animations (will-change)
+ *
+ * TOTAL ESTIMATED BUNDLE REDUCTION: ~35KB (compressed: ~8KB)
+ *
+ * TESTING REQUIREMENTS:
+ * [ ] Verify dark theme functionality preserved
+ * [ ] Test responsive behavior at all breakpoints
+ * [ ] Validate accessibility features maintained
+ * [ ] Performance testing - ensure no regression in load times
+ * [ ] Visual regression testing - all components render correctly
+ */

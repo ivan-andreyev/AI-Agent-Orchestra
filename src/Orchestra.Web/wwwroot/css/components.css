@@ -200,11 +200,21 @@
     gap: 10px;
 }
 
+/* DEPRECATED: Phase 1 Bootstrap Integration - Replace with Bootstrap grid
+ * OLD: Custom grid implementation
+ * NEW: Use Bootstrap classes in HTML: <div class="row g-4 mb-4">
+ *      <div class="col-xl-4 col-lg-6 col-md-6">
+ */
 .stats-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 20px;
     margin-bottom: 30px;
+}
+
+/* Bootstrap-compatible replacement for stats-row */
+.stats-row-bootstrap {
+    /* Use Bootstrap: <div class="row g-4 mb-4"> with <div class="col-xl-4 col-lg-6"> */
 }
 
 .stat-card {
@@ -252,6 +262,13 @@
     margin-right: 4px;
 }
 
+/* DEPRECATED: Phase 1 Bootstrap Integration - Replace with Bootstrap grid
+ * OLD: Custom CSS Grid sidebar+content layout
+ * NEW: Use Bootstrap classes: <div class="container-fluid">
+ *      <div class="row g-3">
+ *        <div class="col-md-3"> (sidebar)
+ *        <div class="col-md-9"> (content)
+ */
 .main-layout {
     display: grid;
     grid-template-columns: var(--sidebar-width) 1fr;
@@ -265,6 +282,21 @@
     justify-content: stretch;
 }
 
+/* Bootstrap-compatible replacement for main-layout */
+.main-layout-bootstrap {
+    /* Use Bootstrap: <div class="container-fluid">
+                     <div class="row g-3 vh-100">
+                       <div class="col-md-3">sidebar</div>
+                       <div class="col-md-9">content</div> */
+}
+
+/* DEPRECATED: Phase 1 Bootstrap Integration - Replace with Bootstrap grid
+ * OLD: Custom CSS Grid for content panels
+ * NEW: Use Bootstrap classes: <div class="row g-3">
+ *      <div class="col-12 mb-3"> (panel 1)
+ *      <div class="col-12 mb-3"> (panel 2)
+ *      <div class="col-12"> (coordinator panel)
+ */
 .content-panels {
     display: grid;
     grid-template-rows: minmax(300px, 1fr) minmax(300px, 1fr) minmax(600px, auto);
@@ -275,6 +307,14 @@
     /* Enhanced content grid for Phase 2.2 with coordinator panel */
     overflow-y: auto;
     align-content: stretch;
+}
+
+/* Bootstrap-compatible replacement for content-panels */
+.content-panels-bootstrap {
+    /* Use Bootstrap: <div class="row g-3">
+                     <div class="col-12 mb-3">panel</div>
+                     <div class="col-12 mb-3">panel</div>
+                     <div class="col-12">coordinator</div> */
 }
 
 .history-panel,
@@ -3704,4 +3744,58 @@ input, select, textarea {
 
 .orchestration-control-panel .nav-link {
     will-change: color, background-color, border-bottom-color;
+}
+
+/* ============================================================================
+ * BOOTSTRAP 5 DARK THEME INTEGRATION (Phase 1)
+ * Preserves existing dark theme while enabling Bootstrap utilities
+ * ============================================================================ */
+
+/* Override Bootstrap's dark theme with our custom variables */
+[data-bs-theme="dark"] {
+    --bs-body-bg: var(--bg-primary);
+    --bs-body-color: var(--text-primary);
+    --bs-border-color: var(--border-color);
+    --bs-secondary-bg: var(--bg-secondary);
+    --bs-tertiary-bg: var(--bg-hover);
+
+    /* Performance monitoring colors */
+    --bs-primary: var(--accent-color);
+    --bs-success: var(--performance-good);
+    --bs-warning: var(--performance-warning);
+    --bs-danger: var(--performance-danger);
+
+    /* Additional Bootstrap semantic colors */
+    --bs-info: var(--accent-color);
+    --bs-light: var(--text-secondary);
+    --bs-dark: var(--bg-primary);
+
+    /* Form controls */
+    --bs-form-control-bg: var(--bg-secondary);
+    --bs-form-control-border-color: var(--border-color);
+    --bs-form-control-color: var(--text-primary);
+
+    /* Cards */
+    --bs-card-bg: var(--bg-secondary);
+    --bs-card-border-color: var(--border-color);
+    --bs-card-cap-bg: var(--bg-hover);
+}
+
+/* Ensure Bootstrap components inherit our dark theme */
+.card.bg-dark {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.form-control.bg-dark {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.form-control.bg-dark:focus {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--accent-color) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 122, 204, 0.25) !important;
 }

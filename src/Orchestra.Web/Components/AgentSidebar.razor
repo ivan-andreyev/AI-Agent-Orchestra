@@ -4,15 +4,20 @@
 <div class="agent-sidebar">
     <div class="sidebar-header">
         <h3>Agents</h3>
-        <div class="agent-summary-stats">
-            <div class="stats-row">
-                <div class="stat-item">
-                    <span class="stat-label">Repository:</span>
-                    <span class="stat-value">@(SelectedRepository ?? "All")</span>
+        <div class="agent-summary-stats" data-bs-theme="dark">
+            <!-- Bootstrap Grid Phase 1 Implementation: Replace stats-row with Bootstrap row -->
+            <div class="row g-2">
+                <div class="col-6">
+                    <div class="stat-item">
+                        <span class="stat-label">Repository:</span>
+                        <span class="stat-value">@(SelectedRepository ?? "All")</span>
+                    </div>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Last Update:</span>
-                    <span class="stat-value">@GetTimeAgo(_lastUpdateTime)</span>
+                <div class="col-6">
+                    <div class="stat-item">
+                        <span class="stat-label">Last Update:</span>
+                        <span class="stat-value">@GetTimeAgo(_lastUpdateTime)</span>
+                    </div>
                 </div>
             </div>
             <div class="performance-metrics">
