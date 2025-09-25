@@ -123,6 +123,11 @@ public class Startup
         // Register HangfireOrchestrator - the critical integration bridge
         services.AddScoped<HangfireOrchestrator>();
 
+        // Register Entity Framework-based services
+        services.AddScoped<AgentRepository>();
+        services.AddScoped<TaskRepository>();
+        services.AddScoped<EntityFrameworkOrchestrator>();
+
         // Register Agent Executor - configurable agent implementation
         // Use ClaudeAgentExecutor for real Claude Code integration, SimulationAgentExecutor for testing
         services.AddScoped<IAgentExecutor, ClaudeAgentExecutor>();

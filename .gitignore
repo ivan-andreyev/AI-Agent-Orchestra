@@ -108,3 +108,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 package-lock.json
+
+# SQLite database files (runtime generated)
+*.db
+*.db-shm
+*.db-wal
+**/Data Source=*.db*
+**/orchestra.db*
+**/orchestrator-state.json
+
+# Runtime state files
+orchestrator-state.json

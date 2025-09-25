@@ -29,10 +29,81 @@ public class OrchestratorController : ControllerBase
     }
 
     [HttpPost("agents/register")]
-    public ActionResult RegisterAgent([FromBody] RegisterAgentRequest request)
+    public async Task<ActionResult> RegisterAgent([FromBody] RegisterAgentRequest request)
     {
-        _hangfireOrchestrator.RegisterAgent(request.Id, request.Name, request.Type, request.RepositoryPath);
-        return Ok("Agent registered");
+        var success = await _hangfireOrchestrator.RegisterAgentAsync(request.Id, request.Name, request.Type, request.RepositoryPath);
+        if (success)
+        {
+            return Ok(new { Message = "Agent registered successfully", AgentId = request.Id });
+        }
+        else
+        {
+            return BadRequest(new { Message = "Failed to register agent", AgentId = request.Id });
+        }
+    }
+
+    [HttpPost("agents/discover")]
+    public async Task<ActionResult> DiscoverAgents([FromBody] DiscoverAgentsRequest? request = null)
+    {
+        var repositoryPath = request?.RepositoryPath ?? Environment.CurrentDirectory;
+
+        try
+        {
+            // Get current agents from Entity Framework store
+            var currentAgents = await _hangfireOrchestrator.GetAllAgentsAsync();
+
+            // Check if we have any agents for this repository
+            var repositoryAgents = currentAgents.Where(a =>
+                string.IsNullOrEmpty(repositoryPath) ||
+                (a.RepositoryPath?.Contains(repositoryPath, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+
+            if (!repositoryAgents.Any())
+            {
+                // No agents found, attempt to create one automatically
+                var agentId = $"claude-discovery-{Guid.NewGuid().ToString()[..8]}";
+                var agentName = "Claude Code Agent (Auto-discovered)";
+
+                var success = await _hangfireOrchestrator.RegisterAgentAsync(agentId, agentName, "claude-code", repositoryPath);
+
+                if (success)
+                {
+                    return Ok(new
+                    {
+                        Message = "New agent discovered and registered",
+                        AgentsFound = 1,
+                        AgentId = agentId,
+                        RepositoryPath = repositoryPath
+                    });
+                }
+                else
+                {
+                    return BadRequest(new
+                    {
+                        Message = "No agents found and failed to create new agent",
+                        AgentsFound = 0,
+                        RepositoryPath = repositoryPath
+                    });
+                }
+            }
+
+            return Ok(new
+            {
+                Message = "Existing agents discovered",
+                AgentsFound = repositoryAgents.Count,
+                Agents = repositoryAgents.Select(a => new { a.Id, a.Name, a.Status, a.RepositoryPath }).ToList(),
+                RepositoryPath = repositoryPath
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                Message = "Agent discovery failed",
+                Error = ex.Message,
+                RepositoryPath = repositoryPath
+            });
+        }
     }
 
     [HttpPost("agents/{agentId}/ping")]
@@ -90,5 +161,6 @@ public class OrchestratorController : ControllerBase
 }
 
 public record RegisterAgentRequest(string Id, string Name, string Type, string RepositoryPath);
+public record DiscoverAgentsRequest(string? RepositoryPath = null);
 public record PingRequest(AgentStatus Status, string? CurrentTask);
 public record QueueTaskRequest(string Command, string RepositoryPath, TaskPriority Priority);
