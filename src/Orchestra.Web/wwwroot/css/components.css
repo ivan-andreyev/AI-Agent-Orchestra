@@ -349,7 +349,8 @@
     flex: 1;
     padding: 10px;
     overflow-y: auto;
-    min-height: 400px;
+    min-height: 200px;
+    max-height: 800px;
 }
 
 .coordinator-chat .message {
@@ -400,14 +401,21 @@
     color: var(--text-primary);
     line-height: 1.4;
     font-size: 14px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
-/* LLM/Success responses - smaller, less prominent font */
+/* LLM/Success responses - readable size, NO truncation allowed */
 .coordinator-chat .message-success .message-content {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: normal;
     color: var(--text-secondary);
-    opacity: 0.8;
+    opacity: 0.9;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-width: none;
 }
 
 /* System messages (info, warning, error) - larger, more prominent font */
@@ -430,6 +438,16 @@
 .coordinator-chat code {
     font-size: 16px;
     font-weight: 600;
+    word-break: break-all;
+    white-space: nowrap;
+}
+
+/* Prevent TaskId and long identifiers from being truncated */
+.coordinator-chat .message-content strong,
+.coordinator-chat .message-content code {
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }
 
 .coordinator-chat .command-prompt {

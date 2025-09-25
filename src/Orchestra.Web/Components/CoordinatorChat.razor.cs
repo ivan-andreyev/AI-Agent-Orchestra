@@ -115,6 +115,42 @@ public partial class CoordinatorChat
                     });
                 });
 
+                // Handle incoming chat history messages
+                _hubConnection.On<HistoryMessage>("ReceiveHistoryMessage", (historyData) =>
+                {
+                    InvokeAsync(() =>
+                    {
+                        try
+                        {
+                            if (historyData != null)
+                            {
+                                LoggingService.LogSignalREvent("CoordinatorChatHub", "ReceiveHistoryMessage",
+                                    _hubConnection.ConnectionId,
+                                    new
+                                    {
+                                        Type = historyData.Type, MessageLength = historyData.Message?.Length ?? 0,
+                                        Author = historyData.Author
+                                    });
+
+                                _messages.Add(new ChatMessage
+                                {
+                                    Message = historyData.Message ?? string.Empty,
+                                    Type = historyData.Type ?? "info",
+                                    Timestamp = historyData.Timestamp.ToLocalTime(),
+                                    Author = historyData.Author
+                                });
+
+                                StateHasChanged();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LoggingService.LogError("CoordinatorChat", "ProcessHistoryMessage", ex, historyData);
+                            AddErrorMessage($"Error processing history message: {ex.Message}");
+                        }
+                    });
+                });
+
                 // Handle connection state changes
                 _hubConnection.Reconnecting += (error) =>
                 {
@@ -396,12 +432,15 @@ public partial class CoordinatorChat
     {
         try
         {
+            // Get or create persistent user ID
+            var userId = GetOrCreatePersistentUserId();
+
             // Try to get primary URL from configuration
             var primaryUrl = Configuration["SignalR:HubUrl"];
             if (!string.IsNullOrWhiteSpace(primaryUrl))
             {
                 Logger.LogDebug("CoordinatorChat: Using primary SignalR URL from configuration: {Url}", primaryUrl);
-                return primaryUrl;
+                return AppendUserIdToUrl(primaryUrl, userId);
             }
 
             // Try fallback URL from configuration
@@ -410,21 +449,63 @@ public partial class CoordinatorChat
             {
                 Logger.LogWarning("CoordinatorChat: Primary URL not configured, using fallback URL: {Url}",
                     fallbackUrl);
-                return fallbackUrl;
+                return AppendUserIdToUrl(fallbackUrl, userId);
             }
 
             // Final fallback to hardcoded development URL
-            var defaultUrl = "http://localhost:5002/coordinatorHub";
+            var defaultUrl = "http://localhost:55001/coordinatorHub";
             Logger.LogWarning("CoordinatorChat: No SignalR configuration found, using default URL: {Url}", defaultUrl);
-            return defaultUrl;
+            return AppendUserIdToUrl(defaultUrl, userId);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "CoordinatorChat: Error reading SignalR configuration, using default URL");
-            return "http://localhost:5002/coordinatorHub";
+            return "http://localhost:55001/coordinatorHub";
         }
     }
 
+    /// <summary>
+    /// Gets or creates a persistent user ID for chat session continuity
+    /// </summary>
+    private string GetOrCreatePersistentUserId()
+    {
+        // Use the exact same approach as HTML client for compatibility
+        // This ensures both clients see the same chat history
+        var sharedUserId = "shared_user_" + DateTime.Now.ToString("yyyyMMdd");
+        var hash = JavaScriptHashCode(sharedUserId);
+        var userId = $"user_{Math.Abs(hash):x}";
+
+        Logger.LogInformation("CoordinatorChat: Using shared persistent user ID: {UserId}", userId);
+        return userId;
+    }
+
+    /// <summary>
+    /// JavaScript-compatible hash function to match HTML client
+    /// </summary>
+    private int JavaScriptHashCode(string str)
+    {
+        int hash = 0;
+        for (int i = 0; i < str.Length; i++)
+        {
+            var ch = str[i];
+            hash = ((hash << 5) - hash) + ch;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash;
+    }
+
+    /// <summary>
+    /// Appends user ID to SignalR URL as query parameter
+    /// </summary>
+    private string AppendUserIdToUrl(string baseUrl, string userId)
+    {
+        var separator = baseUrl.Contains('?') ? "&" : "?";
+        return $"{baseUrl}{separator}userId={Uri.EscapeDataString(userId)}";
+    }
+
+    /// <summary>
+    /// Освобождает ресурсы компонента, включая соединение SignalR
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         Logger.LogInformation("CoordinatorChat: Disposing component");
@@ -443,6 +524,7 @@ public partial class CoordinatorChat
         public string Message { get; set; } = string.Empty;
         public string Type { get; set; } = "info";
         public DateTime Timestamp { get; set; } = DateTime.Now;
+        public string? Author { get; set; }
     }
 
     /// <summary>
@@ -457,5 +539,19 @@ public partial class CoordinatorChat
         [JsonPropertyName("timestamp")] public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
         [JsonPropertyName("taskId")] public string? TaskId { get; set; }
+    }
+
+    /// <summary>
+    /// Represents a chat history message
+    /// </summary>
+    private class HistoryMessage
+    {
+        [JsonPropertyName("message")] public string Message { get; set; } = string.Empty;
+
+        [JsonPropertyName("type")] public string Type { get; set; } = "info";
+
+        [JsonPropertyName("author")] public string Author { get; set; } = string.Empty;
+
+        [JsonPropertyName("timestamp")] public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }
 }

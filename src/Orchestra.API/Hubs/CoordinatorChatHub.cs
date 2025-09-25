@@ -19,6 +19,7 @@ public class CoordinatorChatHub : Hub
     private readonly IChatContextService _chatContextService;
     private readonly IConnectionSessionService _sessionService;
     private readonly IConfiguration _configuration;
+    private readonly IRepositoryPathService _repositoryPathService;
     private readonly ILogger<CoordinatorChatHub> _logger;
 
     public CoordinatorChatHub(
@@ -27,6 +28,7 @@ public class CoordinatorChatHub : Hub
         IChatContextService chatContextService,
         IConnectionSessionService sessionService,
         IConfiguration configuration,
+        IRepositoryPathService repositoryPathService,
         ILogger<CoordinatorChatHub> logger)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
@@ -34,6 +36,7 @@ public class CoordinatorChatHub : Hub
         _chatContextService = chatContextService ?? throw new ArgumentNullException(nameof(chatContextService));
         _sessionService = sessionService ?? throw new ArgumentNullException(nameof(sessionService));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _repositoryPathService = repositoryPathService ?? throw new ArgumentNullException(nameof(repositoryPathService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -88,11 +91,10 @@ public class CoordinatorChatHub : Hub
             _logger.LogInformation("Delegating command to Claude Code agent: {Command}", command);
 
             // Queue the command as a task for the Claude agent using Hangfire
-            // Get repository path from configuration or use current directory
-            var repositoryPath = _configuration["AgentSettings:RepositoryPath"] ??
-                                Directory.GetCurrentDirectory();
+            // Get repository path using the repository path service
+            var repositoryPath = _repositoryPathService.GetRepositoryPath();
             _logger.LogInformation("Using repository path: {RepositoryPath}", repositoryPath);
-            var jobId = await _hangfireOrchestrator.QueueTaskAsync(command, repositoryPath, TaskPriority.High);
+            var jobId = await _hangfireOrchestrator.QueueTaskAsync(command, repositoryPath, TaskPriority.High, Context.ConnectionId);
 
             _logger.LogInformation("Task queued via Hangfire - JobId: {JobId}", jobId);
 
@@ -373,18 +375,33 @@ public class CoordinatorChatHub : Hub
             // Save response to database
             await SaveSystemMessage(message, type);
 
-            await Clients.Caller.SendAsync("ReceiveResponse", new
+            // Get user ID for broadcasting to all connections for this user
+            var session = await _sessionService.GetSessionAsync(Context.ConnectionId);
+            if (session != null)
             {
-                Message = message,
-                Type = type,
-                Timestamp = DateTime.UtcNow
-            });
+                await Clients.Group($"user_{session.UserId}").SendAsync("ReceiveResponse", new
+                {
+                    Message = message,
+                    Type = type,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                // Fallback to caller if session not found
+                await Clients.Caller.SendAsync("ReceiveResponse", new
+                {
+                    Message = message,
+                    Type = type,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error sending response to client");
 
-            // Still try to send to client even if database save fails
+            // Still try to send to caller even if database save fails
             await Clients.Caller.SendAsync("ReceiveResponse", new
             {
                 Message = message,
@@ -403,6 +420,13 @@ public class CoordinatorChatHub : Hub
 
         try
         {
+            // Get persistent user ID and add to SignalR group for cross-client synchronization
+            var userId = GetOrCreatePersistentUserId();
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
+
+            _logger.LogInformation("Added connection {ConnectionId} to user group: user_{UserId}",
+                Context.ConnectionId, userId);
+
             // Initialize chat session for this connection
             await InitializeChatSession();
 
@@ -432,6 +456,22 @@ public class CoordinatorChatHub : Hub
         _logger.LogInformation("Coordinator chat client disconnected: {ConnectionId}. Reason: {Exception}",
             Context.ConnectionId, exception?.Message ?? "Normal disconnect");
 
+        // Remove from SignalR group (note: SignalR automatically removes on disconnect, but explicit is better)
+        try
+        {
+            var session = await _sessionService.GetSessionAsync(Context.ConnectionId);
+            if (session != null)
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{session.UserId}");
+                _logger.LogInformation("Removed connection {ConnectionId} from user group: user_{UserId}",
+                    Context.ConnectionId, session.UserId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error removing connection {ConnectionId} from SignalR group", Context.ConnectionId);
+        }
+
         // Clean up session data for this connection
         try
         {
@@ -454,20 +494,63 @@ public class CoordinatorChatHub : Hub
     {
         try
         {
-            // Use ConnectionId as temporary user identification
-            var userId = Context.ConnectionId;
+            // Use persistent user ID based on cookies to maintain session across page reloads
+            var userId = GetOrCreatePersistentUserId();
             var instanceId = "coordinator-main"; // Static instance identifier for now
 
             var session = await _chatContextService.GetOrCreateSessionAsync(userId, instanceId);
             await _sessionService.SetSessionAsync(Context.ConnectionId, session);
 
-            _logger.LogInformation("Chat session initialized for connection {ConnectionId}, session {SessionId}",
-                Context.ConnectionId, session.Id);
+            _logger.LogInformation("Chat session initialized for connection {ConnectionId}, session {SessionId}, user {UserId}",
+                Context.ConnectionId, session.Id, userId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to initialize chat session for connection {ConnectionId}", Context.ConnectionId);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Gets or creates a persistent user ID using query string parameter for initial setup
+    /// </summary>
+    private string GetOrCreatePersistentUserId()
+    {
+        try
+        {
+            // Try to get user ID from query string (sent by client)
+            var httpContext = Context.GetHttpContext();
+            var query = httpContext?.Request.Query;
+
+            if (query != null && query.TryGetValue("userId", out var userIdParam)
+                && !string.IsNullOrWhiteSpace(userIdParam))
+            {
+                var userId = userIdParam.ToString();
+                _logger.LogDebug("Using user ID from query parameter: {UserId}", userId);
+                return userId;
+            }
+
+            // Try to get existing user ID from cookie (if available)
+            if (httpContext?.Request.Cookies.TryGetValue("orchestrator_user_id", out var existingUserId) == true
+                && !string.IsNullOrWhiteSpace(existingUserId))
+            {
+                _logger.LogDebug("Found existing user ID in cookie: {UserId}", existingUserId);
+                return existingUserId;
+            }
+
+            // Fallback: use a deterministic ID based on IP + UserAgent for basic persistence
+            var userAgent = httpContext?.Request.Headers.UserAgent.ToString() ?? "unknown";
+            var remoteIp = httpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var fallbackId = $"user_{(userAgent + remoteIp).GetHashCode():x8}";
+
+            _logger.LogInformation("Created fallback persistent user ID: {UserId}", fallbackId);
+            return fallbackId;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get/create persistent user ID, falling back to connection ID");
+            // Ultimate fallback to connection ID
+            return Context.ConnectionId;
         }
     }
 

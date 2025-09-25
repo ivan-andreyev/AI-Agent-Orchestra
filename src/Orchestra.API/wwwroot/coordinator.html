@@ -79,8 +79,35 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
     <script>
+        // Get or create persistent user ID
+        function getOrCreateUserId() {
+            // FORCE regenerate ID to match Blazor client format
+            // Clear old ID to ensure compatibility
+            localStorage.removeItem('orchestrator_user_id');
+
+            // Use the same pattern as Blazor client for compatibility
+            const sharedUserId = "shared_user_" + new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            const hash = Math.abs(hashCode(sharedUserId));
+            const userId = 'user_' + hash.toString(16);
+            localStorage.setItem('orchestrator_user_id', userId);
+            console.log('Created new shared user ID:', userId);
+            return userId;
+        }
+
+        // Simple hash function
+        function hashCode(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            return hash;
+        }
+
+        const userId = getOrCreateUserId();
         const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/coordinatorHub")
+            .withUrl("/coordinatorHub?userId=" + encodeURIComponent(userId))
             .withAutomaticReconnect()
             .build();
 
@@ -173,6 +200,28 @@
                 .replace(/\n/g, '<br/>');
 
             addMessage(formattedMessage, type);
+        });
+
+        // Handle history messages for chat persistence
+        connection.on("ReceiveHistoryMessage", function (historyData) {
+            console.log('Received history message:', historyData);
+            const message = historyData.Message || historyData.message || '';
+            const type = historyData.Type || historyData.type || 'info';
+            const author = historyData.Author || historyData.author || '';
+            const timestamp = historyData.Timestamp || historyData.timestamp;
+
+            // Convert markdown-like formatting to HTML
+            const formattedMessage = message
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br/>');
+
+            // Format message with author info if available
+            const messageWithAuthor = author && author !== 'System'
+                ? `[${author}] ${formattedMessage}`
+                : formattedMessage;
+
+            addMessage(messageWithAuthor, type);
         });
     </script>
 </body>
