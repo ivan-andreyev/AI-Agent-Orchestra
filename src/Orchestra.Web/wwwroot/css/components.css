@@ -3144,6 +3144,7 @@ input, select, textarea {
 /* ORCHESTRATION CONTROL PANEL STYLES - Actions Block Refactoring Phase 1 */
 /* ======================================================================= */
 
+/* DEPRECATED: Phase 2 Bootstrap Integration - Replace with Bootstrap card */
 /* Control Panel Container */
 .orchestration-control-panel {
     background: var(--bg-secondary);

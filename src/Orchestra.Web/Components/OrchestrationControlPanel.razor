@@ -3,13 +3,16 @@
 @inject TaskTemplateService TemplateService
 @inject OrchestratorService OrchestratorService
 
-<div class="orchestration-control-panel">
-    <div class="panel-header">
-        <h3>🎛️ Orchestration Control Panel</h3>
-        <div class="panel-controls">
-            <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleCompactMode">
-                @(IsCompactMode ? "📖 Expand" : "📋 Compact")
-            </button>
+<!-- Bootstrap Phase 2: Replace orchestration-control-panel with Bootstrap card -->
+<div class="card bg-dark border-secondary" data-bs-theme="dark">
+    <div class="card-header bg-secondary bg-opacity-10">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">🎛️ Orchestration Control Panel</h5>
+            <div class="card-controls">
+                <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleCompactMode">
+                    @(IsCompactMode ? "📖 Expand" : "📋 Compact")
+                </button>
+            </div>
         </div>
     </div>
 
@@ -34,8 +37,8 @@
     }
     else
     {
-        <div class="panel-tabs">
-            <nav class="nav nav-tabs" role="tablist">
+        <div class="card-body p-0">
+            <nav class="nav nav-tabs card-header-tabs" role="tablist" data-bs-theme="dark">
                 <button class="nav-link @(ActiveTab == "templates" ? "active" : "")"
                         @onclick="OnTemplatesTabClick"
                         type="button" role="tab"
