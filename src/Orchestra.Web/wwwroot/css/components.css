@@ -269,6 +269,7 @@
  *        <div class="col-md-3"> (sidebar)
  *        <div class="col-md-9"> (content)
  */
+/* DEPRECATED: Phase 1 Bootstrap Integration - Replace with Bootstrap .container-fluid .row .col-* */
 .main-layout {
     display: grid;
     grid-template-columns: var(--sidebar-width) 1fr;
@@ -297,6 +298,7 @@
  *      <div class="col-12 mb-3"> (panel 2)
  *      <div class="col-12"> (coordinator panel)
  */
+/* DEPRECATED: Phase 1 Bootstrap Integration - Replace with Bootstrap .row .g-3 */
 .content-panels {
     display: grid;
     grid-template-rows: minmax(300px, 1fr) minmax(300px, 1fr) minmax(600px, auto);
