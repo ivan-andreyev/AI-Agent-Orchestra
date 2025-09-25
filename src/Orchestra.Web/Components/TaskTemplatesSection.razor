@@ -51,13 +51,14 @@
         <div class="templates-grid">
             @foreach (var template in _filteredTemplates)
             {
-                <div class="template-card @(template.Id == _expandedTemplateId ? "expanded" : "")">
-                    <div class="template-header" @onclick="() => ToggleTemplateExpansion(template.Id)">
+                <!-- Bootstrap Phase 2: Replace template-card with Bootstrap card -->
+                <div class="card bg-dark border-secondary h-100 @(template.Id == _expandedTemplateId ? "expanded" : "")" data-bs-theme="dark">
+                    <div class="card-header bg-secondary bg-opacity-10 template-header" @onclick="() => ToggleTemplateExpansion(template.Id)" style="cursor: pointer;">
                         <div class="template-info">
-                            <h5 class="template-name">
+                            <h5 class="card-title template-name mb-2">
                                 @GetCategoryIcon(template.Category) @template.Name
                             </h5>
-                            <p class="template-description">@template.Description</p>
+                            <p class="card-text template-description text-muted mb-2">@template.Description</p>
                             <div class="template-meta">
                                 <small class="text-muted">
                                     @template.Steps.Count step@(template.Steps.Count != 1 ? "s" : "") •
@@ -85,17 +86,17 @@
 
                     @if (template.Id == _expandedTemplateId)
                     {
-                        <div class="template-details">
-                            <div class="template-steps">
-                                <h6>📝 Execution Steps:</h6>
-                                <ol class="steps-list">
+                        <div class="card-body template-details">
+                            <div class="template-steps mb-3">
+                                <h6 class="card-subtitle mb-2">📝 Execution Steps:</h6>
+                                <ol class="list-group list-group-flush">
                                     @foreach (var step in template.Steps)
                                     {
-                                        <li class="step-item">
-                                            <div class="step-command">
-                                                <code>@step.Command</code>
+                                        <li class="list-group-item bg-dark text-light border-secondary step-item">
+                                            <div class="step-command mb-2">
+                                                <code class="bg-secondary p-1 rounded">@step.Command</code>
                                             </div>
-                                            <div class="step-meta">
+                                            <div class="step-meta d-flex align-items-center gap-2">
                                                 <span class="badge bg-@GetPriorityColor(step.Priority)">@step.Priority</span>
                                                 @if (step.RequiresPreviousSuccess)
                                                 {
@@ -113,19 +114,19 @@
                             @if (template.AllowParameterCustomization && template.DefaultParameters.Any())
                             {
                                 <div class="template-parameters">
-                                    <h6>⚙️ Parameters:</h6>
-                                    <div class="parameters-grid">
+                                    <h6 class="card-subtitle mb-2">⚙️ Parameters:</h6>
+                                    <div class="row g-2 parameters-grid">
                                         @foreach (var param in template.DefaultParameters)
                                         {
-                                            <div class="parameter-item">
+                                            <div class="col-md-6 parameter-item">
                                                 <label class="form-label">@param.Key</label>
-                                                <input type="text" class="form-control form-control-sm"
+                                                <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
                                                        value="@param.Value?.ToString()"
                                                        @onchange="(e) => UpdateTemplateParameter(template.Id, param.Key, e.Value?.ToString())" />
                                             </div>
                                         }
                                     </div>
-                                    <div class="mt-2">
+                                    <div class="mt-3">
                                         <button class="btn btn-sm btn-success"
                                                 @onclick="() => ExecuteTemplateWithParameters(template.Id)"
                                                 disabled="@(_isExecuting || string.IsNullOrEmpty(RepositoryPath))">

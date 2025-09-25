@@ -134,6 +134,9 @@ public class Startup
         // Register connection session service for thread-safe session management
         services.AddSingleton<IConnectionSessionService, ConnectionSessionService>();
 
+        // Register repository path service for configuration management
+        services.AddScoped<IRepositoryPathService, RepositoryPathService>();
+
         // Add health checks for chat context service and dependencies
         services.AddHealthChecks()
             .AddCheck<ChatContextServiceHealthCheck>("chat-context", tags: new[] { "chat", "database" })

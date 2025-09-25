@@ -3046,6 +3046,7 @@ input, select, textarea {
     }
 }
 
+/* DEPRECATED: Phase 2 Bootstrap Integration - Replace with Bootstrap card */
 /* Performance Monitoring Styles (Phase 0.2) */
 .performance-monitoring-section {
     background: var(--performance-bg);
@@ -3347,6 +3348,10 @@ input, select, textarea {
     gap: 12px;
 }
 
+/* DEPRECATED: Phase 2 Bootstrap Integration - Replace with Bootstrap card
+ * OLD: Custom template card implementation
+ * NEW: Use Bootstrap .card with dark theme: <div class="card bg-dark border-secondary h-100">
+ */
 .template-card {
     background: var(--bg-primary);
     border: 1px solid var(--border-color);

@@ -6,6 +6,8 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.SignalR;
 using Orchestra.API.Hubs;
 using Orchestra.API.Services;
+using Orchestra.Core.Services;
+using Orchestra.Core.Models.Chat;
 using System.Text;
 using System.Text.Json;
 
@@ -21,17 +23,23 @@ public class TaskExecutionJob
     private readonly ILogger<TaskExecutionJob> _logger;
     private readonly IHubContext<CoordinatorChatHub> _hubContext;
     private readonly IAgentExecutor _agentExecutor;
+    private readonly IChatContextService _chatContextService;
+    private readonly IConnectionSessionService _sessionService;
 
     public TaskExecutionJob(
         SimpleOrchestrator orchestrator,
         ILogger<TaskExecutionJob> logger,
         IHubContext<CoordinatorChatHub> hubContext,
-        IAgentExecutor agentExecutor)
+        IAgentExecutor agentExecutor,
+        IChatContextService chatContextService,
+        IConnectionSessionService sessionService)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
         _agentExecutor = agentExecutor ?? throw new ArgumentNullException(nameof(agentExecutor));
+        _chatContextService = chatContextService ?? throw new ArgumentNullException(nameof(chatContextService));
+        _sessionService = sessionService ?? throw new ArgumentNullException(nameof(sessionService));
     }
 
     /// <summary>
@@ -43,6 +51,7 @@ public class TaskExecutionJob
     /// <param name="command">Command to execute</param>
     /// <param name="repositoryPath">Repository path for execution context</param>
     /// <param name="priority">Task priority level</param>
+    /// <param name="connectionId">SignalR connection ID for sending results to specific client</param>
     /// <param name="context">Hangfire performance context</param>
     public async Task ExecuteAsync(
         string taskId,
@@ -50,6 +59,7 @@ public class TaskExecutionJob
         string command,
         string repositoryPath,
         TaskPriority priority,
+        string? connectionId,
         PerformContext context)
     {
         var jobId = context.BackgroundJob.Id;
@@ -86,7 +96,7 @@ public class TaskExecutionJob
                 await UpdateJobProgress(jobId, 80, "Command execution completed");
 
                 // STEP 6: PROCESS execution results
-                await ProcessExecutionResults(taskId, agentId, result, stopwatch.Elapsed);
+                await ProcessExecutionResults(taskId, agentId, result, stopwatch.Elapsed, connectionId);
                 await UpdateJobProgress(jobId, 90, "Execution results processed");
 
                 // STEP 7: UPDATE task and agent status
@@ -327,7 +337,7 @@ public class TaskExecutionJob
         }
     }
 
-    private async Task ProcessExecutionResults(string taskId, string agentId, TaskResult result, TimeSpan executionDuration)
+    private async Task ProcessExecutionResults(string taskId, string agentId, TaskResult result, TimeSpan executionDuration, string? connectionId)
     {
         // VALIDATE output format and content
         var processedOutput = result.Output;
@@ -342,13 +352,17 @@ public class TaskExecutionJob
             taskId, result.Success, executionDuration.TotalMilliseconds, result.ExecutionTime?.TotalMilliseconds ?? 0);
 
         // Send result back to coordinator chat
-        await SendResultToChat(taskId, result, executionDuration);
+        await SendResultToChat(taskId, result, executionDuration, connectionId);
     }
 
     /// <summary>
-    /// Sends task execution result back to the coordinator chat via SignalR
+    /// Sends task execution result back to the coordinator chat via SignalR and saves to database
     /// </summary>
-    private async Task SendResultToChat(string taskId, TaskResult result, TimeSpan executionDuration)
+    /// <param name="taskId">Task identifier</param>
+    /// <param name="result">Task execution result</param>
+    /// <param name="executionDuration">How long the task took to execute</param>
+    /// <param name="connectionId">SignalR connection ID for targeted delivery</param>
+    private async Task SendResultToChat(string taskId, TaskResult result, TimeSpan executionDuration, string? connectionId)
     {
         try
         {
@@ -357,20 +371,105 @@ public class TaskExecutionJob
             var message = FormatTaskResult(taskId, result, executionDuration);
             var messageType = result.Success ? "success" : "error";
 
-            await _hubContext.Clients.All.SendAsync("ReceiveResponse", new
+            // FIRST: Save to database if connectionId is available
+            if (!string.IsNullOrEmpty(connectionId))
+            {
+                await SaveAgentMessageToDatabase(connectionId, message, messageType, taskId);
+            }
+
+            var responseData = new
             {
                 Message = message,
                 Type = messageType,
                 Timestamp = DateTime.UtcNow,
                 TaskId = taskId
-            });
+            };
 
-            _logger.LogInformation("Task result sent to chat - TaskId: {TaskId}, Success: {Success}, MessageLength: {Length}",
-                taskId, result.Success, message.Length);
+            // THEN: Send to user group if connectionId is provided (for cross-client synchronization), otherwise broadcast to all
+            if (!string.IsNullOrEmpty(connectionId))
+            {
+                // Get user session to find userId and broadcast to all connections for this user
+                var session = await _sessionService.GetSessionAsync(connectionId);
+                if (session != null)
+                {
+                    _logger.LogInformation("Sending task result to user group - TaskId: {TaskId}, UserId: {UserId}",
+                        taskId, session.UserId);
+
+                    await _hubContext.Clients.Group($"user_{session.UserId}").SendAsync("ReceiveResponse", responseData);
+                }
+                else
+                {
+                    // Fallback to specific client if session not found
+                    _logger.LogWarning("Session not found, sending to specific client - TaskId: {TaskId}, ConnectionId: {ConnectionId}",
+                        taskId, connectionId);
+
+                    await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveResponse", responseData);
+                }
+            }
+            else
+            {
+                _logger.LogWarning("No connectionId provided, broadcasting to all clients - TaskId: {TaskId}", taskId);
+                await _hubContext.Clients.All.SendAsync("ReceiveResponse", responseData);
+            }
+
+            _logger.LogInformation("Task result sent to chat - TaskId: {TaskId}, Success: {Success}, MessageLength: {Length}, TargetedDelivery: {Targeted}",
+                taskId, result.Success, message.Length, !string.IsNullOrEmpty(connectionId));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send task result to chat - TaskId: {TaskId}", taskId);
+        }
+    }
+
+    /// <summary>
+    /// Saves agent response message to database for persistence
+    /// </summary>
+    /// <param name="connectionId">SignalR connection ID</param>
+    /// <param name="message">Message content</param>
+    /// <param name="messageType">Type of message (success, error, etc.)</param>
+    /// <param name="taskId">Associated task ID</param>
+    private async Task SaveAgentMessageToDatabase(string connectionId, string message, string messageType, string taskId)
+    {
+        try
+        {
+            // Get session for this connection
+            var session = await _sessionService.GetSessionAsync(connectionId);
+            if (session == null)
+            {
+                _logger.LogWarning("No session found for connection {ConnectionId} when saving agent message", connectionId);
+                return;
+            }
+
+            // Determine author and message type
+            var author = messageType == "success" ? "Claude Code Agent" : "System";
+            var dbMessageType = messageType == "success" ? MessageType.Agent : MessageType.System;
+
+            // Create metadata with task information
+            var metadata = JsonSerializer.Serialize(new
+            {
+                connectionId,
+                responseType = messageType,
+                taskId,
+                timestamp = DateTime.UtcNow
+            });
+
+            // Save to database
+            await _chatContextService.SaveMessageAsync(
+                session.Id,
+                author,
+                message,
+                dbMessageType,
+                metadata
+            );
+
+            _logger.LogDebug("Agent message saved to database for session {SessionId}: TaskId {TaskId}",
+                session.Id, taskId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save agent message to database for connection {ConnectionId}, TaskId {TaskId}",
+                connectionId, taskId);
+            // Don't rethrow - message saving failure shouldn't prevent SignalR delivery
         }
     }
 

@@ -97,8 +97,16 @@
                     </div>
 
                     <!-- Performance Monitoring Section (Phase 0.2) -->
-                    <div class="sidebar-section performance-monitoring-section">
-                        <PerformanceMonitor />
+                    <!-- Bootstrap Phase 2: Replace performance-monitoring-section with Bootstrap card -->
+                    <div class="sidebar-section">
+                        <div class="card bg-dark border-primary" data-bs-theme="dark">
+                            <div class="card-header bg-primary bg-opacity-10">
+                                <h6 class="card-subtitle mb-0 text-primary">Performance Monitor</h6>
+                            </div>
+                            <div class="card-body p-2">
+                                <PerformanceMonitor />
+                            </div>
+                        </div>
                     </div>
                 </div>
 

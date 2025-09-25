@@ -35,13 +35,14 @@ public class HangfireOrchestrator
     /// <param name="command">Command to execute</param>
     /// <param name="repositoryPath">Repository path for execution context</param>
     /// <param name="priority">Task priority level</param>
+    /// <param name="connectionId">SignalR connection ID for targeted result delivery</param>
     /// <returns>Task ID for tracking</returns>
-    public async Task<string> QueueTaskAsync(string command, string repositoryPath, TaskPriority priority = TaskPriority.Normal)
+    public async Task<string> QueueTaskAsync(string command, string repositoryPath, TaskPriority priority = TaskPriority.Normal, string? connectionId = null)
     {
         var taskId = Guid.NewGuid().ToString();
 
-        _logger.LogInformation("Queuing task via Hangfire - TaskId: {TaskId}, Command: {Command}, Repository: {RepositoryPath}, Priority: {Priority}",
-            taskId, command, repositoryPath, priority);
+        _logger.LogInformation("Queuing task via Hangfire - TaskId: {TaskId}, Command: {Command}, Repository: {RepositoryPath}, Priority: {Priority}, ConnectionId: {ConnectionId}",
+            taskId, command, repositoryPath, priority, connectionId ?? "[none]");
 
         try
         {
@@ -67,6 +68,7 @@ public class HangfireOrchestrator
                     command,
                     repositoryPath,
                     priority,
+                    connectionId,
                     null!)); // PerformContext is injected by Hangfire
 
             _logger.LogInformation("Task successfully enqueued via Hangfire - TaskId: {TaskId}, JobId: {JobId}, AgentId: {AgentId}, Queue: {Queue}",
@@ -89,8 +91,9 @@ public class HangfireOrchestrator
     /// <param name="repositoryPath">Repository path for execution context</param>
     /// <param name="executeAt">When to execute the task</param>
     /// <param name="priority">Task priority level</param>
+    /// <param name="connectionId">SignalR connection ID for targeted result delivery</param>
     /// <returns>Task ID for tracking</returns>
-    public async Task<string> ScheduleTaskAsync(string command, string repositoryPath, DateTime executeAt, TaskPriority priority = TaskPriority.Normal)
+    public async Task<string> ScheduleTaskAsync(string command, string repositoryPath, DateTime executeAt, TaskPriority priority = TaskPriority.Normal, string? connectionId = null)
     {
         var taskId = Guid.NewGuid().ToString();
 
@@ -112,6 +115,7 @@ public class HangfireOrchestrator
                     command,
                     repositoryPath,
                     priority,
+                    connectionId,
                     null!), // PerformContext is injected by Hangfire
                 executeAt);
 
@@ -170,6 +174,7 @@ public class HangfireOrchestrator
                             "echo 'Claude Code CLI initialized'",
                             agent.RepositoryPath ?? string.Empty,
                             TaskPriority.Low,
+                            null, // No connectionId for warmup
                             null!));
 
                     _logger.LogInformation("Warm-up task queued for agent {AgentId} - TaskId: {TaskId}, JobId: {JobId}",
