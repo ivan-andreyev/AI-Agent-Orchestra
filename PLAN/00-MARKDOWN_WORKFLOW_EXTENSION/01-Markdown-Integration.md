@@ -13,16 +13,16 @@
 ## Задачи фазы
 
 ### Простые задачи (выполняются здесь)
-- [ ] Установить NuGet пакет MarkDig в Orchestra.Core проект (< 30 минут)
-- [ ] Создать базовые модели для markdown workflow (< 30 минут)
-- [ ] Добавить константы и enums для markdown обработки (< 30 минут)
-- [ ] Создать unit тесты для основных компонентов (< 1 часа)
+- [x] Установить NuGet пакет MarkDig в Orchestra.Core проект (< 30 минут) ✅ COMPLETE
+- [x] Создать базовые модели для markdown workflow (< 30 минут) ✅ COMPLETE
+- [x] Добавить константы и enums для markdown обработки (< 30 минут) ✅ COMPLETE
+- [x] Создать unit тесты для основных компонентов (< 1 часа) ✅ COMPLETE
 
 ### Сложные задачи (ссылки на дочерние файлы)
-- [ ] [01-01-markdown-models.md](./01-Markdown-Integration/01-01-markdown-models.md) - Модели данных для markdown workflow
-- [ ] [01-02-markdown-parser.md](./01-Markdown-Integration/01-02-markdown-parser.md) - Парсер markdown документов
-- [ ] [01-03-workflow-converter.md](./01-Markdown-Integration/01-03-workflow-converter.md) - Конвертер markdown → JSON WorkflowDefinition
-- [ ] [01-04-file-watcher.md](./01-Markdown-Integration/01-04-file-watcher.md) - Отслеживание изменений markdown файлов
+- [x] [01-01-markdown-models.md](./01-Markdown-Integration/01-01-markdown-models.md) - Модели данных для markdown workflow ✅ COMPLETE
+- [x] [01-02-markdown-parser.md](./01-Markdown-Integration/01-02-markdown-parser.md) - Парсер markdown документов ✅ COMPLETE
+- [x] [01-03-workflow-converter.md](./01-Markdown-Integration/01-03-workflow-converter.md) - Конвертер markdown → JSON WorkflowDefinition ✅ COMPLETE
+- [x] [01-04-file-watcher.md](./01-Markdown-Integration/01-04-file-watcher.md) - Отслеживание изменений markdown файлов ✅ COMPLETE
 - [ ] [01-05-workflow-engine-extension.md](./01-Markdown-Integration/01-05-workflow-engine-extension.md) - Расширение существующего IWorkflowEngine
 - [ ] [01-06-mediator-commands.md](./01-Markdown-Integration/01-06-mediator-commands.md) - Command/Handler паттерн для markdown операций
 

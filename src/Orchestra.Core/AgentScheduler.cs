@@ -2,6 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using Orchestra.Core.Services;
+using Orchestra.Core.Models;
 
 namespace Orchestra.Core;
 
@@ -157,11 +158,117 @@ public class AgentScheduler : BackgroundService
             {
                 _logger.LogInformation("Assigning task {TaskId} to agent {AgentName}", task.Id, agent.Name);
 
-                // TODO: Здесь должна быть логика отправки команды агенту
-                // Пока просто обновляем статус
+                // Обновляем статус агента на Working
                 _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Working, task.Command);
+
+                // Отправляем команду агенту асинхронно
+                _ = Task.Run(async () => await ExecuteTaskOnAgent(agent, task));
             }
         }
+    }
+
+    /// <summary>
+    /// Выполняет задачу на агенте с полной обработкой результата
+    /// </summary>
+    /// <param name="agent">Информация об агенте</param>
+    /// <param name="task">Задача для выполнения</param>
+    private async Task ExecuteTaskOnAgent(AgentInfo agent, TaskRequest task)
+    {
+        try
+        {
+            _logger.LogInformation("Starting task execution {TaskId} on agent {AgentName}", task.Id, agent.Name);
+
+            // Находим конфигурацию агента для определения типа
+            var agentConfig = _config.Agents.FirstOrDefault(a => a.Id == agent.Id);
+            if (agentConfig == null)
+            {
+                _logger.LogError("Agent configuration not found for agent {AgentId}", agent.Id);
+                _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Error, "Configuration not found");
+                return;
+            }
+
+            // Выполняем команду в зависимости от типа агента
+            if (agentConfig.Type == "claude-code" && _claudeCodeService != null)
+            {
+                await ExecuteClaudeCodeTask(agent, task, agentConfig);
+            }
+            else
+            {
+                // Для других типов агентов используем стандартную логику
+                await ExecuteStandardTask(agent, task, agentConfig);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to execute task {TaskId} on agent {AgentName}", task.Id, agent.Name);
+            _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Error, $"Task execution failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Выполняет задачу на агенте Claude Code
+    /// </summary>
+    private async Task ExecuteClaudeCodeTask(AgentInfo agent, TaskRequest task, ConfiguredAgent agentConfig)
+    {
+        try
+        {
+            var parameters = new Dictionary<string, object>
+            {
+                { "repositoryPath", task.RepositoryPath },
+                { "taskId", task.Id },
+                { "priority", task.Priority.ToString() },
+                { "createdAt", task.CreatedAt.ToString("O") }
+            };
+
+            _logger.LogDebug("Executing Claude Code command: {Command} on agent {AgentName}", task.Command, agent.Name);
+
+            var result = await _claudeCodeService!.ExecuteCommandAsync(
+                agent.Id,
+                task.Command,
+                parameters
+            );
+
+            if (result.Success)
+            {
+                _logger.LogInformation("Task {TaskId} completed successfully on agent {AgentName}. Output: {Output}",
+                    task.Id, agent.Name, result.Output);
+
+                _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Idle, null);
+
+                // Здесь можно добавить логику сохранения результата задачи
+                _logger.LogDebug("Task execution time: {ExecutionTime}, Workflow ID: {WorkflowId}",
+                    result.ExecutionTime, result.WorkflowId);
+            }
+            else
+            {
+                _logger.LogError("Task {TaskId} failed on agent {AgentName}. Error: {Error}",
+                    task.Id, agent.Name, result.ErrorMessage);
+
+                _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Error, result.ErrorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception during Claude Code task execution for task {TaskId} on agent {AgentName}",
+                task.Id, agent.Name);
+
+            _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Error, $"Execution exception: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Выполняет задачу на стандартном агенте (заглушка для будущего расширения)
+    /// </summary>
+    private async Task ExecuteStandardTask(AgentInfo agent, TaskRequest task, ConfiguredAgent agentConfig)
+    {
+        _logger.LogWarning("Standard agent execution not implemented yet for agent type {AgentType}. Task {TaskId} on agent {AgentName} will be marked as completed.",
+            agentConfig.Type, task.Id, agent.Name);
+
+        // Имитируем выполнение задачи
+        await Task.Delay(TimeSpan.FromSeconds(1));
+
+        // Возвращаем агента в состояние Idle
+        _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Idle, null);
     }
 
     /// <summary>

@@ -10,6 +10,8 @@ public class WorkflowEngine : IWorkflowEngine
 {
     private readonly ILogger<WorkflowEngine> _logger;
     private readonly ILoopExecutor _loopExecutor;
+    private readonly IMarkdownWorkflowParser? _markdownParser;
+    private readonly IMarkdownToWorkflowConverter? _markdownConverter;
     private readonly Dictionary<string, WorkflowExecutionResult> _executionResults;
 
     /// <summary>
@@ -17,10 +19,18 @@ public class WorkflowEngine : IWorkflowEngine
     /// </summary>
     /// <param name="logger">Логгер для записи событий выполнения</param>
     /// <param name="loopExecutor">Исполнитель циклов для обработки Loop шагов</param>
-    public WorkflowEngine(ILogger<WorkflowEngine> logger, ILoopExecutor loopExecutor)
+    /// <param name="markdownParser">Парсер markdown workflow (опционально)</param>
+    /// <param name="markdownConverter">Конвертер markdown workflow (опционально)</param>
+    public WorkflowEngine(
+        ILogger<WorkflowEngine> logger,
+        ILoopExecutor loopExecutor,
+        IMarkdownWorkflowParser? markdownParser = null,
+        IMarkdownToWorkflowConverter? markdownConverter = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _loopExecutor = loopExecutor ?? throw new ArgumentNullException(nameof(loopExecutor));
+        _markdownParser = markdownParser;
+        _markdownConverter = markdownConverter;
         _executionResults = new Dictionary<string, WorkflowExecutionResult>();
     }
 
@@ -1449,6 +1459,239 @@ public class WorkflowEngine : IWorkflowEngine
         }
 
         return stepResults;
+    }
+
+    /// <summary>
+    /// Выполняет markdown workflow из файла
+    /// </summary>
+    /// <param name="markdownFilePath">Путь к markdown файлу</param>
+    /// <param name="context">Контекст выполнения</param>
+    /// <returns>Результат выполнения workflow</returns>
+    public async Task<WorkflowExecutionResult> ExecuteMarkdownWorkflowAsync(string markdownFilePath, WorkflowContext context)
+    {
+        if (string.IsNullOrWhiteSpace(markdownFilePath))
+        {
+            throw new ArgumentException("Путь к markdown файлу не может быть пустым", nameof(markdownFilePath));
+        }
+
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
+        if (_markdownParser == null || _markdownConverter == null)
+        {
+            throw new InvalidOperationException("Markdown парсер и конвертер не настроены для WorkflowEngine");
+        }
+
+        try
+        {
+            // Проверяем существование файла
+            if (!File.Exists(markdownFilePath))
+            {
+                throw new FileNotFoundException($"Markdown файл не найден: {markdownFilePath}");
+            }
+
+            // Читаем содержимое файла
+            var markdownContent = await File.ReadAllTextAsync(markdownFilePath);
+
+            // Парсим markdown в MarkdownWorkflow
+            var parseResult = await _markdownParser.ParseAsync(markdownContent, markdownFilePath);
+            if (!parseResult.IsSuccess || parseResult.Workflow == null)
+            {
+                throw new InvalidOperationException($"Ошибка парсинга markdown workflow: {parseResult.ErrorMessage}");
+            }
+
+            // Конвертируем в WorkflowDefinition
+            var conversionResult = await _markdownConverter.ConvertAsync(parseResult.Workflow);
+            if (!conversionResult.IsSuccess || conversionResult.WorkflowDefinition == null)
+            {
+                throw new InvalidOperationException($"Ошибка конвертации markdown workflow: {conversionResult.ErrorMessage}");
+            }
+
+            // Выполняем workflow
+            _logger.LogInformation("Выполнение markdown workflow из файла {FilePath}", markdownFilePath);
+            return await ExecuteAsync(conversionResult.WorkflowDefinition, context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при выполнении markdown workflow из файла {FilePath}", markdownFilePath);
+            return CreateFailedResult(context.ExecutionId, ex);
+        }
+    }
+
+    /// <summary>
+    /// Конвертирует markdown workflow в WorkflowDefinition
+    /// </summary>
+    /// <param name="markdownFilePath">Путь к markdown файлу</param>
+    /// <returns>Объект WorkflowDefinition</returns>
+    public async Task<WorkflowDefinition> ConvertMarkdownToWorkflowAsync(string markdownFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(markdownFilePath))
+        {
+            throw new ArgumentException("Путь к markdown файлу не может быть пустым", nameof(markdownFilePath));
+        }
+
+        if (_markdownParser == null || _markdownConverter == null)
+        {
+            throw new InvalidOperationException("Markdown парсер и конвертер не настроены для WorkflowEngine");
+        }
+
+        try
+        {
+            // Проверяем существование файла
+            if (!File.Exists(markdownFilePath))
+            {
+                throw new FileNotFoundException($"Markdown файл не найден: {markdownFilePath}");
+            }
+
+            // Читаем содержимое файла
+            var markdownContent = await File.ReadAllTextAsync(markdownFilePath);
+
+            // Парсим markdown в MarkdownWorkflow
+            var parseResult = await _markdownParser.ParseAsync(markdownContent, markdownFilePath);
+            if (!parseResult.IsSuccess || parseResult.Workflow == null)
+            {
+                throw new InvalidOperationException($"Ошибка парсинга markdown workflow: {parseResult.ErrorMessage}");
+            }
+
+            // Конвертируем в WorkflowDefinition
+            var conversionResult = await _markdownConverter.ConvertAsync(parseResult.Workflow);
+            if (!conversionResult.IsSuccess || conversionResult.WorkflowDefinition == null)
+            {
+                throw new InvalidOperationException($"Ошибка конвертации markdown workflow: {conversionResult.ErrorMessage}");
+            }
+
+            _logger.LogDebug("Успешно конвертирован markdown workflow из файла {FilePath}", markdownFilePath);
+            return conversionResult.WorkflowDefinition;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при конвертации markdown workflow из файла {FilePath}", markdownFilePath);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Валидирует markdown workflow файл
+    /// </summary>
+    /// <param name="markdownFilePath">Путь к markdown файлу</param>
+    /// <returns>True если workflow валиден, false в противном случае</returns>
+    public async Task<bool> ValidateMarkdownWorkflowAsync(string markdownFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(markdownFilePath))
+        {
+            _logger.LogWarning("Путь к markdown файлу не может быть пустым");
+            return false;
+        }
+
+        try
+        {
+            // Проверяем существование файла
+            if (!File.Exists(markdownFilePath))
+            {
+                _logger.LogWarning("Markdown файл не найден: {FilePath}", markdownFilePath);
+                return false;
+            }
+
+            if (_markdownParser == null)
+            {
+                _logger.LogWarning("Markdown парсер не настроен для WorkflowEngine");
+                return false;
+            }
+
+            // Читаем содержимое файла
+            var markdownContent = await File.ReadAllTextAsync(markdownFilePath);
+
+            // Проверяем валидность через парсер
+            var isValid = await _markdownParser.IsValidWorkflowAsync(markdownContent);
+
+            if (isValid)
+            {
+                // Дополнительная валидация через парсинг
+                var parseResult = await _markdownParser.ParseAsync(markdownContent, markdownFilePath);
+                if (!parseResult.IsSuccess)
+                {
+                    _logger.LogWarning("Ошибка парсинга markdown workflow: {Error}", parseResult.ErrorMessage);
+                    return false;
+                }
+
+                _logger.LogDebug("Markdown workflow валиден: {FilePath}", markdownFilePath);
+                return true;
+            }
+            else
+            {
+                _logger.LogWarning("Markdown файл не является валидным workflow: {FilePath}", markdownFilePath);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при валидации markdown workflow файла {FilePath}", markdownFilePath);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Получает список markdown workflow файлов в директории
+    /// </summary>
+    /// <param name="directoryPath">Путь к директории для поиска</param>
+    /// <returns>Список путей к markdown workflow файлам</returns>
+    public async Task<IEnumerable<string>> GetMarkdownWorkflowFilesAsync(string directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+        {
+            throw new ArgumentException("Путь к директории не может быть пустым", nameof(directoryPath));
+        }
+
+        try
+        {
+            if (!Directory.Exists(directoryPath))
+            {
+                _logger.LogWarning("Директория не найдена: {DirectoryPath}", directoryPath);
+                return new List<string>();
+            }
+
+            // Поиск всех .md файлов
+            var allMarkdownFiles = Directory.GetFiles(directoryPath, "*.md", SearchOption.AllDirectories);
+
+            if (_markdownParser == null)
+            {
+                _logger.LogWarning("Markdown парсер не настроен - возвращаем все .md файлы");
+                return allMarkdownFiles;
+            }
+
+            // Фильтруем файлы, оставляя только валидные workflow
+            var workflowFiles = new List<string>();
+
+            foreach (var filePath in allMarkdownFiles)
+            {
+                try
+                {
+                    var content = await File.ReadAllTextAsync(filePath);
+                    var isValidWorkflow = await _markdownParser.IsValidWorkflowAsync(content);
+
+                    if (isValidWorkflow)
+                    {
+                        workflowFiles.Add(filePath);
+                        _logger.LogDebug("Найден валидный markdown workflow: {FilePath}", filePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Ошибка при проверке файла {FilePath} на валидность workflow", filePath);
+                    // Продолжаем проверку других файлов
+                }
+            }
+
+            _logger.LogInformation("Найдено {Count} markdown workflow файлов в директории {DirectoryPath}", workflowFiles.Count, directoryPath);
+            return workflowFiles;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при поиске markdown workflow файлов в директории {DirectoryPath}", directoryPath);
+            throw;
+        }
     }
 
     /// <summary>
