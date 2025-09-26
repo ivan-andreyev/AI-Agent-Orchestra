@@ -113,11 +113,7 @@ public class Startup
         });
 
         // Add MediatR for LLM-friendly Command/Query pattern
-        services.AddMediatR(cfg =>
-        {
-            cfg.RegisterServicesFromAssembly(typeof(Startup).Assembly);
-            cfg.RegisterServicesFromAssembly(typeof(Orchestra.Core.Commands.ICommand).Assembly);
-        });
+        services.AddMediatR(typeof(Startup).Assembly, typeof(Orchestra.Core.Commands.ICommand).Assembly);
 
         services.AddSingleton<SimpleOrchestrator>();
         services.AddSingleton<AgentConfiguration>(provider =>

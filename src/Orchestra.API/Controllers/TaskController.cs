@@ -3,6 +3,7 @@ using MediatR;
 using Orchestra.Core.Commands.Tasks;
 using Orchestra.Core.Queries.Tasks;
 using Orchestra.Core.Models;
+using Orchestra.API.Models;
 
 namespace Orchestra.API.Controllers;
 
@@ -71,31 +72,30 @@ public class TaskController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Получить следующую задачу для агента
-    /// </summary>
-    [HttpGet("next-for-agent/{agentId}")]
-    public async Task<ActionResult<TaskRequest>> GetNextTaskForAgent(string agentId)
-    {
-        try
-        {
-            var query = new GetNextTaskForAgentQuery(agentId);
-            var task = await _mediator.Send(query);
+    // TODO: Temporarily disabled until MediatR IRequest issue is resolved
+    // /// <summary>
+    // /// Получить следующую задачу для агента
+    // /// </summary>
+    // [HttpGet("next-for-agent/{agentId}")]
+    // public async Task<ActionResult<TaskRequest>> GetNextTaskForAgent(string agentId)
+    // {
+    //     try
+    //     {
+    //         var query = new GetNextTaskForAgentQuery(agentId);
+    //         var task = await _mediator.Send(query);
 
-            if (task.IsEmpty)
-            {
-                return NoContent();
-            }
+    //         if (task.IsEmpty)
+    //         {
+    //             return NoContent();
+    //         }
 
-            return Ok(task);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get next task for agent");
-            return StatusCode(500, new { Message = "Failed to get next task", Error = ex.Message });
-        }
-    }
+    //         return Ok(task);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         _logger.LogError(ex, "Failed to get next task for agent");
+    //         return StatusCode(500, new { Message = "Failed to get next task", Error = ex.Message });
+    //     }
+    // }
 }
 
-public record CreateTaskRequest(string Command, string RepositoryPath, Orchestra.Core.Models.TaskPriority Priority = Orchestra.Core.Models.TaskPriority.Normal);
-public record UpdateTaskStatusRequest(Orchestra.Core.Models.TaskStatus Status, string? Result = null, string? ErrorMessage = null);
