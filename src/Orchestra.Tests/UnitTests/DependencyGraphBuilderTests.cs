@@ -25,8 +25,8 @@ public class DependencyGraphBuilderTests
     {
         var tasks = new List<BatchTaskRequest>
         {
-            new("task1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, "1"),
-            new("task2", "repo1", Orchestra.Web.Models.TaskPriority.Normal, "2", new List<string> { "1" })
+            new("task1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, "1"),
+            new("task2", "repo1", Orchestra.Core.Models.TaskPriority.Normal, "2", new List<string> { "1" })
         };
 
         var graph = await _builder.BuildDependencyGraphAsync(tasks);
@@ -42,7 +42,7 @@ public class DependencyGraphBuilderTests
     {
         var tasks = new List<BatchTaskRequest>
         {
-            new("task1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, "1", new List<string> { "nonexistent" })
+            new("task1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, "1", new List<string> { "nonexistent" })
         };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -99,9 +99,9 @@ public class DependencyGraphBuilderTests
     {
         var graph = new ExecutionGraph();
 
-        var node1 = new TaskNode("1", "cmd1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
-        var node2 = new TaskNode("2", "cmd2", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
-        var node3 = new TaskNode("3", "cmd3", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "2" });
+        var node1 = new TaskNode("1", "cmd1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
+        var node2 = new TaskNode("2", "cmd2", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
+        var node3 = new TaskNode("3", "cmd3", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "2" });
 
         graph.AddNode(node1);
         graph.AddNode(node2);
@@ -117,8 +117,8 @@ public class DependencyGraphBuilderTests
     {
         var graph = new ExecutionGraph();
 
-        var node1 = new TaskNode("1", "cmd1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "2" });
-        var node2 = new TaskNode("2", "cmd2", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
+        var node1 = new TaskNode("1", "cmd1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "2" });
+        var node2 = new TaskNode("2", "cmd2", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
 
         graph.AddNode(node1);
         graph.AddNode(node2);
@@ -133,10 +133,10 @@ public class DependencyGraphBuilderTests
     {
         var graph = new ExecutionGraph();
 
-        var node1 = new TaskNode("1", "cmd1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
-        var node2 = new TaskNode("2", "cmd2", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
-        var node3 = new TaskNode("3", "cmd3", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
-        var node4 = new TaskNode("4", "cmd4", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "2", "3" });
+        var node1 = new TaskNode("1", "cmd1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
+        var node2 = new TaskNode("2", "cmd2", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
+        var node3 = new TaskNode("3", "cmd3", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
+        var node4 = new TaskNode("4", "cmd4", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "2", "3" });
 
         graph.AddNode(node1);
         graph.AddNode(node2);

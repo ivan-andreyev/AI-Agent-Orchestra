@@ -28,6 +28,7 @@ public class TaskExecutionJob
     private readonly IAgentExecutor _agentExecutor;
     private readonly IChatContextService _chatContextService;
     private readonly IConnectionSessionService _sessionService;
+    private readonly TaskRepository _taskRepository;
 
     public TaskExecutionJob(
         SimpleOrchestrator orchestrator,
@@ -35,7 +36,8 @@ public class TaskExecutionJob
         IHubContext<CoordinatorChatHub> hubContext,
         IAgentExecutor agentExecutor,
         IChatContextService chatContextService,
-        IConnectionSessionService sessionService)
+        IConnectionSessionService sessionService,
+        TaskRepository taskRepository)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -43,6 +45,7 @@ public class TaskExecutionJob
         _agentExecutor = agentExecutor ?? throw new ArgumentNullException(nameof(agentExecutor));
         _chatContextService = chatContextService ?? throw new ArgumentNullException(nameof(chatContextService));
         _sessionService = sessionService ?? throw new ArgumentNullException(nameof(sessionService));
+        _taskRepository = taskRepository ?? throw new ArgumentNullException(nameof(taskRepository));
     }
 
     /// <summary>
@@ -85,8 +88,9 @@ public class TaskExecutionJob
 
             try
             {
-                // STEP 3: INITIALIZE execution tracking
+                // STEP 3: INITIALIZE execution tracking and update TaskRepository
                 await InitializeExecutionTracking(correlationId, taskId, agentId);
+                await UpdateTaskStatusInRepository(taskId, TaskStatus.InProgress, "Task execution started");
                 await UpdateJobProgress(jobId, 30, "Execution tracking initialized");
 
                 // STEP 4: PREPARE execution environment
@@ -104,6 +108,8 @@ public class TaskExecutionJob
 
                 // STEP 7: UPDATE task and agent status
                 await UpdateTaskAndAgentStatus(taskId, agentId, result, TaskStatus.Completed);
+                await UpdateTaskStatusInRepository(taskId, result.Success ? TaskStatus.Completed : TaskStatus.Failed,
+                    result.Output, result.ErrorMessage);
                 await UpdateJobProgress(jobId, 95, "Task and agent status updated");
 
                 // STEP 8: CLEANUP and audit
@@ -538,6 +544,34 @@ public class TaskExecutionJob
 
         // Log progress since Hangfire job parameter setting API is not available in this version
         _logger.LogInformation("Job {JobId} progress: {Percentage}% - {Message}", jobId, percentage, message);
+    }
+
+    /// <summary>
+    /// Updates task status in TaskRepository for proper task management integration
+    /// </summary>
+    /// <param name="taskId">Task ID to update</param>
+    /// <param name="status">New task status</param>
+    /// <param name="result">Task result output (optional)</param>
+    /// <param name="errorMessage">Error message if task failed (optional)</param>
+    private async Task UpdateTaskStatusInRepository(string taskId, TaskStatus status, string? result = null, string? errorMessage = null)
+    {
+        try
+        {
+            var success = await _taskRepository.UpdateTaskStatusAsync(taskId, status, result, errorMessage);
+            if (success)
+            {
+                _logger.LogDebug("Task status updated in repository - TaskId: {TaskId}, Status: {Status}", taskId, status);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to update task status in repository - TaskId: {TaskId}, Status: {Status}", taskId, status);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception while updating task status in repository - TaskId: {TaskId}, Status: {Status}", taskId, status);
+            // Don't rethrow - repository update failure shouldn't stop task execution
+        }
     }
 
     #region Error Handlers

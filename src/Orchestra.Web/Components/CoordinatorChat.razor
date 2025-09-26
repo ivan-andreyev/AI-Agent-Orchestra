@@ -12,7 +12,7 @@
 <div class="coordinator-chat">
     <div class="chat-header">
         <h4>🤖 Coordinator Agent</h4>
-        <div class="connection-status @(_connectionState.ToLowerInvariant())">
+        <div class="connection-status @(GetConnectionStatusClass())">
             @GetConnectionStatusText()
         </div>
         @if (_hubConnection != null)

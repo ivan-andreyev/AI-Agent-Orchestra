@@ -12,17 +12,20 @@ public class AgentScheduler : BackgroundService
     private readonly AgentConfiguration _config;
     private readonly TimeSpan _pingInterval;
     private readonly MarkdownPlanReader _planReader;
+    private readonly IClaudeCodeCoreService? _claudeCodeService;
 
     public AgentScheduler(
         SimpleOrchestrator orchestrator,
         ILogger<AgentScheduler> logger,
-        AgentConfiguration config)
+        AgentConfiguration config,
+        IClaudeCodeCoreService? claudeCodeService = null)
     {
         _orchestrator = orchestrator;
         _logger = logger;
         _config = config;
         _pingInterval = TimeSpan.FromSeconds(config.PingIntervalSeconds);
         _planReader = new MarkdownPlanReader();
+        _claudeCodeService = claudeCodeService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -87,8 +90,34 @@ public class AgentScheduler : BackgroundService
     {
         try
         {
-            // Проверяем доступность репозитория
-            var status = await CheckAgentStatus(agent);
+            AgentStatus status;
+
+            // Новая логика для Claude Code агентов
+            if (agent.Type == "claude-code" && _claudeCodeService != null)
+            {
+                _logger.LogDebug("Pinging Claude Code agent {AgentName} ({AgentId})", agent.Name, agent.Id);
+                var isAvailable = await _claudeCodeService.IsAgentAvailableAsync(agent.Id);
+                status = isAvailable ? AgentStatus.Idle : AgentStatus.Offline;
+
+                // Дополнительно получаем версию для диагностики
+                if (isAvailable)
+                {
+                    try
+                    {
+                        var version = await _claudeCodeService.GetAgentVersionAsync(agent.Id);
+                        _logger.LogDebug("Claude Code agent {AgentName} version: {Version}", agent.Name, version);
+                    }
+                    catch (Exception versionEx)
+                    {
+                        _logger.LogWarning(versionEx, "Could not get version for Claude Code agent {AgentName}", agent.Name);
+                    }
+                }
+            }
+            else
+            {
+                // Существующая логика для обычных агентов
+                status = await CheckAgentStatus(agent);
+            }
 
             _orchestrator.UpdateAgentStatus(agent.Id, status);
 

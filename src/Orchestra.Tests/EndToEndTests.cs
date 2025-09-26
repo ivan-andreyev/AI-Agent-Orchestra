@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Orchestra.Core;
+using Orchestra.Core.Models;
 using System.Text.Json;
 using System.Text;
 

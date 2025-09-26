@@ -67,7 +67,7 @@ public class BatchTaskExecutorTests
     public async Task ExecuteBatchAsync_WithTooManyTasks_ThrowsArgumentException()
     {
         var tasks = Enumerable.Range(1, 101)
-            .Select(i => new BatchTaskRequest($"cmd{i}", $"repo{i}", Orchestra.Web.Models.TaskPriority.Normal))
+            .Select(i => new BatchTaskRequest($"cmd{i}", $"repo{i}", Orchestra.Core.Models.TaskPriority.Normal))
             .ToList();
         var options = new BatchExecutionOptions();
         var progress = new Mock<IProgress<BatchProgress>>();
@@ -153,15 +153,15 @@ public class BatchTaskExecutorTests
     {
         return new List<BatchTaskRequest>
         {
-            new("cmd1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, "task1"),
-            new("cmd2", "repo1", Orchestra.Web.Models.TaskPriority.Normal, "task2")
+            new("cmd1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, "task1"),
+            new("cmd2", "repo1", Orchestra.Core.Models.TaskPriority.Normal, "task2")
         };
     }
 
     private ExecutionGraph CreateMockGraph()
     {
         var graph = new ExecutionGraph();
-        var node = new TaskNode("task1", "cmd1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
+        var node = new TaskNode("task1", "cmd1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
         graph.AddNode(node);
         return graph;
     }
@@ -170,7 +170,7 @@ public class BatchTaskExecutorTests
     {
         return new List<TaskNode>
         {
-            new("task1", "cmd1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>())
+            new("task1", "cmd1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>())
         };
     }
 

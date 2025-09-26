@@ -1,4 +1,5 @@
 using Orchestra.Core;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
 namespace Orchestra.Tests.UnitTests;
 

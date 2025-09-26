@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Orchestra.Core;
+using Orchestra.Core.Models;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;

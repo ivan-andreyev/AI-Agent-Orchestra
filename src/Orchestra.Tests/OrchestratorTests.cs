@@ -1,6 +1,7 @@
 using Orchestra.Core;
 using Microsoft.Extensions.Logging;
 using Moq;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
 namespace Orchestra.Tests;
 

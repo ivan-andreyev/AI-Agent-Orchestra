@@ -1,4 +1,5 @@
 using Orchestra.Core.Models;
+using Orchestra.Core.Services;
 using TaskStatus = Orchestra.Core.Models.TaskStatus;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
@@ -11,8 +12,9 @@ public class SimpleOrchestrator : IDisposable
     private readonly string _stateFilePath;
     private readonly ClaudeSessionDiscovery _sessionDiscovery;
     private readonly object _lock = new();
+    private readonly IClaudeCodeCoreService? _claudeCodeService;
 
-    public SimpleOrchestrator(string stateFilePath = "orchestrator-state.json")
+    public SimpleOrchestrator(string stateFilePath = "orchestrator-state.json", IClaudeCodeCoreService? claudeCodeService = null)
     {
         // Generate unique file path for tests to avoid conflicts
         if (stateFilePath == "orchestrator-state.json" && IsRunningInTest())
@@ -25,6 +27,7 @@ public class SimpleOrchestrator : IDisposable
         }
 
         _sessionDiscovery = new ClaudeSessionDiscovery();
+        _claudeCodeService = claudeCodeService;
         LoadState();
     }
 
@@ -366,6 +369,116 @@ public class SimpleOrchestrator : IDisposable
         lock (_lock)
         {
             return _taskQueue.FirstOrDefault(t => t.Id == taskId);
+        }
+    }
+
+    /// <summary>
+    /// Проверяет, является ли агент типом Claude Code
+    /// </summary>
+    /// <param name="agentId">Идентификатор агента</param>
+    /// <returns>True, если агент типа Claude Code</returns>
+    public bool IsClaudeCodeAgent(string agentId)
+    {
+        lock (_lock)
+        {
+            var agent = _agents.GetValueOrDefault(agentId);
+            return agent?.Type == "claude-code";
+        }
+    }
+
+    /// <summary>
+    /// Получает всех агентов типа Claude Code
+    /// </summary>
+    /// <returns>Список агентов типа Claude Code</returns>
+    public List<AgentInfo> GetClaudeCodeAgents()
+    {
+        lock (_lock)
+        {
+            return _agents.Values
+                .Where(agent => agent.Type == "claude-code")
+                .ToList();
+        }
+    }
+
+    /// <summary>
+    /// Асинхронно выполняет задачу через Claude Code агента, если доступно
+    /// </summary>
+    /// <param name="task">Задача для выполнения</param>
+    /// <returns>Результат выполнения задачи или null, если агент не Claude Code</returns>
+    public async Task<string?> AssignTaskToClaudeCodeAgent(TaskRequest task)
+    {
+        // Найти доступного Claude Code агента
+        var agent = FindAvailableAgent(task.RepositoryPath);
+
+        if (agent == null || agent.Type != "claude-code")
+        {
+            return null; // Нет доступного Claude Code агента
+        }
+
+        if (_claudeCodeService == null)
+        {
+            return "Claude Code service not available";
+        }
+
+        try
+        {
+            // Проверить доступность агента перед выполнением
+            var isAvailable = await _claudeCodeService.IsAgentAvailableAsync(agent.Id);
+            if (!isAvailable)
+            {
+                return "Claude Code agent is not available";
+            }
+
+            // Выполнить команду через Claude Code service
+            var parameters = new Dictionary<string, object>
+            {
+                ["repositoryPath"] = task.RepositoryPath,
+                ["timeout"] = TimeSpan.FromMinutes(10),
+                ["priority"] = task.Priority.ToString()
+            };
+
+            var result = await _claudeCodeService.ExecuteCommandAsync(
+                agent.Id,
+                task.Command,
+                parameters);
+
+            // Обновить статус задачи
+            if (result.Success)
+            {
+                UpdateTaskStatus(task.Id, TaskStatus.Completed);
+                return $"Task completed successfully by Claude Code agent {agent.Name}";
+            }
+            else
+            {
+                UpdateTaskStatus(task.Id, TaskStatus.Failed);
+                return $"Task failed: {result.ErrorMessage ?? "Unknown error"}";
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateTaskStatus(task.Id, TaskStatus.Failed);
+            return $"Error executing task via Claude Code: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Определяет наилучший доступный Claude Code агент для задачи
+    /// </summary>
+    /// <param name="repositoryPath">Путь к репозиторию</param>
+    /// <returns>Информация об агенте или null, если нет доступного</returns>
+    public AgentInfo? GetBestClaudeCodeAgent(string repositoryPath)
+    {
+        lock (_lock)
+        {
+            // Предпочтение агентам с тем же репозиторием
+            return _agents.Values
+                .Where(a => a.Status == AgentStatus.Idle && a.Type == "claude-code" && a.RepositoryPath == repositoryPath)
+                .OrderBy(a => a.LastPing)
+                .FirstOrDefault()
+                ?? _agents.Values
+                    .Where(a => a.Status == AgentStatus.Idle && a.Type == "claude-code")
+                    .OrderBy(a => a.LastPing)
+                    .FirstOrDefault();
         }
     }
 

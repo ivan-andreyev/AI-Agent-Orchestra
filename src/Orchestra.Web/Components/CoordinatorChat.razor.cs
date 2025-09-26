@@ -43,22 +43,14 @@ public partial class CoordinatorChat
         }
     }
 
-    protected override async Task RefreshDataAsync()
+    protected override Task RefreshDataAsync()
     {
-        // Update connection state
+        // Synchronize connection state with actual hub state
         if (_hubConnection != null)
         {
-            var previousState = _connectionState;
-            _connectionState = _hubConnection.State.ToString();
-
-            if (previousState != _connectionState)
-            {
-                Logger.LogInformation(
-                    "CoordinatorChat: Connection state changed from {PreviousState} to {CurrentState}",
-                    previousState, _connectionState);
-                StateHasChanged();
-            }
+            UpdateConnectionState(_hubConnection.State.ToString());
         }
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -158,9 +150,8 @@ public partial class CoordinatorChat
                     {
                         Logger.LogWarning("CoordinatorChat: Connection lost, attempting to reconnect. Error: {Error}",
                             error?.Message);
-                        _connectionState = "Reconnecting";
+                        UpdateConnectionState("Reconnecting");
                         AddSystemMessage("🔄 Connection lost, reconnecting...", "warning");
-                        StateHasChanged();
                         return Task.CompletedTask;
                     });
                     return Task.CompletedTask;
@@ -172,9 +163,8 @@ public partial class CoordinatorChat
                     {
                         Logger.LogInformation("CoordinatorChat: Reconnected with connection ID: {ConnectionId}",
                             connectionId);
-                        _connectionState = "Connected";
+                        UpdateConnectionState("Connected");
                         AddSystemMessage("✅ Reconnected to coordinator", "success");
-                        StateHasChanged();
                         return Task.CompletedTask;
                     });
                     return Task.CompletedTask;
@@ -185,10 +175,9 @@ public partial class CoordinatorChat
                     InvokeAsync(() =>
                     {
                         Logger.LogWarning("CoordinatorChat: Connection closed. Error: {Error}", error?.Message);
-                        _connectionState = "Disconnected";
+                        UpdateConnectionState("Disconnected");
                         _isConnecting = false;
                         AddSystemMessage("❌ Connection closed", "error");
-                        StateHasChanged();
                         return Task.CompletedTask;
                     });
                     return Task.CompletedTask;
@@ -215,32 +204,29 @@ public partial class CoordinatorChat
         try
         {
             _isConnecting = true;
-            _connectionState = "Connecting";
-            StateHasChanged();
+            UpdateConnectionState("Connecting");
 
             Logger.LogInformation("CoordinatorChat: Attempting to connect to SignalR hub");
             await _hubConnection.StartAsync();
 
             Logger.LogInformation("CoordinatorChat: Successfully connected to SignalR hub");
-            _connectionState = "Connected";
+            UpdateConnectionState("Connected");
             AddSystemMessage("🟢 Connected to coordinator agent", "success");
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "CoordinatorChat: Failed to connect to SignalR hub");
-            _connectionState = "Disconnected";
+            UpdateConnectionState("Disconnected");
             AddErrorMessage($"Connection failed: {ex.Message}");
         }
         finally
         {
             _isConnecting = false;
-            // Update connection state based on actual hub state
+            // Always sync connection state with actual hub state
             if (_hubConnection != null)
             {
-                _connectionState = _hubConnection.State.ToString();
+                UpdateConnectionState(_hubConnection.State.ToString());
             }
-
-            StateHasChanged();
         }
     }
 
@@ -394,17 +380,58 @@ public partial class CoordinatorChat
     }
 
     /// <summary>
-    /// Gets connection status text with icon
+    /// Updates connection state and triggers UI refresh
+    /// </summary>
+    private void UpdateConnectionState(string newState)
+    {
+        if (_connectionState != newState)
+        {
+            var previousState = _connectionState;
+            _connectionState = newState;
+
+            Logger.LogInformation(
+                "CoordinatorChat: Connection state changed from {PreviousState} to {CurrentState}",
+                previousState, newState);
+
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Gets connection status text with icon based on actual hub connection state
     /// </summary>
     private string GetConnectionStatusText()
     {
-        return _connectionState switch
+        // Use actual hub connection state if available, otherwise use _connectionState
+        var actualState = _hubConnection?.State.ToString() ?? _connectionState;
+
+        return actualState switch
         {
             "Connected" => "🟢 Connected",
             "Connecting" => "🟡 Connecting",
             "Reconnecting" => "🟡 Reconnecting",
             "Disconnected" => "🔴 Disconnected",
-            _ => $"🔴 {_connectionState}"
+            "Disconnecting" => "🟡 Disconnecting",
+            _ => $"🔴 {actualState}"
+        };
+    }
+
+    /// <summary>
+    /// Gets CSS class for connection status based on actual hub connection state
+    /// </summary>
+    private string GetConnectionStatusClass()
+    {
+        // Use actual hub connection state if available, otherwise use _connectionState
+        var actualState = _hubConnection?.State.ToString() ?? _connectionState;
+
+        return actualState.ToLowerInvariant() switch
+        {
+            "connected" => "connected",
+            "connecting" => "connecting",
+            "reconnecting" => "connecting",
+            "disconnected" => "disconnected",
+            "disconnecting" => "disconnecting",
+            _ => "disconnected"
         };
     }
 

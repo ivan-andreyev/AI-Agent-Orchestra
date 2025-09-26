@@ -2,6 +2,7 @@ using Orchestra.Core;
 using Orchestra.Core.Models;
 using Orchestra.API.Jobs;
 using Orchestra.Web.Models;
+using Orchestra.Core.Data;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
@@ -20,17 +21,20 @@ public class HangfireOrchestrator
     private readonly EntityFrameworkOrchestrator _entityOrchestrator;
     private readonly SimpleOrchestrator _legacyOrchestrator;
     private readonly ILogger<HangfireOrchestrator> _logger;
+    private readonly OrchestraDbContext? _context;
 
     public HangfireOrchestrator(
         IBackgroundJobClient jobClient,
         EntityFrameworkOrchestrator entityOrchestrator,
         SimpleOrchestrator legacyOrchestrator,
-        ILogger<HangfireOrchestrator> logger)
+        ILogger<HangfireOrchestrator> logger,
+        OrchestraDbContext? context = null)
     {
         _jobClient = jobClient ?? throw new ArgumentNullException(nameof(jobClient));
         _entityOrchestrator = entityOrchestrator ?? throw new ArgumentNullException(nameof(entityOrchestrator));
         _legacyOrchestrator = legacyOrchestrator ?? throw new ArgumentNullException(nameof(legacyOrchestrator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _context = context; // Optional dependency for TaskRepository integration
     }
 
     /// <summary>
@@ -62,6 +66,28 @@ public class HangfireOrchestrator
 
             // Determine queue based on priority
             var queueName = GetQueueNameForPriority(priority);
+
+            // **CRITICAL INTEGRATION**: Queue task through TaskRepository if available
+            string? repositoryTaskId = null;
+            if (_entityOrchestrator != null)
+            {
+                try
+                {
+                    // Create task entry in TaskRepository for proper task management
+                    var taskRepository = new TaskRepository(_context ?? throw new InvalidOperationException("Database context not available"));
+                    repositoryTaskId = await taskRepository.QueueTaskAsync(command, repositoryPath, priority);
+
+                    if (!string.IsNullOrEmpty(repositoryTaskId))
+                    {
+                        _logger.LogInformation("Task queued in TaskRepository - TaskId: {TaskId}, RepositoryTaskId: {RepositoryTaskId}",
+                            taskId, repositoryTaskId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to queue task in TaskRepository, proceeding without task tracking - TaskId: {TaskId}", taskId);
+                }
+            }
 
             // **CRITICAL INTEGRATION**: Enqueue TaskExecutionJob through Hangfire
             // This replaces the legacy SimpleOrchestrator.QueueTask() in-memory approach

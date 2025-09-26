@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Orchestra.Core\Orchestra.Core.csproj" />
+    <ProjectReference Include="..\Orchestra.Agents\Orchestra.Agents.csproj" />
     <ProjectReference Include="..\Orchestra.API\Orchestra.API.csproj" />
     <ProjectReference Include="..\Orchestra.Web\Orchestra.Web.csproj" />
   </ItemGroup>

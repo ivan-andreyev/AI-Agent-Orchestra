@@ -6,7 +6,7 @@ using Orchestra.Web.Models;
 using Orchestra.Web.Services;
 using System.Text.Json;
 using Xunit;
-using TaskPriority = Orchestra.Web.Models.TaskPriority;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
 namespace Orchestra.Tests.UnitTests;
 

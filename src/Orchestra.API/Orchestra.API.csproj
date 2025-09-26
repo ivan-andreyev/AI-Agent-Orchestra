@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Orchestra.Core\Orchestra.Core.csproj" />
     <ProjectReference Include="..\Orchestra.Web\Orchestra.Web.csproj" />
+    <ProjectReference Include="..\Orchestra.Agents\Orchestra.Agents.csproj" />
   </ItemGroup>
 
 </Project>

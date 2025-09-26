@@ -34,7 +34,7 @@ public class TaskExecutionEngineTests
         var progress = new Mock<IProgress<BatchProgress>>();
 
         _mockOrchestratorService
-            .Setup(o => o.QueueTaskAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Orchestra.Web.Models.TaskPriority>()))
+            .Setup(o => o.QueueTaskAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Orchestra.Core.Models.TaskPriority>()))
             .ReturnsAsync(true);
 
         var result = await _engine.ExecuteTasksWithDependencyResolutionAsync(
@@ -54,7 +54,7 @@ public class TaskExecutionEngineTests
         var progress = new Mock<IProgress<BatchProgress>>();
 
         _mockOrchestratorService
-            .Setup(o => o.QueueTaskAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Orchestra.Web.Models.TaskPriority>()))
+            .Setup(o => o.QueueTaskAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Orchestra.Core.Models.TaskPriority>()))
             .ThrowsAsync(new Exception("Task failed"));
 
         var result = await _engine.ExecuteTasksWithDependencyResolutionAsync(
@@ -83,8 +83,8 @@ public class TaskExecutionEngineTests
         };
 
         _mockOrchestratorService
-            .Setup(o => o.QueueTaskAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Orchestra.Web.Models.TaskPriority>()))
-            .Returns(async (string command, string repo, Orchestra.Web.Models.TaskPriority priority) =>
+            .Setup(o => o.QueueTaskAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Orchestra.Core.Models.TaskPriority>()))
+            .Returns(async (string command, string repo, Orchestra.Core.Models.TaskPriority priority) =>
             {
                 var taskId = commandToTaskId.ContainsKey(command) ? commandToTaskId[command] : command;
                 executionTimes.Add((taskId, DateTime.UtcNow));
@@ -113,11 +113,11 @@ public class TaskExecutionEngineTests
         var progress = new Mock<IProgress<BatchProgress>>();
 
         _mockOrchestratorService
-            .Setup(o => o.QueueTaskAsync("cmd1", It.IsAny<string>(), It.IsAny<Orchestra.Web.Models.TaskPriority>()))
+            .Setup(o => o.QueueTaskAsync("cmd1", It.IsAny<string>(), It.IsAny<Orchestra.Core.Models.TaskPriority>()))
             .ThrowsAsync(new Exception("First task failed"));
 
         _mockOrchestratorService
-            .Setup(o => o.QueueTaskAsync("cmd2", It.IsAny<string>(), It.IsAny<Orchestra.Web.Models.TaskPriority>()))
+            .Setup(o => o.QueueTaskAsync("cmd2", It.IsAny<string>(), It.IsAny<Orchestra.Core.Models.TaskPriority>()))
             .ReturnsAsync(true);
 
         var result = await _engine.ExecuteTasksWithDependencyResolutionAsync(
@@ -139,7 +139,7 @@ public class TaskExecutionEngineTests
         var progress = new Progress<BatchProgress>(p => progressReports.Add(p));
 
         _mockOrchestratorService
-            .Setup(o => o.QueueTaskAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Orchestra.Web.Models.TaskPriority>()))
+            .Setup(o => o.QueueTaskAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Orchestra.Core.Models.TaskPriority>()))
             .ReturnsAsync(true);
 
         await _engine.ExecuteTasksWithDependencyResolutionAsync(
@@ -153,7 +153,7 @@ public class TaskExecutionEngineTests
     private ExecutionGraph CreateSingleTaskGraph()
     {
         var graph = new ExecutionGraph();
-        var node = new TaskNode("1", "cmd1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
+        var node = new TaskNode("1", "cmd1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
         graph.AddNode(node);
         return graph;
     }
@@ -162,8 +162,8 @@ public class TaskExecutionEngineTests
     {
         var graph = new ExecutionGraph();
 
-        var node1 = new TaskNode("1", "cmd1", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
-        var node2 = new TaskNode("2", "cmd2", "repo1", Orchestra.Web.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
+        var node1 = new TaskNode("1", "cmd1", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string>());
+        var node2 = new TaskNode("2", "cmd2", "repo1", Orchestra.Core.Models.TaskPriority.Normal, TimeSpan.FromMinutes(1), true, new List<string> { "1" });
 
         graph.AddNode(node1);
         graph.AddNode(node2);

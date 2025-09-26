@@ -115,17 +115,37 @@ public class Startup
         // Add MediatR for LLM-friendly Command/Query pattern
         services.AddMediatR(typeof(Startup).Assembly, typeof(Orchestra.Core.Commands.ICommand).Assembly);
 
-        services.AddSingleton<SimpleOrchestrator>();
+        services.AddSingleton<SimpleOrchestrator>(provider =>
+        {
+            var claudeCodeService = provider.GetService<Orchestra.Core.Services.IClaudeCodeCoreService>();
+            return new SimpleOrchestrator("orchestrator-state.json", claudeCodeService);
+        });
         services.AddSingleton<AgentConfiguration>(provider =>
             AgentConfiguration.LoadFromFile("agent-config.json"));
-        services.AddHostedService<AgentScheduler>();
+        services.AddHostedService<AgentScheduler>(provider =>
+        {
+            var orchestrator = provider.GetRequiredService<SimpleOrchestrator>();
+            var logger = provider.GetRequiredService<ILogger<AgentScheduler>>();
+            var config = provider.GetRequiredService<AgentConfiguration>();
+            var claudeCodeService = provider.GetService<Orchestra.Core.Services.IClaudeCodeCoreService>();
+            return new AgentScheduler(orchestrator, logger, config, claudeCodeService);
+        });
         services.AddHostedService<BackgroundTaskAssignmentService>();
 
         // Register Hangfire job classes
         services.AddScoped<TaskExecutionJob>();
 
-        // Register HangfireOrchestrator - the critical integration bridge
-        services.AddScoped<HangfireOrchestrator>();
+        // Register HangfireOrchestrator - the critical integration bridge with TaskRepository support
+        services.AddScoped<HangfireOrchestrator>(provider =>
+        {
+            var jobClient = provider.GetRequiredService<IBackgroundJobClient>();
+            var entityOrchestrator = provider.GetRequiredService<EntityFrameworkOrchestrator>();
+            var legacyOrchestrator = provider.GetRequiredService<SimpleOrchestrator>();
+            var logger = provider.GetRequiredService<ILogger<HangfireOrchestrator>>();
+            var context = provider.GetRequiredService<OrchestraDbContext>(); // For TaskRepository integration
+
+            return new HangfireOrchestrator(jobClient, entityOrchestrator, legacyOrchestrator, logger, context);
+        });
 
         // Register Entity Framework-based services
         services.AddScoped<AgentRepository>();
@@ -134,8 +154,20 @@ public class Startup
 
         // Register Agent Executor - configurable agent implementation
         // Use ClaudeAgentExecutor for real Claude Code integration, SimulationAgentExecutor for testing
-        services.AddScoped<IAgentExecutor, ClaudeAgentExecutor>();
+        services.AddSingleton<IAgentExecutor, ClaudeAgentExecutor>();
         // Alternative for testing/fallback: services.AddScoped<IAgentExecutor, SimulationAgentExecutor>();
+
+        // Register Claude Code services for advanced Claude Code integration
+        services.Configure<Orchestra.Agents.ClaudeCode.ClaudeCodeConfiguration>(
+            configuration.GetSection("ClaudeCode"));
+
+        // Register Claude Code services - TaskRepository integration is handled by TaskExecutionJob layer
+        services.AddSingleton<Orchestra.Agents.ClaudeCode.ClaudeCodeService>();
+        services.AddSingleton<Orchestra.Agents.ClaudeCode.IClaudeCodeService>(provider =>
+            provider.GetRequiredService<Orchestra.Agents.ClaudeCode.ClaudeCodeService>());
+        services.AddSingleton<Orchestra.Core.Services.IClaudeCodeCoreService>(provider =>
+            provider.GetRequiredService<Orchestra.Agents.ClaudeCode.ClaudeCodeService>());
+        services.AddScoped<Orchestra.Agents.ClaudeCode.ClaudeCodeWorkflowExecutor>();
 
         // Register chat context service for coordinator chat management
         services.AddScoped<IChatContextService, ChatContextService>();
@@ -159,7 +191,7 @@ public class Startup
         services.AddScoped<BatchTaskExecutor>();
     }
 
-    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IConfiguration configuration)
     {
         if (env.IsDevelopment())
         {
@@ -223,14 +255,24 @@ public class Startup
                 logger.LogInformation("Memory cache validation completed successfully");
 
                 // Warm up Claude Code CLI agents to avoid cold start delays
-                var orchestrator = scope.ServiceProvider.GetRequiredService<HangfireOrchestrator>();
-                Task.Run(async () =>
-                {
-                    await Task.Delay(5000); // Give Hangfire time to start up
-                    await orchestrator.WarmupClaudeCodeAgentsAsync();
-                });
+                var claudeCodeConfig = configuration.GetSection("ClaudeCode").Get<Orchestra.Agents.ClaudeCode.ClaudeCodeConfiguration>()
+                    ?? new Orchestra.Agents.ClaudeCode.ClaudeCodeConfiguration();
 
-                logger.LogInformation("Claude Code CLI warm-up initiated");
+                if (claudeCodeConfig.WarmupEnabled)
+                {
+                    var orchestrator = scope.ServiceProvider.GetRequiredService<HangfireOrchestrator>();
+                    Task.Run(async () =>
+                    {
+                        await Task.Delay(claudeCodeConfig.WarmupDelayMs); // Configurable warmup delay
+                        await orchestrator.WarmupClaudeCodeAgentsAsync();
+                    });
+
+                    logger.LogInformation("Claude Code CLI warm-up initiated with delay {WarmupDelayMs}ms", claudeCodeConfig.WarmupDelayMs);
+                }
+                else
+                {
+                    logger.LogInformation("Claude Code CLI warm-up disabled by configuration");
+                }
             }
             catch (Exception ex)
             {
