@@ -1,5 +1,7 @@
 using Orchestra.Core;
+using Orchestra.Core.Models;
 using System.Text.Json;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
 namespace Orchestra.CLI;
 

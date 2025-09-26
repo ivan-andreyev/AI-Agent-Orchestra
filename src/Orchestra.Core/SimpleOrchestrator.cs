@@ -1,4 +1,6 @@
 using Orchestra.Core.Models;
+using TaskStatus = Orchestra.Core.Models.TaskStatus;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
 namespace Orchestra.Core;
 

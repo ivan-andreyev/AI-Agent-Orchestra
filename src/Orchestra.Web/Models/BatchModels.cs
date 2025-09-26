@@ -1,5 +1,7 @@
+using Orchestra.Core.Models;
 using Orchestra.Web.Models;
 using System.Diagnostics;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
 namespace Orchestra.Web.Models;
 

@@ -1,5 +1,6 @@
 using Orchestra.Core.Commands;
 using Orchestra.Core.Models;
+using TaskStatus = Orchestra.Core.Models.TaskStatus;
 
 namespace Orchestra.Core.Commands.Tasks;
 

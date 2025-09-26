@@ -1,4 +1,7 @@
+using Orchestra.Core.Models;
 using Orchestra.Web.Models;
+using TaskStatus = Orchestra.Core.Models.TaskStatus;
+using AgentHistoryEntry = Orchestra.Web.Models.AgentHistoryEntry;
 
 namespace Orchestra.API.Services;
 
@@ -86,7 +89,7 @@ public class EntityFrameworkOrchestrator
     /// <summary>
     /// Обновить статус задачи
     /// </summary>
-    public async Task<bool> UpdateTaskStatusAsync(string taskId, Web.Models.TaskStatus status, string? result = null, string? errorMessage = null)
+    public async Task<bool> UpdateTaskStatusAsync(string taskId, TaskStatus status, string? result = null, string? errorMessage = null)
     {
         return await _taskRepository.UpdateTaskStatusAsync(taskId, status, result, errorMessage);
     }

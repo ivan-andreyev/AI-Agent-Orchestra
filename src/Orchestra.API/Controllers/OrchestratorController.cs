@@ -121,7 +121,7 @@ public class OrchestratorController : ControllerBase
     }
 
     [HttpGet("agents/{agentId}/next-task")]
-    public ActionResult<Orchestra.Web.Models.TaskRequest> GetNextTask(string agentId)
+    public ActionResult<TaskRequest> GetNextTask(string agentId)
     {
         var task = _hangfireOrchestrator.GetNextTaskForAgent(agentId);
         if (task == null)
@@ -163,4 +163,4 @@ public class OrchestratorController : ControllerBase
 public record RegisterAgentRequest(string Id, string Name, string Type, string RepositoryPath);
 public record DiscoverAgentsRequest(string? RepositoryPath = null);
 public record PingRequest(AgentStatus Status, string? CurrentTask);
-public record QueueTaskRequest(string Command, string RepositoryPath, Orchestra.Web.Models.TaskPriority Priority);
+public record QueueTaskRequest(string Command, string RepositoryPath, TaskPriority Priority);

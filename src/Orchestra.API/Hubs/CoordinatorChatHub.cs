@@ -5,6 +5,8 @@ using Orchestra.Core.Models.Chat;
 using Orchestra.Core.Services;
 using Orchestra.API.Services;
 using System.Text;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
+using TaskRequest = Orchestra.Core.Models.TaskRequest;
 
 namespace Orchestra.API.Hubs;
 
@@ -303,12 +305,12 @@ public class CoordinatorChatHub : Hub
         {
             var statusIcon = task.Status switch
             {
-                Orchestra.Core.TaskStatus.Pending => "⏳",
-                Orchestra.Core.TaskStatus.Assigned => "📤",
-                Orchestra.Core.TaskStatus.InProgress => "🔄",
-                Orchestra.Core.TaskStatus.Completed => "✅",
-                Orchestra.Core.TaskStatus.Failed => "❌",
-                Orchestra.Core.TaskStatus.Cancelled => "🚫",
+                Orchestra.Core.Models.TaskStatus.Pending => "⏳",
+                Orchestra.Core.Models.TaskStatus.Assigned => "📤",
+                Orchestra.Core.Models.TaskStatus.InProgress => "🔄",
+                Orchestra.Core.Models.TaskStatus.Completed => "✅",
+                Orchestra.Core.Models.TaskStatus.Failed => "❌",
+                Orchestra.Core.Models.TaskStatus.Cancelled => "🚫",
                 _ => "❓"
             };
 

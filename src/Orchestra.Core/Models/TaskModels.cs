@@ -5,10 +5,10 @@ namespace Orchestra.Core.Models;
 /// </summary>
 public enum TaskPriority
 {
-    Low,
-    Normal,
-    High,
-    Critical
+    Low = 0,
+    Normal = 1,
+    High = 2,
+    Critical = 3
 }
 
 /// <summary>
@@ -16,12 +16,12 @@ public enum TaskPriority
 /// </summary>
 public enum TaskStatus
 {
-    Pending,
-    Assigned,
-    InProgress,
-    Completed,
-    Failed,
-    Cancelled
+    Pending = 0,
+    Assigned = 1,
+    InProgress = 2,
+    Completed = 3,
+    Failed = 4,
+    Cancelled = 5
 }
 
 /// <summary>

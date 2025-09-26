@@ -1,3 +1,5 @@
+using Orchestra.Core.Models;
+
 namespace Orchestra.Web.Models;
 
 public record AgentInfo(
@@ -21,35 +23,7 @@ public enum AgentStatus
     Offline
 }
 
-public record TaskRequest(
-    string Id,
-    string AgentId,
-    string Command,
-    string RepositoryPath,
-    DateTime CreatedAt,
-    TaskPriority Priority = TaskPriority.Normal,
-    TaskStatus Status = TaskStatus.Pending,
-    DateTime? StartedAt = null,
-    DateTime? CompletedAt = null
-);
 
-public enum TaskPriority
-{
-    Low,
-    Normal,
-    High,
-    Critical
-}
-
-public enum TaskStatus
-{
-    Pending,
-    Assigned,
-    InProgress,
-    Completed,
-    Failed,
-    Cancelled
-}
 
 public record RepositoryInfo(
     string Name,

@@ -1,4 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using Orchestra.Core.Models;
+using TaskStatus = Orchestra.Core.Models.TaskStatus;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
 namespace Orchestra.Core.Data.Entities;
 
@@ -66,20 +69,3 @@ public class TaskRecord : ITimestamped
     public ICollection<TaskRecord> ChildTasks { get; set; } = new List<TaskRecord>();
 }
 
-public enum TaskStatus
-{
-    Pending = 0,
-    Assigned = 1,
-    InProgress = 2,
-    Completed = 3,
-    Failed = 4,
-    Cancelled = 5
-}
-
-public enum TaskPriority
-{
-    Low = 0,
-    Normal = 1,
-    High = 2,
-    Critical = 3
-}

@@ -1,4 +1,8 @@
-﻿namespace Orchestra.Core;
+﻿using Orchestra.Core.Models;
+using TaskStatus = Orchestra.Core.Models.TaskStatus;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
+
+namespace Orchestra.Core;
 
 public record AgentInfo(
     string Id,
@@ -25,20 +29,6 @@ public enum AgentStatus
     Offline
 }
 
-public record TaskRequest(
-    string Id,
-    string AgentId,
-    string Command,
-    string RepositoryPath,
-    DateTime CreatedAt,
-    TaskPriority Priority = TaskPriority.Normal,
-    TaskStatus Status = TaskStatus.Pending,
-    DateTime? StartedAt = null,
-    DateTime? CompletedAt = null
-)
-{
-    public string? AssignedAgentId { get; set; }
-};
 
 public record TaskResult(
     string TaskId,
@@ -51,23 +41,6 @@ public record TaskResult(
     string? ErrorMessage = null
 );
 
-public enum TaskPriority
-{
-    Low,
-    Normal,
-    High,
-    Critical
-}
-
-public enum TaskStatus
-{
-    Pending,
-    Assigned,
-    InProgress,
-    Completed,
-    Failed,
-    Cancelled
-}
 
 public record RepositoryInfo(
     string Name,

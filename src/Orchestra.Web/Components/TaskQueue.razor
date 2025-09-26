@@ -1,6 +1,9 @@
 @using Orchestra.Web.Models
 @using Orchestra.Web.Services
 @using Orchestra.Web.Components.Base
+@using Orchestra.Core.Models
+@using TaskPriority = Orchestra.Core.Models.TaskPriority
+@using TaskRequest = Orchestra.Core.Models.TaskRequest
 @inject OrchestratorService OrchestratorService
 @inherits AutoRefreshComponent
 
@@ -139,7 +142,7 @@
     [Parameter] public string? SelectedRepository { get; set; }
     [Parameter] public string? RepositoryPath { get; set; }
 
-    private List<Orchestra.Web.Models.TaskRequest> _tasks = new();
+    private List<TaskRequest> _tasks = new();
     private bool _isLoading = false;
     private string? _errorMessage;
     private string? _lastRepository;
@@ -173,7 +176,7 @@
         // Fast-return pattern for early validation
         if (!_showAllTasks && (string.IsNullOrEmpty(SelectedRepository) || string.IsNullOrEmpty(RepositoryPath)))
         {
-            _tasks = new List<Orchestra.Web.Models.TaskRequest>();
+            _tasks = new List<TaskRequest>();
             return;
         }
 
@@ -198,7 +201,7 @@
     {
         if (state?.TaskQueue == null)
         {
-            _tasks = new List<Orchestra.Web.Models.TaskRequest>();
+            _tasks = new List<TaskRequest>();
             return;
         }
 
@@ -223,7 +226,7 @@
     private void HandleLoadError(Exception ex)
     {
         _errorMessage = ex.Message;
-        _tasks = new List<Orchestra.Web.Models.TaskRequest>();
+        _tasks = new List<TaskRequest>();
         LogMessage($"ERROR loading tasks: {ex.Message}");
     }
 

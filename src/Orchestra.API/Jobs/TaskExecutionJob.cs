@@ -1,4 +1,5 @@
 using Orchestra.Core;
+using Orchestra.Core.Models;
 using Microsoft.Extensions.Logging;
 using Hangfire;
 using Hangfire.Server;
@@ -8,6 +9,8 @@ using Orchestra.API.Hubs;
 using Orchestra.API.Services;
 using Orchestra.Core.Services;
 using Orchestra.Core.Models.Chat;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
+using TaskStatus = Orchestra.Core.Models.TaskStatus;
 using System.Text;
 using System.Text.Json;
 
@@ -100,7 +103,7 @@ public class TaskExecutionJob
                 await UpdateJobProgress(jobId, 90, "Execution results processed");
 
                 // STEP 7: UPDATE task and agent status
-                await UpdateTaskAndAgentStatus(taskId, agentId, result, Orchestra.Core.TaskStatus.Completed);
+                await UpdateTaskAndAgentStatus(taskId, agentId, result, TaskStatus.Completed);
                 await UpdateJobProgress(jobId, 95, "Task and agent status updated");
 
                 // STEP 8: CLEANUP and audit
@@ -293,11 +296,8 @@ public class TaskExecutionJob
                 repositoryPath,
                 DateTime.UtcNow,
                 TaskPriority.Normal,
-                Orchestra.Core.TaskStatus.InProgress
-            )
-            {
-                AssignedAgentId = agentId
-            };
+                TaskStatus.InProgress
+            );
 
             // LAUNCH agent command with timeout and cancellation
             _logger.LogInformation("Executing command for task {TaskId}: {Command}", taskId, command);
@@ -312,7 +312,7 @@ public class TaskExecutionJob
             var agentResponse = await _agentExecutor.ExecuteCommandAsync(command, repositoryPath, combinedCancellation.Token);
 
             // Convert agent response to task result
-            var status = agentResponse.Success ? Orchestra.Core.TaskStatus.Completed : Orchestra.Core.TaskStatus.Failed;
+            var status = agentResponse.Success ? TaskStatus.Completed : TaskStatus.Failed;
             var result = new TaskResult(
                 taskId,
                 agentId,
@@ -502,7 +502,7 @@ public class TaskExecutionJob
         return message;
     }
 
-    private async Task UpdateTaskAndAgentStatus(string taskId, string agentId, TaskResult result, Orchestra.Core.TaskStatus finalStatus)
+    private async Task UpdateTaskAndAgentStatus(string taskId, string agentId, TaskResult result, TaskStatus finalStatus)
     {
         // Update task status based on execution outcome via orchestrator
         _orchestrator.UpdateTaskStatus(taskId, finalStatus);
@@ -548,11 +548,11 @@ public class TaskExecutionJob
         await UpdateTaskAndAgentStatus(taskId, agentId, new TaskResult(
             taskId,
             agentId,
-            Orchestra.Core.TaskStatus.Failed,
+            TaskStatus.Failed,
             $"Retryable error: {ex.Message}",
             false,
             DateTime.UtcNow
-        ), Orchestra.Core.TaskStatus.Failed);
+        ), TaskStatus.Failed);
     }
 
     private async Task HandleTaskTimeout(string taskId, string agentId, TaskTimeoutException ex)
@@ -561,11 +561,11 @@ public class TaskExecutionJob
         await UpdateTaskAndAgentStatus(taskId, agentId, new TaskResult(
             taskId,
             agentId,
-            Orchestra.Core.TaskStatus.Failed,
+            TaskStatus.Failed,
             $"Task timed out: {ex.Message}",
             false,
             DateTime.UtcNow
-        ), Orchestra.Core.TaskStatus.Failed);
+        ), TaskStatus.Failed);
     }
 
     private async Task HandleCommandExecutionError(string taskId, string agentId, CommandExecutionException ex)
@@ -574,11 +574,11 @@ public class TaskExecutionJob
         await UpdateTaskAndAgentStatus(taskId, agentId, new TaskResult(
             taskId,
             agentId,
-            Orchestra.Core.TaskStatus.Failed,
+            TaskStatus.Failed,
             $"Command execution failed: {ex.Message}",
             false,
             DateTime.UtcNow
-        ), Orchestra.Core.TaskStatus.Failed);
+        ), TaskStatus.Failed);
     }
 
     private async Task HandleRepositoryAccessError(string taskId, string agentId, RepositoryAccessException ex)
@@ -587,11 +587,11 @@ public class TaskExecutionJob
         await UpdateTaskAndAgentStatus(taskId, agentId, new TaskResult(
             taskId,
             agentId,
-            Orchestra.Core.TaskStatus.Failed,
+            TaskStatus.Failed,
             $"Repository access failed: {ex.Message}",
             false,
             DateTime.UtcNow
-        ), Orchestra.Core.TaskStatus.Failed);
+        ), TaskStatus.Failed);
     }
 
     private async Task HandleDatabaseError(string taskId, string agentId, DatabaseException ex)
@@ -606,11 +606,11 @@ public class TaskExecutionJob
         await UpdateTaskAndAgentStatus(taskId, agentId, new TaskResult(
             taskId,
             agentId,
-            Orchestra.Core.TaskStatus.Failed,
+            TaskStatus.Failed,
             $"Unexpected error: {ex.Message}",
             false,
             DateTime.UtcNow
-        ), Orchestra.Core.TaskStatus.Failed);
+        ), TaskStatus.Failed);
     }
 
     /// <summary>

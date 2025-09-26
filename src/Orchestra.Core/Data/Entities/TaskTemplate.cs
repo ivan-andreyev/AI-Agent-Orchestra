@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using Orchestra.Core.Models;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
 namespace Orchestra.Core.Data.Entities;
 

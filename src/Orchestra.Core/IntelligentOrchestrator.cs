@@ -1,4 +1,7 @@
 using Microsoft.Extensions.Logging;
+using Orchestra.Core.Models;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
+using TaskRequest = Orchestra.Core.Models.TaskRequest;
 
 namespace Orchestra.Core;
 

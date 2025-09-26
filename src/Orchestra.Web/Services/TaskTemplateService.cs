@@ -1,6 +1,8 @@
 using Orchestra.Web.Models;
+using Orchestra.Core.Models;
 using System.Text.Json;
 using Microsoft.JSInterop;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
 namespace Orchestra.Web.Services;
 

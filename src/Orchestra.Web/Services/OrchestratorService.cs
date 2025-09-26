@@ -1,6 +1,9 @@
 using Orchestra.Web.Models;
+using Orchestra.Core.Models;
 using System.Text;
 using System.Text.Json;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
+using AgentHistoryEntry = Orchestra.Web.Models.AgentHistoryEntry;
 
 namespace Orchestra.Web.Services;
 

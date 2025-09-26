@@ -35,7 +35,7 @@ public class UpdateTaskStatusCommandHandler : IRequestHandler<UpdateTaskStatusCo
             // Получаем текущий статус для события
             var currentTasks = await _taskRepository.GetTaskQueueAsync();
             var currentTask = currentTasks.FirstOrDefault(t => t.Id == request.TaskId);
-            var oldStatus = currentTask?.Status ?? TaskStatus.Pending;
+            var oldStatus = currentTask?.Status ?? Orchestra.Core.Models.TaskStatus.Pending;
 
             var success = await _taskRepository.UpdateTaskStatusAsync(
                 request.TaskId,

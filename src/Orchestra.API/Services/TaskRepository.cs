@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Orchestra.Core.Data;
 using Orchestra.Core.Data.Entities;
 using Orchestra.Core.Models;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
+using TaskStatus = Orchestra.Core.Models.TaskStatus;
 
 namespace Orchestra.API.Services;
 
@@ -31,8 +33,8 @@ public class TaskRepository
                 Id = taskId,
                 Command = command,
                 RepositoryPath = repositoryPath,
-                Priority = ConvertToEntityTaskPriority(priority),
-                Status = Core.Data.Entities.TaskStatus.Pending,
+                Priority = priority,
+                Status = TaskStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 RetryCount = 0,
@@ -77,7 +79,7 @@ public class TaskRepository
 
             // Ищем незначенные задачи для репозитория агента, упорядоченные по приоритету и времени создания
             var task = await _context.Tasks
-                .Where(t => t.Status == Core.Data.Entities.TaskStatus.Pending &&
+                .Where(t => t.Status == TaskStatus.Pending &&
                            t.RepositoryPath == agent.RepositoryPath)
                 .OrderByDescending(t => t.Priority)
                 .ThenBy(t => t.CreatedAt)
@@ -90,7 +92,7 @@ public class TaskRepository
 
             // Назначаем задачу агенту
             task.AgentId = agentId;
-            task.Status = Core.Data.Entities.TaskStatus.Assigned;
+            task.Status = TaskStatus.Assigned;
             task.StartedAt = DateTime.UtcNow;
             task.UpdatedAt = DateTime.UtcNow;
 
@@ -110,9 +112,9 @@ public class TaskRepository
     public async Task<Queue<TaskRequest>> GetTaskQueueAsync()
     {
         var tasks = await _context.Tasks
-            .Where(t => t.Status != Core.Data.Entities.TaskStatus.Completed &&
-                       t.Status != Core.Data.Entities.TaskStatus.Cancelled &&
-                       t.Status != Core.Data.Entities.TaskStatus.Failed)
+            .Where(t => t.Status != TaskStatus.Completed &&
+                       t.Status != TaskStatus.Cancelled &&
+                       t.Status != TaskStatus.Failed)
             .OrderByDescending(t => t.Priority)
             .ThenBy(t => t.CreatedAt)
             .ToListAsync();
@@ -154,7 +156,7 @@ public class TaskRepository
                 return false;
             }
 
-            task.Status = ConvertToEntityTaskStatus(status);
+            task.Status = status;
             task.UpdatedAt = DateTime.UtcNow;
 
             if (status == Orchestra.Core.Models.TaskStatus.Completed || status == Orchestra.Core.Models.TaskStatus.Failed)
@@ -197,74 +199,11 @@ public class TaskRepository
             Command: task.Command,
             RepositoryPath: task.RepositoryPath,
             CreatedAt: task.CreatedAt,
-            Priority: ConvertToWebTaskPriority(task.Priority),
-            Status: ConvertToWebTaskStatus(task.Status),
+            Priority: task.Priority,
+            Status: task.Status,
             StartedAt: task.StartedAt,
             CompletedAt: task.CompletedAt
         );
     }
 
-    /// <summary>
-    /// Конвертировать Web TaskPriority в Entity TaskPriority
-    /// </summary>
-    private static Core.Data.Entities.TaskPriority ConvertToEntityTaskPriority(Orchestra.Core.Models.TaskPriority priority)
-    {
-        return priority switch
-        {
-            Orchestra.Core.Models.TaskPriority.Low => Core.Data.Entities.TaskPriority.Low,
-            Orchestra.Core.Models.TaskPriority.Normal => Core.Data.Entities.TaskPriority.Normal,
-            Orchestra.Core.Models.TaskPriority.High => Core.Data.Entities.TaskPriority.High,
-            Orchestra.Core.Models.TaskPriority.Critical => Core.Data.Entities.TaskPriority.Critical,
-            _ => Core.Data.Entities.TaskPriority.Normal
-        };
-    }
-
-    /// <summary>
-    /// Конвертировать Entity TaskPriority в Web TaskPriority
-    /// </summary>
-    private static Orchestra.Core.Models.TaskPriority ConvertToWebTaskPriority(Core.Data.Entities.TaskPriority priority)
-    {
-        return priority switch
-        {
-            Core.Data.Entities.TaskPriority.Low => Orchestra.Core.Models.TaskPriority.Low,
-            Core.Data.Entities.TaskPriority.Normal => Orchestra.Core.Models.TaskPriority.Normal,
-            Core.Data.Entities.TaskPriority.High => Orchestra.Core.Models.TaskPriority.High,
-            Core.Data.Entities.TaskPriority.Critical => Orchestra.Core.Models.TaskPriority.Critical,
-            _ => Orchestra.Core.Models.TaskPriority.Normal
-        };
-    }
-
-    /// <summary>
-    /// Конвертировать Web TaskStatus в Entity TaskStatus
-    /// </summary>
-    private static Core.Data.Entities.TaskStatus ConvertToEntityTaskStatus(Orchestra.Core.Models.TaskStatus status)
-    {
-        return status switch
-        {
-            Orchestra.Core.Models.TaskStatus.Pending => Core.Data.Entities.TaskStatus.Pending,
-            Orchestra.Core.Models.TaskStatus.Assigned => Core.Data.Entities.TaskStatus.Assigned,
-            Orchestra.Core.Models.TaskStatus.InProgress => Core.Data.Entities.TaskStatus.InProgress,
-            Orchestra.Core.Models.TaskStatus.Completed => Core.Data.Entities.TaskStatus.Completed,
-            Orchestra.Core.Models.TaskStatus.Failed => Core.Data.Entities.TaskStatus.Failed,
-            Orchestra.Core.Models.TaskStatus.Cancelled => Core.Data.Entities.TaskStatus.Cancelled,
-            _ => Core.Data.Entities.TaskStatus.Pending
-        };
-    }
-
-    /// <summary>
-    /// Конвертировать Entity TaskStatus в Web TaskStatus
-    /// </summary>
-    private static Orchestra.Core.Models.TaskStatus ConvertToWebTaskStatus(Core.Data.Entities.TaskStatus status)
-    {
-        return status switch
-        {
-            Core.Data.Entities.TaskStatus.Pending => Orchestra.Core.Models.TaskStatus.Pending,
-            Core.Data.Entities.TaskStatus.Assigned => Orchestra.Core.Models.TaskStatus.Assigned,
-            Core.Data.Entities.TaskStatus.InProgress => Orchestra.Core.Models.TaskStatus.InProgress,
-            Core.Data.Entities.TaskStatus.Completed => Orchestra.Core.Models.TaskStatus.Completed,
-            Core.Data.Entities.TaskStatus.Failed => Orchestra.Core.Models.TaskStatus.Failed,
-            Core.Data.Entities.TaskStatus.Cancelled => Orchestra.Core.Models.TaskStatus.Cancelled,
-            _ => Orchestra.Core.Models.TaskStatus.Pending
-        };
-    }
 }

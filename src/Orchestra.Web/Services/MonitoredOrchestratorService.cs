@@ -1,5 +1,8 @@
 using Orchestra.Web.Models;
+using Orchestra.Core.Models;
 using Microsoft.Extensions.Logging;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
+using AgentHistoryEntry = Orchestra.Web.Models.AgentHistoryEntry;
 
 namespace Orchestra.Web.Services;
 

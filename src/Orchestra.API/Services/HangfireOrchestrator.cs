@@ -4,6 +4,8 @@ using Orchestra.API.Jobs;
 using Orchestra.Web.Models;
 using Hangfire;
 using Microsoft.Extensions.Logging;
+using TaskPriority = Orchestra.Core.Models.TaskPriority;
+using TaskRequest = Orchestra.Core.Models.TaskRequest;
 
 namespace Orchestra.API.Services;
 
@@ -40,7 +42,7 @@ public class HangfireOrchestrator
     /// <param name="priority">Task priority level</param>
     /// <param name="connectionId">SignalR connection ID for targeted result delivery</param>
     /// <returns>Task ID for tracking</returns>
-    public async Task<string> QueueTaskAsync(string command, string repositoryPath, Orchestra.Core.TaskPriority priority = Orchestra.Core.TaskPriority.Normal, string? connectionId = null)
+    public async Task<string> QueueTaskAsync(string command, string repositoryPath, TaskPriority priority = TaskPriority.Normal, string? connectionId = null)
     {
         var taskId = Guid.NewGuid().ToString();
 
@@ -96,7 +98,7 @@ public class HangfireOrchestrator
     /// <param name="priority">Task priority level</param>
     /// <param name="connectionId">SignalR connection ID for targeted result delivery</param>
     /// <returns>Task ID for tracking</returns>
-    public async Task<string> ScheduleTaskAsync(string command, string repositoryPath, DateTime executeAt, Orchestra.Core.TaskPriority priority = Orchestra.Core.TaskPriority.Normal, string? connectionId = null)
+    public async Task<string> ScheduleTaskAsync(string command, string repositoryPath, DateTime executeAt, TaskPriority priority = TaskPriority.Normal, string? connectionId = null)
     {
         var taskId = Guid.NewGuid().ToString();
 
@@ -157,8 +159,8 @@ public class HangfireOrchestrator
     }
     public void UpdateAgentStatus(string agentId, Orchestra.Core.AgentStatus status, string? currentTask = null) => _legacyOrchestrator.UpdateAgentStatus(agentId, status, currentTask);
 
-    public async Task<Orchestra.Web.Models.TaskRequest?> GetNextTaskForAgentAsync(string agentId) => await _entityOrchestrator.GetNextTaskForAgentAsync(agentId);
-    public Orchestra.Core.TaskRequest? GetNextTaskForAgent(string agentId) => _legacyOrchestrator.GetNextTaskForAgent(agentId);
+    public async Task<TaskRequest?> GetNextTaskForAgentAsync(string agentId) => await _entityOrchestrator.GetNextTaskForAgentAsync(agentId);
+    public TaskRequest? GetNextTaskForAgent(string agentId) => _legacyOrchestrator.GetNextTaskForAgent(agentId);
 
     public async Task<Dictionary<string, Orchestra.Web.Models.RepositoryInfo>> GetRepositoriesAsync() => await _entityOrchestrator.GetRepositoriesAsync();
     public Dictionary<string, Orchestra.Core.RepositoryInfo> GetRepositories() => _legacyOrchestrator.GetRepositories();
@@ -199,7 +201,7 @@ public class HangfireOrchestrator
                             agent.Id,
                             "echo 'Claude Code CLI initialized'",
                             agent.RepositoryPath ?? string.Empty,
-                            Orchestra.Core.TaskPriority.Low,
+                            TaskPriority.Low,
                             null, // No connectionId for warmup
                             null!));
 
@@ -303,13 +305,13 @@ public class HangfireOrchestrator
     /// </summary>
     /// <param name="priority">Task priority</param>
     /// <returns>Queue name</returns>
-    private static string GetQueueNameForPriority(Orchestra.Core.TaskPriority priority)
+    private static string GetQueueNameForPriority(TaskPriority priority)
     {
         return priority switch
         {
-            Orchestra.Core.TaskPriority.Critical => "high-priority",
-            Orchestra.Core.TaskPriority.High => "high-priority",
-            Orchestra.Core.TaskPriority.Low => "default",
+            TaskPriority.Critical => "high-priority",
+            TaskPriority.High => "high-priority",
+            TaskPriority.Low => "default",
             _ => "default"
         };
     }
