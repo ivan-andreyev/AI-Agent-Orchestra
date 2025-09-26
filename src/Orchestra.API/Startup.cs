@@ -183,6 +183,9 @@ public class Startup
             .AddCheck<ChatContextServiceHealthCheck>("chat-context", tags: new[] { "chat", "database" })
             .AddDbContextCheck<OrchestraDbContext>("database", tags: new[] { "database" });
 
+        // Register Data Migration Service for SQLite database integration
+        services.AddScoped<IDataMigrationService, DataMigrationService>();
+
         // Register Web services for batch task execution
         services.AddHttpClient(); // Required for OrchestratorService
         services.AddScoped<IOrchestratorService, OrchestratorService>();
