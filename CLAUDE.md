@@ -47,12 +47,13 @@ bash scripts/test-api.sh
 
 ### Key Architectural Patterns
 
-**Mediator Pattern**: All business operations go through IGameMediator using Command/Query pattern. This is the central architectural principle.
+**Mediator Pattern**: All business operations go through IMediator using Command/Query pattern. This is the central architectural principle. ✅ IMPLEMENTED with MediatR 11.1.0
 
-**Command/Query Separation**:
-- Commands: `{Action}{Entity}Command` (e.g., `PurchaseUpgradeCommand`)
-- Handlers: `{CommandName}Handler` (e.g., `PurchaseUpgradeCommandHandler`)
-- Events: `{Entity}{Action}Event` (e.g., `UpgradePurchasedEvent`)
+**Command/Query Separation**: ✅ IMPLEMENTED
+- Commands: `{Action}{Entity}Command` (e.g., `CreateTaskCommand`, `UpdateTaskStatusCommand`)
+- Query: `{Action}{Entity}Query` (e.g., `GetNextTaskForAgentQuery`)
+- Handlers: `{CommandName}Handler` (e.g., `CreateTaskCommandHandler`)
+- Events: `{Entity}{Action}Event` (e.g., `TaskCreatedEvent`, `TaskStatusChangedEvent`)
 
 **Framework-First Approach**: Built as an extensible framework for multiple AI agent types, not just a single application.
 
@@ -61,7 +62,7 @@ bash scripts/test-api.sh
 - **Entity Framework Core** with SQLite (dev) / PostgreSQL (prod)
 - **ASP.NET Core** with OpenAPI/Swagger
 - **SignalR** for real-time communication
-- **MediatR** for CQRS implementation (planned)
+- **MediatR 11.1.0** for CQRS implementation ✅ IMPLEMENTED
 
 ## Development Guidelines
 
@@ -83,6 +84,39 @@ bash scripts/test-api.sh
 - SQLite for development, PostgreSQL for production
 - All dates in UTC timezone
 - Repository pattern through Mediator
+
+### MediatR Usage Examples (LLM-Friendly Patterns)
+
+**Creating New Commands:**
+```csharp
+// 1. Define Command
+public record ProcessAgentRequestCommand(string AgentId, string Request) : ICommand<string>;
+
+// 2. Create Handler
+public class ProcessAgentRequestCommandHandler : IRequestHandler<ProcessAgentRequestCommand, string>
+{
+    public async Task<string> Handle(ProcessAgentRequestCommand request, CancellationToken cancellationToken)
+    {
+        // Implementation logic
+        return "result";
+    }
+}
+
+// 3. Use in Controller
+[HttpPost("process")]
+public async Task<ActionResult> ProcessRequest([FromBody] ProcessRequest request)
+{
+    var command = new ProcessAgentRequestCommand(request.AgentId, request.Request);
+    var result = await _mediator.Send(command);
+    return Ok(result);
+}
+```
+
+**Event Publishing Pattern:**
+```csharp
+// Publish domain events
+await _mediator.Publish(new AgentProcessedEvent(agentId, result, DateTime.UtcNow), cancellationToken);
+```
 
 ## Important Files and Directories
 

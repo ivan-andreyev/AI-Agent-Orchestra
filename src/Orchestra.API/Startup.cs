@@ -15,6 +15,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Orchestra.Core.HealthChecks;
+using MediatR;
 
 namespace Orchestra.API;
 
@@ -109,6 +110,13 @@ public class Startup
             options.EnableDetailedErrors = true;
             options.MaximumReceiveMessageSize = 1024 * 1024; // 1MB
             options.StreamBufferCapacity = 10;
+        });
+
+        // Add MediatR for LLM-friendly Command/Query pattern
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(Startup).Assembly);
+            cfg.RegisterServicesFromAssembly(typeof(Orchestra.Core.Commands.ICommand).Assembly);
         });
 
         services.AddSingleton<SimpleOrchestrator>();

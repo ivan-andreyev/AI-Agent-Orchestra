@@ -78,7 +78,7 @@ app.MapHub<OrchestrationHub>("/orchestrationHub");
 
 ### 2. Orchestration Service
 
-**Technology**: ASP.NET Core + MediatR + Quartz.NET
+**Technology**: ASP.NET Core 9.0 + MediatR 11.1.0 (✅ IMPLEMENTED) + Hangfire
 
 **Core Responsibilities**:
 - Task distribution and prioritization
@@ -151,6 +151,118 @@ public class AgentSpecializationMatcher : IAgentSpecializationMatcher
     }
 }
 ```
+
+### 2.1. Command/Query/Event Architecture (MediatR)
+
+**Implementation Status**: ✅ COMPLETE
+
+AI Agent Orchestra implements CQRS (Command Query Responsibility Segregation) pattern through MediatR for LLM-friendly architecture.
+
+#### Core Patterns
+
+**Commands** - Operations that change state:
+```csharp
+// Create new task
+public record CreateTaskCommand(
+    string Command,
+    string RepositoryPath,
+    TaskPriority Priority = TaskPriority.Normal
+) : ICommand<string>;
+
+// Update task status
+public record UpdateTaskStatusCommand(
+    string TaskId,
+    TaskStatus Status,
+    string? Result = null,
+    string? ErrorMessage = null
+) : ICommand<bool>;
+```
+
+**Queries** - Operations that read data:
+```csharp
+// Get next task for agent
+public record GetNextTaskForAgentQuery(string AgentId) : IRequest<TaskRequest>;
+```
+
+**Events** - Domain notifications:
+```csharp
+// Task lifecycle events
+public record TaskCreatedEvent(
+    string TaskId,
+    string Command,
+    string RepositoryPath,
+    TaskPriority Priority,
+    DateTime Timestamp
+) : IEvent;
+
+public record TaskStatusChangedEvent(
+    string TaskId,
+    TaskStatus OldStatus,
+    TaskStatus NewStatus,
+    string? Result,
+    string? ErrorMessage,
+    DateTime Timestamp
+) : IEvent;
+```
+
+#### Handler Implementation
+
+**Command Handlers**:
+```csharp
+public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, string>
+{
+    private readonly TaskRepository _taskRepository;
+    private readonly IMediator _mediator;
+
+    public async Task<string> Handle(CreateTaskCommand request, CancellationToken cancellationToken)
+    {
+        var taskId = await _taskRepository.QueueTaskAsync(
+            request.Command, request.RepositoryPath, request.Priority);
+
+        // Publish domain event
+        await _mediator.Publish(new TaskCreatedEvent(
+            taskId, request.Command, request.RepositoryPath,
+            request.Priority, DateTime.UtcNow), cancellationToken);
+
+        return taskId;
+    }
+}
+```
+
+**Query Handlers**:
+```csharp
+public class GetNextTaskForAgentQueryHandler : IRequestHandler<GetNextTaskForAgentQuery, TaskRequest>
+{
+    private readonly TaskRepository _taskRepository;
+
+    public async Task<TaskRequest> Handle(GetNextTaskForAgentQuery request, CancellationToken cancellationToken)
+    {
+        var task = await _taskRepository.GetNextTaskForAgentAsync(request.AgentId);
+        return task ?? TaskRequest.Empty;
+    }
+}
+```
+
+#### API Integration
+
+Controllers use IMediator instead of direct service calls:
+```csharp
+[HttpPost]
+public async Task<ActionResult<string>> CreateTask([FromBody] CreateTaskRequest request)
+{
+    var command = new CreateTaskCommand(request.Command, request.RepositoryPath, request.Priority);
+    var taskId = await _mediator.Send(command);
+    return Ok(new { TaskId = taskId });
+}
+```
+
+#### Benefits for LLM Development
+
+1. **Predictable Patterns**: All business operations follow Command/Query/Event pattern
+2. **Explicit Interfaces**: Clear contracts for all operations
+3. **Separation of Concerns**: Commands/Queries/Events have single responsibility
+4. **Event-Driven**: Loose coupling through domain events
+5. **Testable**: Easy to unit test handlers in isolation
 
 ### 3. Agent Management Service
 

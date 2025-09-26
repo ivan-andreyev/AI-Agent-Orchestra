@@ -22,6 +22,8 @@
 - [ ] Agent management system
 
 ### Phase 2: Agent Connectors (Weeks 5-8)
+- [x] MediatR CQRS architecture ✅ COMPLETED
+- [x] Task queuing and assignment logic ✅ COMPLETED
 - [ ] Claude Code integration
 - [ ] GitHub Copilot integration
 - [ ] Agent connector framework
@@ -53,6 +55,8 @@ Claude Code | GitHub Copilot | Cursor AI | Custom Agents
 
 ### Task Orchestration
 - **Smart Distribution**: Route tasks to most suitable agents
+- **CQRS Architecture**: Command/Query separation with MediatR ✅ IMPLEMENTED
+- **Event-Driven**: Publish domain events for loose coupling
 - **Dependency Resolution**: Understand task relationships and execution order
 - **Parallel Execution**: Maximize throughput while preventing conflicts
 - **Quality Gates**: Automated validation and approval workflows
@@ -66,11 +70,11 @@ Claude Code | GitHub Copilot | Cursor AI | Custom Agents
 ## 🛠️ Technology Stack
 
 ### Backend
-- **ASP.NET Core 8.0** - API and orchestration services
-- **Entity Framework Core** - Data access with PostgreSQL
-- **MediatR** - CQRS pattern implementation
+- **ASP.NET Core 9.0** - API and orchestration services
+- **Entity Framework Core** - Data access with SQLite (dev) / PostgreSQL (prod)
+- **MediatR 11.1.0** - CQRS pattern implementation ✅ IMPLEMENTED
 - **SignalR** - Real-time communication
-- **Quartz.NET** - Background job scheduling
+- **Hangfire** - Background job scheduling
 
 ### Frontend
 - **React 18 + TypeScript** - Modern web dashboard
