@@ -213,8 +213,8 @@ public class Startup
         {
             endpoints.MapControllers();
             // Map SignalR hubs for real-time communication
-            endpoints.MapHub<AgentCommunicationHub>("/agentHub");
-            endpoints.MapHub<CoordinatorChatHub>("/coordinatorHub");
+            endpoints.MapHub<AgentCommunicationHub>("/agentHub").RequireCors("BlazorWasmPolicy");
+            endpoints.MapHub<CoordinatorChatHub>("/coordinatorHub").RequireCors("BlazorWasmPolicy");
 
             // Health check endpoints
             endpoints.MapHealthChecks("/health");

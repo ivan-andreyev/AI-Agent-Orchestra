@@ -7,8 +7,10 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
+// Note: In Blazor WebAssembly, appsettings.json is loaded automatically from wwwroot folder
+
 // Настраиваем HttpClient для API
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:55001") });
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:55002") });
 
 // Register performance monitoring services (Phase 0.2 implementation)
 builder.Services.AddScoped<PerformanceMonitoringService>();

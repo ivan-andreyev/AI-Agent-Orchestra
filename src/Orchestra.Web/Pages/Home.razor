@@ -69,7 +69,7 @@
 
         <!-- Bootstrap Grid Phase 1 Implementation: Replace main-layout with container-fluid and row -->
         <div class="container-fluid" data-bs-theme="dark">
-            <div class="row g-3 vh-100" style="margin-top: var(--gap-size);">
+            <div class="row g-3" style="margin-top: var(--gap-size);">
                 <!-- Enhanced Sidebar per Design Specifications -->
                 <div class="col-md-3 enhanced-sidebar sidebar">
                     <!-- Repository Context Section -->
@@ -113,20 +113,22 @@
                 <!-- Enhanced Main Content per Design Specifications -->
                 <div class="col-md-9 enhanced-main-content main-content">
                     <!-- Bootstrap Grid Phase 1 Implementation: Replace content-panels with row -->
-                    <div class="row g-3">
-                        <div class="col-12 mb-3">
-                            <div class="content-panel history-panel">
+                    <div class="row g-3 h-100">
+                        <!-- Top Row: Agent History (70%) and Task Queue (30%) side by side -->
+                        <div class="col-md-8">
+                            <div class="content-panel history-panel h-100">
                                 <AgentHistory SelectedAgentId="@GetSelectedAgentSessionId()" />
                             </div>
                         </div>
-                        <div class="col-12 mb-3">
-                            <div class="content-panel queue-panel">
+                        <div class="col-md-4">
+                            <div class="content-panel queue-panel h-100">
                                 <TaskQueue SelectedRepository="@_selectedRepository"
                                           RepositoryPath="@GetSelectedRepositoryPath()" />
                             </div>
                         </div>
+                        <!-- Bottom Row: Coordinator Chat full width -->
                         <div class="col-12">
-                            <div class="content-panel coordinator-panel">
+                            <div class="content-panel coordinator-panel" style="height: 300px;">
                                 <CoordinatorChat />
                             </div>
                         </div>

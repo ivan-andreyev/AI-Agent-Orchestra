@@ -270,17 +270,39 @@
  *        <div class="col-md-9"> (content)
  */
 /* DEPRECATED: Phase 1 Bootstrap Integration - Replace with Bootstrap .container-fluid .row .col-* */
+/* ОТКЛЮЧЕНО: блокирует Bootstrap Grid
 .main-layout {
     display: grid;
     grid-template-columns: var(--sidebar-width) 1fr;
     grid-template-areas: "sidebar content";
     gap: var(--gap-size);
-    min-height: calc(100vh - var(--header-height) - 40px); /* Allow natural expansion beyond viewport */
+    min-height: calc(100vh - var(--header-height) - 40px);
     margin-top: var(--gap-size);
-    /* Enhanced grid system for Phase 2.2 */
     grid-auto-rows: minmax(min-content, max-content);
     align-items: start;
     justify-content: stretch;
+}
+*/
+
+/* Bootstrap Grid Force Fix - принудительно исправляем Bootstrap поведение */
+.container-fluid .row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+}
+
+.container-fluid .row .col-md-3,
+.container-fluid .row .col-md-9 {
+    flex: 0 0 auto !important;
+    position: relative !important;
+}
+
+.container-fluid .row .col-md-3 {
+    width: 25% !important;
+}
+
+.container-fluid .row .col-md-9 {
+    width: 75% !important;
 }
 
 /* Bootstrap-compatible replacement for main-layout */
@@ -842,14 +864,16 @@
     height: 100%;
     overflow-y: auto;
     overflow-x: visible;
-    width: var(--sidebar-width);
+    /* width: var(--sidebar-width); - убрано для Bootstrap Grid совместимости */
+    /* min-width: 350px; - убрано, мешает Bootstrap Grid */
     position: relative;
 }
 
-/* Enhanced Sidebar Structure per Design Specs */
+/* Enhanced Sidebar Structure per Design Specs - Bootstrap Compatible */
 .enhanced-sidebar {
-    grid-area: sidebar;
-    width: var(--sidebar-width);
+    /* grid-area: sidebar; - убрано для Bootstrap Grid совместимости */
+    /* width: var(--sidebar-width); - убрано для Bootstrap Grid совместимости */
+    /* min-width: 350px; - убрано, мешает Bootstrap Grid */
     padding: var(--enhanced-sidebar-padding);
     background: var(--sidebar-bg);
     border: var(--section-border);
@@ -2624,17 +2648,18 @@ input, select, textarea {
         --gap-size: 16px;
     }
 
+    /* ОТКЛЮЧЕНО: блокирует Bootstrap Grid
     .main-layout {
         grid-template-columns: var(--sidebar-width) 1fr;
         grid-template-areas: "sidebar content";
         gap: var(--gap-size);
-        /* Enhanced grid optimization for smaller screens */
         align-items: stretch;
         min-height: calc(100vh - var(--header-height) - 30px);
     }
+    */
 
     .enhanced-sidebar {
-        width: 350px;
+        /* width: 350px; - убрано для Bootstrap Grid совместимости */
         padding: 12px;
         min-height: calc(100vh - var(--header-height) - 50px);
     }

@@ -480,7 +480,7 @@ public partial class CoordinatorChat
             }
 
             // Final fallback to hardcoded development URL
-            var defaultUrl = "http://localhost:55001/coordinatorHub";
+            var defaultUrl = "http://localhost:55002/coordinatorHub";
             Logger.LogWarning("CoordinatorChat: No SignalR configuration found, using default URL: {Url}", defaultUrl);
             return AppendUserIdToUrl(defaultUrl, userId);
         }

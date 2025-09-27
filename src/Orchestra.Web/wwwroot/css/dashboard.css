@@ -26,7 +26,7 @@ body {
 
 .dashboard {
     padding: 20px;
-    max-width: 1400px;
+    /* max-width: 1400px; - убрано для полного использования экрана с Bootstrap */
     margin: 0 auto;
 }
 
@@ -103,10 +103,11 @@ body {
     font-size: 0.9rem;
 }
 
+/* .main-content CSS Grid rules disabled for Bootstrap Grid compatibility */
 .main-content {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 30px;
+    /* display: grid; - отключено для Bootstrap Grid */
+    /* grid-template-columns: 2fr 1fr; - отключено для Bootstrap Grid */
+    /* gap: 30px; - отключено для Bootstrap Grid */
     margin-bottom: 30px;
 }
 
