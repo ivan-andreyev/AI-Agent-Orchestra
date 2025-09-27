@@ -7,7 +7,7 @@ using Orchestra.API.Hubs;
 using Orchestra.Web.Services;
 using System.Text.Json.Serialization;
 using Hangfire;
-using Hangfire.Storage.SQLite;
+using Hangfire.PostgreSql;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -62,26 +62,24 @@ public class Startup
             });
         });
 
-        // Database connection strings for SQLite
-        // In testing environments, separate EF Core and Hangfire databases to prevent disposal conflicts
+        // Database connection strings for PostgreSQL
         var currentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
         var isTestEnvironment = currentEnvironment == "Testing";
-        
-        // EF Core Database Connection
-        var efCoreDbFileName = Environment.GetEnvironmentVariable("EFCORE_CONNECTION") ?? 
-                              (isTestEnvironment ? 
-                               Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION")?.Replace(".db", "-efcore.db") ?? "test-orchestra-efcore.db" :
-                               "orchestra.db");
-        var efCoreConnectionString = $"Data Source={efCoreDbFileName}";
-        
-        // Hangfire Database Connection  
-        var hangfireDbFileName = Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION") ?? "orchestra.db";
-        var hangfireConnectionString = $"Data Source={hangfireDbFileName}";
+
+        // PostgreSQL Database Connection
+        var defaultConnectionString = "Host=localhost;Database=orchestra;Username=postgres;Password=postgres";
+        var efCoreConnectionString = Environment.GetEnvironmentVariable("EFCORE_CONNECTION") ??
+                                   (isTestEnvironment ?
+                                    Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION")?.Replace("orchestra", "orchestra_test") ?? "Host=localhost;Database=orchestra_test;Username=postgres;Password=postgres" :
+                                    defaultConnectionString);
+
+        // Hangfire Database Connection (same as EF Core for PostgreSQL)
+        var hangfireConnectionString = Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION") ?? defaultConnectionString;
 
         // Configure Entity Framework DbContext
         services.AddDbContext<OrchestraDbContext>(options =>
         {
-            options.UseSqlite(efCoreConnectionString, b => b.MigrationsAssembly("Orchestra.API"));
+            options.UseNpgsql(efCoreConnectionString, b => b.MigrationsAssembly("Orchestra.API"));
             options.EnableSensitiveDataLogging(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development");
             options.EnableDetailedErrors(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development");
         });
@@ -91,7 +89,7 @@ public class Startup
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UseSQLiteStorage(hangfireConnectionString, new SQLiteStorageOptions
+            .UsePostgreSqlStorage(hangfireConnectionString, new Hangfire.PostgreSql.PostgreSqlStorageOptions
             {
                 QueuePollInterval = TimeSpan.FromSeconds(15),
                 JobExpirationCheckInterval = TimeSpan.FromHours(1),
@@ -183,8 +181,6 @@ public class Startup
             .AddCheck<ChatContextServiceHealthCheck>("chat-context", tags: new[] { "chat", "database" })
             .AddDbContextCheck<OrchestraDbContext>("database", tags: new[] { "database" });
 
-        // Register Data Migration Service for SQLite database integration
-        services.AddScoped<IDataMigrationService, DataMigrationService>();
 
         // Register Web services for batch task execution
         services.AddHttpClient(); // Required for OrchestratorService
