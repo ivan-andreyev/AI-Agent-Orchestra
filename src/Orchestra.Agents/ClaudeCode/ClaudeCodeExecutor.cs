@@ -49,9 +49,18 @@ public class ClaudeCodeExecutor : IAgentExecutor
             workingDirectory = _configuration.DefaultWorkingDirectory ?? Environment.CurrentDirectory;
         }
 
+        // Ensure working directory exists - create if needed
         if (!Directory.Exists(workingDirectory))
         {
-            throw new DirectoryNotFoundException($"Working directory not found: {workingDirectory}");
+            _logger.LogInformation("Working directory does not exist, creating: {WorkingDirectory}", workingDirectory);
+            try
+            {
+                Directory.CreateDirectory(workingDirectory);
+            }
+            catch (Exception ex)
+            {
+                throw new DirectoryNotFoundException($"Working directory not found and could not be created: {workingDirectory}", ex);
+            }
         }
 
         var startTime = DateTime.UtcNow;
@@ -239,11 +248,23 @@ public class ClaudeCodeExecutor : IAgentExecutor
             };
         }
 
+        var arguments = PrepareCliArguments(command, workingDirectory);
+
+        // Detailed logging for debugging
+        _logger.LogInformation("=== Claude CLI Execution Details ===");
+        _logger.LogInformation("CLI Path: {CliPath}", _configuration.DefaultCliPath);
+        _logger.LogInformation("Working Directory: {WorkingDirectory}", workingDirectory);
+        _logger.LogInformation("Arguments: {Arguments}", arguments);
+        _logger.LogInformation("Command: {Command}", command);
+        _logger.LogInformation("====================================");
+
+        // Note: Do NOT set WorkingDirectory for .cmd files on Windows
+        // .cmd files have issues with some temp directory paths
+        // Instead, we rely on --add-dir to grant access to the target directory
         var processStartInfo = new ProcessStartInfo
         {
             FileName = _configuration.DefaultCliPath,
-            Arguments = PrepareCliArguments(command, workingDirectory),
-            WorkingDirectory = workingDirectory,
+            Arguments = arguments,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -293,6 +314,20 @@ public class ClaudeCodeExecutor : IAgentExecutor
             var error = errorBuilder.ToString();
             var success = process.ExitCode == 0;
 
+            // Always log output and errors for debugging
+            _logger.LogInformation("=== Claude CLI Result ===");
+            _logger.LogInformation("Exit Code: {ExitCode}", process.ExitCode);
+            _logger.LogInformation("Output Length: {OutputLength} chars", output.Length);
+            if (!string.IsNullOrEmpty(output))
+            {
+                _logger.LogInformation("Output: {Output}", output.Length > 500 ? output.Substring(0, 500) + "..." : output);
+            }
+            if (!string.IsNullOrEmpty(error))
+            {
+                _logger.LogWarning("Error: {Error}", error);
+            }
+            _logger.LogInformation("========================");
+
             if (!success && _configuration.EnableVerboseLogging)
             {
                 _logger.LogWarning("Claude Code CLI exited with code {ExitCode}. Error: {Error}",
@@ -328,6 +363,10 @@ public class ClaudeCodeExecutor : IAgentExecutor
 
         // Add output format
         args.Append($" --output-format {_configuration.OutputFormat}");
+
+        // CRITICAL: Skip permission checks for automated execution
+        // This allows Claude to create/edit files without interactive prompts
+        args.Append(" --dangerously-skip-permissions");
 
         // Add working directory as additional directory for tool access
         args.Append($" --add-dir \"{EscapeCliArgument(workingDirectory)}\"");

@@ -45,7 +45,8 @@ public class RealEndToEndTestFactory<TStartup> : WebApplicationFactory<TStartup>
                 ["HANGFIRE_CONNECTION"] = "InMemory",
                 ["EFCORE_CONNECTION"] = _efCoreDbName,
                 // Configure Claude Code CLI for real execution
-                ["ClaudeCodeConfiguration:DefaultTimeout"] = "00:10:00", // 10 minutes
+                // First Claude request can take 10+ minutes due to model loading
+                ["ClaudeCodeConfiguration:DefaultTimeout"] = "00:15:00", // 15 minutes
                 ["ClaudeCodeConfiguration:EnableVerboseLogging"] = "true",
                 ["ClaudeCodeConfiguration:MaxConcurrentExecutions"] = "1" // Sequential for tests
             };
