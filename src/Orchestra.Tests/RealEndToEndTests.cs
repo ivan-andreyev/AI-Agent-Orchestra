@@ -71,7 +71,7 @@ public class RealEndToEndTests : IDisposable
         dbContext.SaveChanges();
     }
 
-    [Fact(Timeout = 600000)] // 10 minutes timeout
+    [Fact(Timeout = 1200000)] // 20 minutes timeout (first Claude request can take 15+ minutes)
     public async Task RealClaudeCode_CreateFile_ShouldExecuteSuccessfully()
     {
         // Arrange: Create unique test directory
@@ -109,7 +109,7 @@ public class RealEndToEndTests : IDisposable
         }
     }
 
-    [Fact(Timeout = 600000)] // 10 minutes timeout
+    [Fact(Timeout = 1200000)] // 20 minutes timeout (first Claude request can take 15+ minutes)
     public async Task RealClaudeCode_ReadAndModifyFile_ShouldWorkEndToEnd()
     {
         // Arrange: Create test directory with initial file
@@ -139,7 +139,7 @@ public class RealEndToEndTests : IDisposable
         Assert.Contains("Modified by Claude Code", content);
     }
 
-    [Fact(Timeout = 600000)] // 10 minutes timeout
+    [Fact(Timeout = 1200000)] // 20 minutes timeout (first Claude request can take 15+ minutes)
     public async Task RealClaudeCode_ListFiles_ShouldReturnCorrectOutput()
     {
         // Arrange: Create test directory with known files
