@@ -268,6 +268,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            RedirectStandardInput = true, // Redirect stdin to close it immediately
             CreateNoWindow = true
         };
 
@@ -295,18 +296,35 @@ public class ClaudeCodeExecutor : IAgentExecutor
         try
         {
             process.Start();
+
+            // Close stdin immediately to prevent interactive prompts
+            process.StandardInput.Close();
+
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
             try
             {
-                await process.WaitForExitAsync(cancellationToken).WaitAsync(_configuration.DefaultTimeout);
+                // Use timeout-based cancellation instead of external cancellationToken
+                // to prevent premature cancellation by test framework or Hangfire
+                using var timeoutCts = new CancellationTokenSource(_configuration.DefaultTimeout);
+                await process.WaitForExitAsync(timeoutCts.Token);
             }
-            catch (TimeoutException)
+            catch (OperationCanceledException)
             {
-                _logger.LogWarning("Process timed out, killing Claude Code CLI process");
-                process.Kill();
-                throw;
+                _logger.LogWarning("Process timed out after {Timeout}, killing Claude Code CLI process", _configuration.DefaultTimeout);
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill();
+                    }
+                }
+                catch (Exception killEx)
+                {
+                    _logger.LogWarning(killEx, "Failed to kill process after timeout");
+                }
+                throw new TimeoutException($"Claude CLI process timed out after {_configuration.DefaultTimeout}");
             }
 
 
@@ -378,7 +396,8 @@ public class ClaudeCodeExecutor : IAgentExecutor
         }
 
         // Add the command/prompt as the last argument (without --command flag)
-        args.Append($" \"{EscapeCliArgument(command)}\"");
+        // Use -- separator to prevent --add-dir from consuming the prompt argument
+        args.Append($" -- \"{EscapeCliArgument(command)}\"");
 
         return args.ToString();
     }
