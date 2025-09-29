@@ -1,5 +1,6 @@
 using Orchestra.Core;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
+using AgentStatus = Orchestra.Core.Data.Entities.AgentStatus;
 
 namespace Orchestra.Tests.UnitTests;
 
@@ -8,7 +9,8 @@ public class SimpleOrchestratorTests
     private SimpleOrchestrator CreateOrchestrator()
     {
         var testFileName = $"test-state-unit-{Guid.NewGuid()}.json";
-        return new SimpleOrchestrator(testFileName);
+        var agentStateStore = new Orchestra.Core.Services.InMemoryAgentStateStore();
+        return new SimpleOrchestrator(agentStateStore, null, testFileName);
     }
 
     [Fact]
@@ -44,14 +46,14 @@ public class SimpleOrchestratorTests
         orchestrator.RegisterAgent(agentId, "Test Agent", "claude-code", @"C:\TestRepo");
 
         // Act
-        orchestrator.UpdateAgentStatus(agentId, AgentStatus.Working, "Running tests");
+        orchestrator.UpdateAgentStatus(agentId, AgentStatus.Busy, "Running tests");
 
         // Assert
         var agents = orchestrator.GetAllAgents();
         var agent = agents.FirstOrDefault(a => a.Id == agentId);
 
         Assert.NotNull(agent);
-        Assert.Equal(AgentStatus.Working, agent.Status);
+        Assert.Equal(AgentStatus.Busy, agent.Status);
         Assert.Equal("Running tests", agent.CurrentTask);
     }
 

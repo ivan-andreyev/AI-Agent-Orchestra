@@ -2,11 +2,16 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Orchestra.Core;
 using Orchestra.Core.Models;
 using System.Text.Json;
+using AgentStatus = Orchestra.Core.Data.Entities.AgentStatus;
 using System.Text;
+using Xunit;
+using Microsoft.Extensions.DependencyInjection;
+using Orchestra.Core.Data;
 
 namespace Orchestra.Tests;
 
-public class EndToEndTests : IClassFixture<TestWebApplicationFactory<Program>>
+[Collection("Integration")]
+public class EndToEndTests
 {
     private readonly TestWebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
@@ -21,6 +26,12 @@ public class EndToEndTests : IClassFixture<TestWebApplicationFactory<Program>>
             PropertyNameCaseInsensitive = true,
             Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
         };
+
+        // Initialize database for EndToEnd tests
+        using var scope = _factory.Services.CreateScope();
+        using var dbContext = scope.ServiceProvider.GetRequiredService<OrchestraDbContext>();
+        dbContext.Database.EnsureDeleted();
+        dbContext.Database.EnsureCreated();
     }
 
     [Fact]
@@ -46,12 +57,12 @@ public class EndToEndTests : IClassFixture<TestWebApplicationFactory<Program>>
         Assert.Equal(AgentStatus.Idle, agent.Status);
 
         // Step 4: Agent pings as working
-        await PingAgent(agentId, AgentStatus.Working, "E2E Testing in progress");
+        await PingAgent(agentId, AgentStatus.Busy, "E2E Testing in progress");
 
         // Step 5: Verify agent status updated
         var afterPingState = await GetState();
         var workingAgent = afterPingState.Agents[agentId];
-        Assert.Equal(AgentStatus.Working, workingAgent.Status);
+        Assert.Equal(AgentStatus.Busy, workingAgent.Status);
         Assert.Equal("E2E Testing in progress", workingAgent.CurrentTask);
 
         // Step 6: Queue multiple tasks
@@ -120,12 +131,12 @@ public class EndToEndTests : IClassFixture<TestWebApplicationFactory<Program>>
         }
 
         // Verify agents can handle tasks
-        await PingAgent(agent1Id, AgentStatus.Working, "Processing repo1 task");
-        await PingAgent(agent2Id, AgentStatus.Working, "Processing repo2 task");
+        await PingAgent(agent1Id, AgentStatus.Busy, "Processing repo1 task");
+        await PingAgent(agent2Id, AgentStatus.Busy, "Processing repo2 task");
 
         var finalState = await GetState();
-        Assert.Equal(AgentStatus.Working, finalState.Agents[agent1Id].Status);
-        Assert.Equal(AgentStatus.Working, finalState.Agents[agent2Id].Status);
+        Assert.Equal(AgentStatus.Busy, finalState.Agents[agent1Id].Status);
+        Assert.Equal(AgentStatus.Busy, finalState.Agents[agent2Id].Status);
     }
 
     [Fact]
@@ -276,7 +287,7 @@ public class EndToEndTests : IClassFixture<TestWebApplicationFactory<Program>>
 
     private async Task RegisterAgent(string id, string name, string type, string repositoryPath)
     {
-        var request = new { Id = id, Name = name, Type = type, RepositoryPath = repositoryPath };
+        var request = new { Id = id, Name = name, Type = type, RepositoryPath = repositoryPath, SessionId = (string?)null };
         var response = await _client.PostAsJsonAsync("/agents/register", request);
         response.EnsureSuccessStatusCode();
     }

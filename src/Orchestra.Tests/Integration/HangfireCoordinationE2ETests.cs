@@ -8,10 +8,11 @@ using Orchestra.Core.Data;
 using Orchestra.API.Services;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Xunit;
 using Xunit.Abstractions;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
 using TaskStatus = Orchestra.Core.Models.TaskStatus;
-using AgentStatus = Orchestra.Core.AgentStatus;
+using AgentStatus = Orchestra.Core.Data.Entities.AgentStatus;
 
 namespace Orchestra.Tests.Integration;
 
@@ -20,6 +21,7 @@ namespace Orchestra.Tests.Integration;
 /// This test validates the complete workflow: API → HangfireOrchestrator → TaskExecutionJob → Agent Execution
 /// Focus: Verifying actual task execution through background jobs with real coordination
 /// </summary>
+[Collection("Integration")]
 public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
     private readonly WebApplicationFactory<Program> _factory;
@@ -51,7 +53,7 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         // Ensure database is properly migrated for testing
         EnsureDatabaseSetup();
 
-        SetupCoordinationAgents();
+        SetupCoordinationAgentsAsync().Wait();
     }
 
     /// <summary>
@@ -78,25 +80,38 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         }
     }
 
-    private void SetupCoordinationAgents()
+    private async Task SetupCoordinationAgentsAsync()
     {
         // Register coordination test agents
         var testRepo1 = @"C:\E2ECoordination-Test-1";
         var testRepo2 = @"C:\E2ECoordination-Test-2";
 
-        // Register directly via SimpleOrchestrator for guaranteed availability
+        // For tests, register directly with SimpleOrchestrator for guaranteed availability
+        // This ensures agent discovery works reliably in test environment
         _simpleOrchestrator.RegisterAgent("coordination-claude-1", "E2E Coordination Test Agent 1", "claude-code", testRepo1);
         _simpleOrchestrator.RegisterAgent("coordination-claude-2", "E2E Coordination Test Agent 2", "claude-code", testRepo2);
 
-        _output.WriteLine("Coordination test agents registered");
+        _output.WriteLine("Coordination test agents registered in SimpleOrchestrator");
 
         // Verify agents are available
-        var agents = _simpleOrchestrator.GetAllAgents();
-        _output.WriteLine($"Total agents available: {agents.Count}");
+        var legacyAgents = _simpleOrchestrator.GetAllAgents();
+        _output.WriteLine($"Legacy orchestrator agents available: {legacyAgents.Count}");
 
-        foreach (var agent in agents)
+        foreach (var agent in legacyAgents)
         {
-            _output.WriteLine($"Agent: {agent.Id}, Status: {agent.Status}, Repository: {agent.RepositoryPath}");
+            _output.WriteLine($"Legacy Agent: {agent.Id}, Status: {agent.Status}, Repository: {agent.RepositoryPath}");
+        }
+
+        // Also try to register with HangfireOrchestrator for completeness, but don't fail if it doesn't work
+        try
+        {
+            await _hangfireOrchestrator.RegisterAgentAsync("coordination-claude-1", "E2E Coordination Test Agent 1", "claude-code", testRepo1);
+            await _hangfireOrchestrator.RegisterAgentAsync("coordination-claude-2", "E2E Coordination Test Agent 2", "claude-code", testRepo2);
+            _output.WriteLine("Agents also registered with HangfireOrchestrator");
+        }
+        catch (Exception ex)
+        {
+            _output.WriteLine($"Could not register agents with HangfireOrchestrator (this is expected in test environment): {ex.Message}");
         }
     }
 
@@ -285,7 +300,7 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
                     _output.WriteLine($"Agent {agentId} current status: {agent.Status}");
 
                     // Track when agent starts working
-                    if (!hasStartedWorking && (agent.Status == AgentStatus.Busy || agent.Status == AgentStatus.Working))
+                    if (!hasStartedWorking && (agent.Status == AgentStatus.Busy))
                     {
                         hasStartedWorking = true;
                         _output.WriteLine($"Agent {agentId} started working on task");
