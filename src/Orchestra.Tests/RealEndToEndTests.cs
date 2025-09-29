@@ -95,8 +95,8 @@ public class RealEndToEndTests : IDisposable
         var command = "Create a file called test.txt with the exact content: Hello from Real E2E Test";
         await QueueTask(command, testDir, TaskPriority.High);
 
-        // Wait for task execution (Claude Code can be slow)
-        await Task.Delay(TimeSpan.FromSeconds(30));
+        // Wait for task execution (Claude Code first request takes 15+ minutes)
+        await Task.Delay(TimeSpan.FromMinutes(18));
 
         // Assert: Verify file was created by Claude Code
         var fileExists = File.Exists(testFilePath);
@@ -130,8 +130,8 @@ public class RealEndToEndTests : IDisposable
         var command = "Read the file modify_test.txt and append the text: \\nModified by Claude Code";
         await QueueTask(command, testDir, TaskPriority.High);
 
-        // Wait for execution
-        await Task.Delay(TimeSpan.FromSeconds(30));
+        // Wait for execution (Claude Code first request takes 15+ minutes)
+        await Task.Delay(TimeSpan.FromMinutes(18));
 
         // Assert: Verify file was modified
         var content = await File.ReadAllTextAsync(testFilePath);
@@ -165,8 +165,8 @@ public class RealEndToEndTests : IDisposable
         var command = "List all .txt files in the current directory and save the list to files_list.txt";
         await QueueTask(command, testDir, TaskPriority.High);
 
-        // Wait for execution
-        await Task.Delay(TimeSpan.FromSeconds(30));
+        // Wait for execution (Claude Code first request takes 15+ minutes)
+        await Task.Delay(TimeSpan.FromMinutes(18));
 
         // Assert: Verify output file was created with correct content
         var outputFile = Path.Combine(testDir, "files_list.txt");
