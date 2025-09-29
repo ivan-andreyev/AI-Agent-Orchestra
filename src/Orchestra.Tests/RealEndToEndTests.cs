@@ -4,6 +4,7 @@ using Orchestra.Core.Models;
 using System.Text.Json;
 using AgentStatus = Orchestra.Core.Data.Entities.AgentStatus;
 using Xunit;
+using Xunit.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Orchestra.Core.Data;
 
@@ -22,16 +23,18 @@ public class RealEndToEndTests : IDisposable
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly List<string> _testDirectories;
+    private readonly ITestOutputHelper _output;
 
     // Static flag and lock for database initialization synchronization
     private static bool _databaseInitialized = false;
     private static readonly object _dbLock = new object();
 
-    public RealEndToEndTests(RealEndToEndTestFactory<Program> factory)
+    public RealEndToEndTests(RealEndToEndTestFactory<Program> factory, ITestOutputHelper output)
     {
         _factory = factory;
         _client = _factory.CreateClient();
         _testDirectories = new List<string>();
+        _output = output;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -84,19 +87,34 @@ public class RealEndToEndTests : IDisposable
         var testFilePath = Path.Combine(testDir, "test.txt");
 
         // Act: Register agent with real Claude Code type
+        _output.WriteLine($"[TEST] Registering agent: {agentId}, Repository: {testDir}");
         await RegisterAgent(agentId, "Real Claude Agent", "claude-code", testDir);
 
+        // Wait for DB synchronization
+        await Task.Delay(TimeSpan.FromSeconds(2));
+
         // Verify agent registered
+        _output.WriteLine($"[TEST] Verifying agent registration...");
         var state = await GetState();
+        _output.WriteLine($"[TEST] GetState returned {state.Agents.Count} agents");
+        foreach (var kvp in state.Agents)
+        {
+            _output.WriteLine($"[TEST] Agent: {kvp.Key}, Status: {kvp.Value.Status}, Repository: {kvp.Value.RepositoryPath}");
+        }
+
         Assert.True(state.Agents.ContainsKey(agentId), "Agent should be registered");
         Assert.Equal(AgentStatus.Idle, state.Agents[agentId].Status);
 
         // Queue a simple file creation task
         var command = "Create a file called test.txt with the exact content: Hello from Real E2E Test";
-        await QueueTask(command, testDir, TaskPriority.High);
+        _output.WriteLine($"[TEST] Queuing task: {command}");
+        _output.WriteLine($"[TEST] Task repository path: {testDir}");
+        var taskId = await QueueTask(command, testDir, TaskPriority.High);
+        _output.WriteLine($"[TEST] Task queued successfully with ID: {taskId}");
 
-        // Wait for task execution (Claude Code first request takes 15+ minutes)
-        await Task.Delay(TimeSpan.FromMinutes(18));
+        // Wait for task execution (temporarily reduced for debugging)
+        _output.WriteLine($"[TEST] Waiting 2 minutes for debugging...");
+        await Task.Delay(TimeSpan.FromMinutes(2));
 
         // Assert: Verify file was created by Claude Code
         var fileExists = File.Exists(testFilePath);
@@ -194,11 +212,20 @@ public class RealEndToEndTests : IDisposable
         response.EnsureSuccessStatusCode();
     }
 
-    private async Task QueueTask(string command, string repositoryPath, TaskPriority priority)
+    private async Task<string> QueueTask(string command, string repositoryPath, TaskPriority priority)
     {
         var request = new { Command = command, RepositoryPath = repositoryPath, Priority = (int)priority };
         var response = await _client.PostAsJsonAsync("/tasks/queue", request);
         response.EnsureSuccessStatusCode();
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+        _output.WriteLine($"[TEST] QueueTask response: {responseContent}");
+
+        var result = JsonSerializer.Deserialize<JsonElement>(responseContent, _jsonOptions);
+        var taskId = result.GetProperty("taskId").GetString() ?? string.Empty;
+        _output.WriteLine($"[TEST] Task ID: {taskId}");
+
+        return taskId;
     }
 
     private async Task<OrchestratorState> GetState()
