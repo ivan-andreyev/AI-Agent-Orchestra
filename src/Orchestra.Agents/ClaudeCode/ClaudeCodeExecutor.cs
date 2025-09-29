@@ -323,27 +323,32 @@ public class ClaudeCodeExecutor : IAgentExecutor
     {
         var args = new StringBuilder();
 
-        // Добавляем основную команду
-        args.Append($"--command \"{EscapeCliArgument(command)}\"");
+        // Add --print flag for non-interactive mode
+        args.Append("--print");
 
-        // Добавляем рабочую директорию
-        args.Append($" --working-directory \"{EscapeCliArgument(workingDirectory)}\"");
-
-        // Добавляем формат вывода
+        // Add output format
         args.Append($" --output-format {_configuration.OutputFormat}");
 
-        // Добавляем дополнительные параметры из конфигурации
+        // Add working directory as additional directory for tool access
+        args.Append($" --add-dir \"{EscapeCliArgument(workingDirectory)}\"");
+
+        // Add additional parameters from configuration
         foreach (var param in _configuration.AdditionalCliParameters)
         {
             args.Append($" --{param.Key} \"{EscapeCliArgument(param.Value)}\"");
         }
+
+        // Add the command/prompt as the last argument (without --command flag)
+        args.Append($" \"{EscapeCliArgument(command)}\"");
 
         return args.ToString();
     }
 
     private static string EscapeCliArgument(string argument)
     {
-        return argument.Replace("\"", "\\\"").Replace("\\", "\\\\");
+        // For Windows paths and command strings, we only need to escape internal quotes
+        // Don't double backslashes as they're part of the path/command
+        return argument.Replace("\"", "\\\"");
     }
 
     #endregion

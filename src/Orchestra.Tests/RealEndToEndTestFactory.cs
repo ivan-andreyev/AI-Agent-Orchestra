@@ -71,16 +71,24 @@ public class RealEndToEndTestFactory<TStartup> : WebApplicationFactory<TStartup>
                 services.Remove(serviceDescriptor);
             }
 
-            // IMPORTANT: DO NOT replace IAgentExecutor - use the real ClaudeCodeExecutor
-            // The real executor is already registered in Startup.cs
+            // IMPORTANT: Replace old ClaudeAgentExecutor with new ClaudeCodeExecutor
+            // Remove the old executor
+            var oldExecutorDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IAgentExecutor));
+            if (oldExecutorDescriptor != null)
+            {
+                services.Remove(oldExecutorDescriptor);
+            }
 
-            // Ensure ClaudeCodeExecutor is properly configured for testing
+            // Register the new ClaudeCodeExecutor with proper configuration
             services.Configure<ClaudeCodeConfiguration>(config =>
             {
                 config.DefaultTimeout = TimeSpan.FromMinutes(10);
                 config.EnableVerboseLogging = true;
                 config.MaxConcurrentExecutions = 1; // Sequential execution for predictable tests
             });
+
+            // Register ClaudeCodeExecutor as the IAgentExecutor
+            services.AddSingleton<IAgentExecutor, ClaudeCodeExecutor>();
         });
     }
 
