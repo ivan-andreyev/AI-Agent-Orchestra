@@ -1,0 +1,18 @@
+        try
+        {
+            // Проверяем доступность напрямую через executor
+            var workingDirectory = _configuration.DefaultWorkingDirectory ?? Environment.CurrentDirectory;
+            var versionCommand = "Provide your Claude Code CLI version information.";
+
+            var result = await _agentExecutor.ExecuteCommandAsync(
+                versionCommand,
+                workingDirectory,
+                cancellationToken);
+
+            var isAvailable = result.Success;
+
+            _logger.LogDebug("Claude Code agent {AgentId} availability check result: {IsAvailable}",
+                agentId, isAvailable);
+
+            return isAvailable;
+        }

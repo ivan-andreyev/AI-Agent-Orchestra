@@ -160,7 +160,5 @@ public class OrchestratorController : ControllerBase
     }
 }
 
-public record RegisterAgentRequest(string Id, string Name, string Type, string RepositoryPath);
-public record DiscoverAgentsRequest(string? RepositoryPath = null);
-public record PingRequest(AgentStatus Status, string? CurrentTask);
+public record PingRequest(Orchestra.Core.Data.Entities.AgentStatus Status, string? CurrentTask);
 public record QueueTaskRequest(string Command, string RepositoryPath, TaskPriority Priority);

@@ -24,41 +24,34 @@ public class TaskRepository
     /// </summary>
     public async Task<string> QueueTaskAsync(string command, string repositoryPath, Orchestra.Core.Models.TaskPriority priority)
     {
-        try
+        var taskId = Guid.NewGuid().ToString();
+
+        var task = new TaskRecord
         {
-            var taskId = Guid.NewGuid().ToString();
+            Id = taskId,
+            Command = command,
+            RepositoryPath = repositoryPath,
+            Priority = priority,
+            Status = TaskStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            RetryCount = 0,
+            WorkflowStep = 0
+        };
 
-            var task = new TaskRecord
-            {
-                Id = taskId,
-                Command = command,
-                RepositoryPath = repositoryPath,
-                Priority = priority,
-                Status = TaskStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                RetryCount = 0,
-                WorkflowStep = 0
-            };
+        // Попытаемся найти и привязать к репозиторию
+        var repository = await _context.Repositories
+            .FirstOrDefaultAsync(r => r.Path == repositoryPath);
 
-            // Попытаемся найти и привязать к репозиторию
-            var repository = await _context.Repositories
-                .FirstOrDefaultAsync(r => r.Path == repositoryPath);
-
-            if (repository != null)
-            {
-                task.RepositoryId = repository.Id;
-            }
-
-            await _context.Tasks.AddAsync(task);
-            await _context.SaveChangesAsync();
-
-            return taskId;
-        }
-        catch (Exception)
+        if (repository != null)
         {
-            return string.Empty;
+            task.RepositoryId = repository.Id;
         }
+
+        await _context.Tasks.AddAsync(task);
+        await _context.SaveChangesAsync();
+
+        return taskId;
     }
 
     /// <summary>
@@ -174,7 +167,14 @@ public class TaskRepository
                 task.Result = result;
             }
 
-            if (!string.IsNullOrEmpty(errorMessage))
+            // Always set ErrorMessage when status is Failed, even if it's null/empty
+            if (status == Orchestra.Core.Models.TaskStatus.Failed)
+            {
+                task.ErrorMessage = !string.IsNullOrEmpty(errorMessage)
+                    ? errorMessage
+                    : "Task execution failure - no specific error details provided";
+            }
+            else if (!string.IsNullOrEmpty(errorMessage))
             {
                 task.ErrorMessage = errorMessage;
             }
@@ -206,4 +206,13 @@ public class TaskRepository
         );
     }
 
+    /// <summary>
+    /// Clears all tasks from the database (for testing purposes)
+    /// </summary>
+    public async Task ClearAllTasksAsync()
+    {
+        var allTasks = await _context.Tasks.ToListAsync();
+        _context.Tasks.RemoveRange(allTasks);
+        await _context.SaveChangesAsync();
+    }
 }

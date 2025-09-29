@@ -6,9 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Orchestra.Core.Services;
 using Orchestra.Tests.Integration.Mocks;
 using System.Collections.Generic;
-using Hangfire;
-using Orchestra.Core.Data;
-using Microsoft.EntityFrameworkCore;
 
 namespace Orchestra.Tests;
 
@@ -28,10 +25,8 @@ public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartu
     public TestWebApplicationFactory()
     {
         // Create unique database names for this test factory instance
-        // Use Guid, DateTime ticks, and process ID to ensure uniqueness even across rapid parallel test execution
-        var processId = Environment.ProcessId;
-        var threadId = Environment.CurrentManagedThreadId;
-        _testInstanceId = $"{Guid.NewGuid().ToString("N")}_{DateTime.Now.Ticks}_{processId}_{threadId}";
+        // Use DateTime.Now.Ticks to ensure uniqueness even across rapid test execution
+        _testInstanceId = $"{Guid.NewGuid().ToString("N")}_{DateTime.Now.Ticks}";
         _hangfireDbName = $"test-orchestra-hangfire-{_testInstanceId}.db";
         _efCoreDbName = $"test-orchestra-efcore-{_testInstanceId}.db";
     }
@@ -54,21 +49,29 @@ public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartu
 
         builder.ConfigureServices(services =>
         {
-            // Remove specific background services that can interfere with tests
-            // BUT keep Hangfire server which is needed for task execution
+            // Remove background services that can interfere with tests
+            // Remove background services that can interfere with tests
+            // This includes both direct type registrations and factory registrations
+            var backgroundServiceTypes = new[]
+            {
+                typeof(Orchestra.Core.Services.AgentHealthCheckService),
+                typeof(Orchestra.Core.Services.AgentDiscoveryService),
+                typeof(Orchestra.Core.Services.BackgroundTaskAssignmentService),
+                typeof(Orchestra.Core.AgentScheduler)
+            };
+
+            // Remove all IHostedService registrations that match our background service types
+            // This handles both direct registrations and factory registrations
             var hostedServicesToRemove = services.Where(d =>
                 d.ServiceType == typeof(IHostedService) &&
-                d.ImplementationType != null &&
-                !d.ImplementationType.Name.Contains("HangfireServer") &&
-                (d.ImplementationType.Name.Contains("AgentScheduler") ||
-                 d.ImplementationType.Name.Contains("BackgroundTaskAssignmentService") ||
-                 d.ImplementationType.Name.Contains("AgentHealthCheckService") ||
-                 d.ImplementationType.Name.Contains("AgentDiscoveryService"))).ToList();
+                (d.ImplementationType != null && backgroundServiceTypes.Contains(d.ImplementationType) ||
+                 d.ImplementationFactory != null)).ToList();
 
             foreach (var serviceDescriptor in hostedServicesToRemove)
             {
                 services.Remove(serviceDescriptor);
             }
+
             // Replace real IAgentExecutor with MockAgentExecutor for tests
             var agentExecutorDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IAgentExecutor));
             if (agentExecutorDescriptor != null)
@@ -116,103 +119,6 @@ public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartu
         });
 
         builder.UseEnvironment("Testing");
-    }
-
-    /// <summary>
-    /// Resets test state to ensure clean environment between tests
-    /// Clears Hangfire InMemory storage and database state
-    /// </summary>
-    public async Task ResetTestStateAsync()
-    {
-        try
-        {
-            using var scope = Services.CreateScope();
-
-            // Reset Hangfire InMemory storage state
-            ResetHangfireStorage();
-
-            // Reset database state
-            await ResetDatabaseStateAsync(scope);
-
-            // Reset mock agent state
-            ResetMockAgentState(scope);
-        }
-        catch (Exception ex)
-        {
-            // Log error but don't fail the test - this is cleanup
-            System.Diagnostics.Debug.WriteLine($"Warning: Failed to reset test state: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Resets Hangfire InMemory storage to clear all jobs and state
-    /// </summary>
-    private void ResetHangfireStorage()
-    {
-        try
-        {
-            var monitoringApi = JobStorage.Current.GetMonitoringApi();
-
-            // Clear all job queues and state
-            var enqueuedJobs = monitoringApi.EnqueuedJobs("default", 0, 1000);
-            var processingJobs = monitoringApi.ProcessingJobs(0, 1000);
-            var succeededJobs = monitoringApi.SucceededJobs(0, 1000);
-            var failedJobs = monitoringApi.FailedJobs(0, 1000);
-
-            // Note: InMemory storage doesn't provide direct job deletion methods
-            // State will be cleared when storage is recreated
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Warning: Could not reset Hangfire storage: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Resets database state by clearing all tables
-    /// </summary>
-    private async Task ResetDatabaseStateAsync(IServiceScope scope)
-    {
-        try
-        {
-            var dbContext = scope.ServiceProvider.GetRequiredService<OrchestraDbContext>();
-
-            // Clear all data in proper order to respect foreign key constraints
-            await dbContext.Tasks.ExecuteDeleteAsync();
-            await dbContext.Agents.ExecuteDeleteAsync();
-            await dbContext.ChatMessages.ExecuteDeleteAsync();
-            await dbContext.ChatSessions.ExecuteDeleteAsync();
-            await dbContext.OrchestrationLogs.ExecuteDeleteAsync();
-            await dbContext.PerformanceMetrics.ExecuteDeleteAsync();
-            await dbContext.UserPreferences.ExecuteDeleteAsync();
-
-            await dbContext.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Warning: Could not reset database state: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Resets mock agent state to clear all registered agents and behaviors
-    /// </summary>
-    private void ResetMockAgentState(IServiceScope scope)
-    {
-        try
-        {
-            // Reset SimpleOrchestrator state
-            var simpleOrchestrator = scope.ServiceProvider.GetRequiredService<Orchestra.Core.SimpleOrchestrator>();
-            simpleOrchestrator.ClearAllAgents();
-
-            // Reset mock agent registry
-            var testAgentRegistry = scope.ServiceProvider.GetRequiredService<TestAgentRegistry>();
-            testAgentRegistry.ResetAllAgents();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Warning: Could not reset mock agent state: {ex.Message}");
-        }
     }
 
     protected override void Dispose(bool disposing)

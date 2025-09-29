@@ -1,5 +1,7 @@
 using Orchestra.Core.Models;
 using Orchestra.Core.Services;
+using Orchestra.Core.Data.Entities;
+using Orchestra.Core.Abstractions;
 using TaskStatus = Orchestra.Core.Models.TaskStatus;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
@@ -7,15 +9,18 @@ namespace Orchestra.Core;
 
 public class SimpleOrchestrator : IDisposable
 {
-    private readonly Dictionary<string, AgentInfo> _agents = new();
     private readonly Queue<TaskRequest> _taskQueue = new();
     private readonly string _stateFilePath;
     private readonly ClaudeSessionDiscovery _sessionDiscovery;
     private readonly object _lock = new();
     private readonly IClaudeCodeCoreService? _claudeCodeService;
+    private readonly IAgentStateStore _agentStateStore;
 
-    public SimpleOrchestrator(string stateFilePath = "orchestrator-state.json", IClaudeCodeCoreService? claudeCodeService = null)
+    public SimpleOrchestrator(IAgentStateStore agentStateStore, IClaudeCodeCoreService? claudeCodeService = null, string stateFilePath = "orchestrator-state.json")
     {
+        _agentStateStore = agentStateStore ?? throw new ArgumentNullException(nameof(agentStateStore));
+        _claudeCodeService = claudeCodeService;
+
         // Generate unique file path for tests to avoid conflicts
         if (stateFilePath == "orchestrator-state.json" && IsRunningInTest())
         {
@@ -27,7 +32,6 @@ public class SimpleOrchestrator : IDisposable
         }
 
         _sessionDiscovery = new ClaudeSessionDiscovery();
-        _claudeCodeService = claudeCodeService;
         LoadState();
     }
 
@@ -39,33 +43,29 @@ public class SimpleOrchestrator : IDisposable
                       a.FullName?.Contains("Microsoft.TestPlatform") == true);
     }
 
+    public async Task RegisterAgentAsync(string id, string name, string type, string repositoryPath)
+    {
+        var agent = new AgentInfo(id, name, type, repositoryPath, AgentStatus.Idle, DateTime.UtcNow);
+        await _agentStateStore.RegisterAgentAsync(agent);
+        SaveState();
+    }
+
     public void RegisterAgent(string id, string name, string type, string repositoryPath)
     {
-        lock (_lock)
-        {
-            var agent = new AgentInfo(id, name, type, repositoryPath, AgentStatus.Idle, DateTime.Now);
-            _agents[id] = agent;
-            SaveState();
-        }
+        // Синхронная версия для обратной совместимости
+        RegisterAgentAsync(id, name, type, repositoryPath).Wait();
+    }
+
+    public async Task UpdateAgentStatusAsync(string agentId, AgentStatus status, string? currentTask = null)
+    {
+        await _agentStateStore.UpdateAgentStatusAsync(agentId, status, currentTask);
+        SaveState();
     }
 
     public void UpdateAgentStatus(string agentId, AgentStatus status, string? currentTask = null)
     {
-        lock (_lock)
-        {
-            if (!_agents.TryGetValue(agentId, out var agent))
-            {
-                return;
-            }
-
-            _agents[agentId] = agent with
-            {
-                Status = status,
-                LastPing = DateTime.Now,
-                CurrentTask = currentTask
-            };
-            SaveState();
-        }
+        // Синхронная версия для обратной совместимости
+        UpdateAgentStatusAsync(agentId, status, currentTask).Wait();
     }
 
     public void QueueTask(string command, string repositoryPath, TaskPriority priority = TaskPriority.Normal)
@@ -115,7 +115,7 @@ public class SimpleOrchestrator : IDisposable
             }
 
             // If no assigned tasks, look for unassigned tasks that could be handled by this agent
-            var agent = _agents.GetValueOrDefault(agentId);
+            var agent = _agentStateStore.GetAgentAsync(agentId).Result;
             if (agent == null)
             {
                 return null;
@@ -153,12 +153,30 @@ public class SimpleOrchestrator : IDisposable
         SaveState();
     }
 
+    public async Task<List<AgentInfo>> GetAllAgentsAsync()
+    {
+        return await _agentStateStore.GetAllAgentsAsync();
+    }
+
     public List<AgentInfo> GetAllAgents()
     {
+        // Синхронная версия для обратной совместимости
+        return GetAllAgentsAsync().Result;
+    }
+
+    public async Task ClearAllAgentsAsync()
+    {
+        await _agentStateStore.ClearAllAgentsAsync();
         lock (_lock)
         {
-            return _agents.Values.ToList();
+            _taskQueue.Clear();
         }
+    }
+
+    public void ClearAllAgents()
+    {
+        // Синхронная версия для обратной совместимости
+        ClearAllAgentsAsync().Wait();
     }
 
     public void RefreshAgents()
@@ -168,10 +186,10 @@ public class SimpleOrchestrator : IDisposable
             var discoveredAgents = _sessionDiscovery.DiscoverActiveSessions();
 
             // Clear current agents and add discovered ones
-            _agents.Clear();
+            _agentStateStore.ClearAllAgentsAsync().Wait();
             foreach (var agent in discoveredAgents)
             {
-                _agents[agent.Id] = agent;
+                _agentStateStore.RegisterAgentAsync(agent).Wait();
             }
 
             // After refreshing agents, try to assign any unassigned tasks
@@ -186,7 +204,8 @@ public class SimpleOrchestrator : IDisposable
         RefreshAgents();
         lock (_lock)
         {
-            return _sessionDiscovery.GroupAgentsByRepository(_agents.Values.ToList());
+            var allAgents = _agentStateStore.GetAllAgentsAsync().Result;
+            return _sessionDiscovery.GroupAgentsByRepository(allAgents);
         }
     }
 
@@ -194,8 +213,10 @@ public class SimpleOrchestrator : IDisposable
     {
         lock (_lock)
         {
-            var repositories = _sessionDiscovery.GroupAgentsByRepository(_agents.Values.ToList());
-            return new OrchestratorState(new Dictionary<string, AgentInfo>(_agents), new Queue<TaskRequest>(_taskQueue), DateTime.Now, repositories);
+            var allAgents = _agentStateStore.GetAllAgentsAsync().Result;
+            var agentsDict = allAgents.ToDictionary(a => a.Id, a => a);
+            var repositories = _sessionDiscovery.GroupAgentsByRepository(allAgents);
+            return new OrchestratorState(agentsDict, new Queue<TaskRequest>(_taskQueue), DateTime.Now, repositories);
         }
     }
 
@@ -219,11 +240,12 @@ public class SimpleOrchestrator : IDisposable
 
     private AgentInfo? FindAvailableAgent(string repositoryPath)
     {
-        return _agents.Values
+        var allAgents = _agentStateStore.GetAllAgentsAsync().Result;
+        return allAgents
             .Where(a => a.Status == AgentStatus.Idle && a.RepositoryPath == repositoryPath)
             .OrderBy(a => a.LastPing)
             .FirstOrDefault()
-            ?? _agents.Values
+            ?? allAgents
                 .Where(a => a.Status == AgentStatus.Idle)
                 .OrderBy(a => a.LastPing)
                 .FirstOrDefault();
@@ -357,7 +379,7 @@ public class SimpleOrchestrator : IDisposable
     {
         lock (_lock)
         {
-            return _agents.GetValueOrDefault(agentId);
+            return _agentStateStore.GetAgentAsync(agentId).Result;
         }
     }
 
@@ -381,7 +403,7 @@ public class SimpleOrchestrator : IDisposable
     {
         lock (_lock)
         {
-            var agent = _agents.GetValueOrDefault(agentId);
+            var agent = _agentStateStore.GetAgentAsync(agentId).Result;
             return agent?.Type == "claude-code";
         }
     }
@@ -394,7 +416,8 @@ public class SimpleOrchestrator : IDisposable
     {
         lock (_lock)
         {
-            return _agents.Values
+            var allAgents = _agentStateStore.GetAllAgentsAsync().Result;
+            return allAgents
                 .Where(agent => agent.Type == "claude-code")
                 .ToList();
         }
@@ -470,12 +493,13 @@ public class SimpleOrchestrator : IDisposable
     {
         lock (_lock)
         {
+            var allAgents = _agentStateStore.GetAllAgentsAsync().Result;
             // Предпочтение агентам с тем же репозиторием
-            return _agents.Values
+            return allAgents
                 .Where(a => a.Status == AgentStatus.Idle && a.Type == "claude-code" && a.RepositoryPath == repositoryPath)
                 .OrderBy(a => a.LastPing)
                 .FirstOrDefault()
-                ?? _agents.Values
+                ?? allAgents
                     .Where(a => a.Status == AgentStatus.Idle && a.Type == "claude-code")
                     .OrderBy(a => a.LastPing)
                     .FirstOrDefault();
@@ -485,9 +509,10 @@ public class SimpleOrchestrator : IDisposable
     private void SaveState()
     {
         // Create thread-safe copies for serialization
-        var agentsCopy = new Dictionary<string, AgentInfo>(_agents);
+        var allAgents = _agentStateStore.GetAllAgentsAsync().Result;
+        var agentsCopy = allAgents.ToDictionary(a => a.Id, a => a);
         var taskQueueCopy = new Queue<TaskRequest>(_taskQueue);
-        var repositories = _sessionDiscovery.GroupAgentsByRepository(agentsCopy.Values.ToList());
+        var repositories = _sessionDiscovery.GroupAgentsByRepository(allAgents);
         var state = new OrchestratorState(agentsCopy, taskQueueCopy, DateTime.Now, repositories);
         var json = System.Text.Json.JsonSerializer.Serialize(state, new System.Text.Json.JsonSerializerOptions
         {
@@ -526,7 +551,7 @@ public class SimpleOrchestrator : IDisposable
                 {
                     foreach (var agent in state.Agents)
                     {
-                        _agents[agent.Key] = agent.Value;
+                        _agentStateStore.RegisterAgentAsync(agent.Value).Wait();
                     }
                     foreach (var task in state.TaskQueue)
                     {

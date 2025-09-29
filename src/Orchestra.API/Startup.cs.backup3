@@ -145,10 +145,10 @@ public class Startup
         services.AddMediatR(typeof(Startup).Assembly, typeof(Orchestra.Core.Commands.ICommand).Assembly);
 
         // Register agent state store abstraction for proper isolation
-        services.AddSingleton<Orchestra.Core.Abstractions.IAgentStateStore, Orchestra.Core.Services.InMemoryAgentStateStore>();
+        services.AddScoped<Orchestra.Core.Abstractions.IAgentStateStore, Orchestra.Core.Services.InMemoryAgentStateStore>();
 
         // Register SimpleOrchestrator as Scoped with proper DI for agent state management
-        services.AddSingleton<SimpleOrchestrator>(provider =>
+        services.AddScoped<SimpleOrchestrator>(provider =>
         {
             var agentStateStore = provider.GetRequiredService<Orchestra.Core.Abstractions.IAgentStateStore>();
             var claudeCodeService = provider.GetService<Orchestra.Core.Services.IClaudeCodeCoreService>();
@@ -156,25 +156,20 @@ public class Startup
         });
         services.AddSingleton<AgentConfiguration>(provider =>
             AgentConfiguration.LoadFromFile("agent-config.json"));
-        
-        // Only register background services for non-test environments
-        // Background services cause DI issues in tests because they try to resolve scoped services from root provider
-        if (!isTestEnvironment)
+        services.AddHostedService<AgentScheduler>(provider =>
         {
-            services.AddHostedService<AgentScheduler>(provider =>
-            {
-                var orchestrator = provider.GetRequiredService<SimpleOrchestrator>();
-                var logger = provider.GetRequiredService<ILogger<AgentScheduler>>();
-                var config = provider.GetRequiredService<AgentConfiguration>();
-                var claudeCodeService = provider.GetService<Orchestra.Core.Services.IClaudeCodeCoreService>();
-                return new AgentScheduler(orchestrator, logger, config, claudeCodeService);
-            });
-            services.AddHostedService<BackgroundTaskAssignmentService>();
+            var orchestrator = provider.GetRequiredService<SimpleOrchestrator>();
+            var logger = provider.GetRequiredService<ILogger<AgentScheduler>>();
+            var config = provider.GetRequiredService<AgentConfiguration>();
+            var claudeCodeService = provider.GetService<Orchestra.Core.Services.IClaudeCodeCoreService>();
+            return new AgentScheduler(orchestrator, logger, config, claudeCodeService);
+        });
+        services.AddHostedService<BackgroundTaskAssignmentService>();
 
-            // Register background services for agent management
-            services.AddHostedService<Orchestra.Core.Services.AgentHealthCheckService>();
-            services.AddHostedService<Orchestra.Core.Services.AgentDiscoveryService>();
-        }
+        // Register background services for agent management
+        services.AddHostedService<Orchestra.Core.Services.AgentHealthCheckService>();
+        services.AddHostedService<Orchestra.Core.Services.AgentDiscoveryService>();
+
         // Register Hangfire job classes
         services.AddScoped<TaskExecutionJob>();
 
@@ -338,14 +333,10 @@ public class Startup
             }
         }
 
-        // Schedule recurring jobs only in non-testing environments
-        var currentEnvironment = configuration["ASPNETCORE_ENVIRONMENT"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-        if (currentEnvironment != "Testing")
-        {
-            RecurringJob.AddOrUpdate(
-                "task-cleanup",
-                () => Console.WriteLine("Task cleanup job executed at " + DateTime.UtcNow),
-                Cron.Hourly);
-        }
+        // Schedule recurring jobs
+        RecurringJob.AddOrUpdate(
+            "task-cleanup",
+            () => Console.WriteLine("Task cleanup job executed at " + DateTime.UtcNow),
+            Cron.Hourly);
     }
 }

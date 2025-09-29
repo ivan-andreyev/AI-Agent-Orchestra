@@ -1,10 +1,12 @@
 using Orchestra.Core;
 using Orchestra.Core.Models;
+using Orchestra.Core.Data.Entities;
 using Orchestra.API.Jobs;
 using Orchestra.Web.Models;
 using Orchestra.Core.Data;
 using Hangfire;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
 using TaskRequest = Orchestra.Core.Models.TaskRequest;
 
@@ -21,20 +23,26 @@ public class HangfireOrchestrator
     private readonly EntityFrameworkOrchestrator _entityOrchestrator;
     private readonly SimpleOrchestrator _legacyOrchestrator;
     private readonly ILogger<HangfireOrchestrator> _logger;
-    private readonly OrchestraDbContext? _context;
+    private readonly TaskRepository _taskRepository;
+    private readonly AgentRepository _agentRepository;
+    private readonly bool _autoCreateAgents;
 
     public HangfireOrchestrator(
         IBackgroundJobClient jobClient,
         EntityFrameworkOrchestrator entityOrchestrator,
         SimpleOrchestrator legacyOrchestrator,
         ILogger<HangfireOrchestrator> logger,
-        OrchestraDbContext? context = null)
+        TaskRepository taskRepository,
+        AgentRepository agentRepository,
+        bool autoCreateAgents = true)
     {
         _jobClient = jobClient ?? throw new ArgumentNullException(nameof(jobClient));
         _entityOrchestrator = entityOrchestrator ?? throw new ArgumentNullException(nameof(entityOrchestrator));
         _legacyOrchestrator = legacyOrchestrator ?? throw new ArgumentNullException(nameof(legacyOrchestrator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _context = context; // Optional dependency for TaskRepository integration
+        _taskRepository = taskRepository ?? throw new ArgumentNullException(nameof(taskRepository));
+        _agentRepository = agentRepository ?? throw new ArgumentNullException(nameof(agentRepository));
+        _autoCreateAgents = autoCreateAgents;
     }
 
     /// <summary>
@@ -48,10 +56,8 @@ public class HangfireOrchestrator
     /// <returns>Task ID for tracking</returns>
     public async Task<string> QueueTaskAsync(string command, string repositoryPath, TaskPriority priority = TaskPriority.Normal, string? connectionId = null)
     {
-        var taskId = Guid.NewGuid().ToString();
-
-        _logger.LogInformation("Queuing task via Hangfire - TaskId: {TaskId}, Command: {Command}, Repository: {RepositoryPath}, Priority: {Priority}, ConnectionId: {ConnectionId}",
-            taskId, command, repositoryPath, priority, connectionId ?? "[none]");
+        _logger.LogInformation("Queuing task via Hangfire - Command: {Command}, Repository: {RepositoryPath}, Priority: {Priority}, ConnectionId: {ConnectionId}",
+            command, repositoryPath, priority, connectionId ?? "[none]");
 
         try
         {
@@ -67,26 +73,25 @@ public class HangfireOrchestrator
             // Determine queue based on priority
             var queueName = GetQueueNameForPriority(priority);
 
-            // **CRITICAL INTEGRATION**: Queue task through TaskRepository if available
-            string? repositoryTaskId = null;
-            if (_entityOrchestrator != null)
+            // **CRITICAL INTEGRATION**: Queue task through TaskRepository FIRST to get the real task ID
+            string taskId;
+            try
             {
-                try
-                {
-                    // Create task entry in TaskRepository for proper task management
-                    var taskRepository = new TaskRepository(_context ?? throw new InvalidOperationException("Database context not available"));
-                    repositoryTaskId = await taskRepository.QueueTaskAsync(command, repositoryPath, priority);
+                // Use injected TaskRepository - proper DI lifecycle management
+                taskId = await _taskRepository.QueueTaskAsync(command, repositoryPath, priority);
 
-                    if (!string.IsNullOrEmpty(repositoryTaskId))
-                    {
-                        _logger.LogInformation("Task queued in TaskRepository - TaskId: {TaskId}, RepositoryTaskId: {RepositoryTaskId}",
-                            taskId, repositoryTaskId);
-                    }
-                }
-                catch (Exception ex)
+                if (string.IsNullOrEmpty(taskId))
                 {
-                    _logger.LogWarning(ex, "Failed to queue task in TaskRepository, proceeding without task tracking - TaskId: {TaskId}", taskId);
+                    throw new InvalidOperationException("TaskRepository returned empty task ID");
                 }
+
+                _logger.LogInformation("Task queued in TaskRepository - TaskId: {TaskId}", taskId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to queue task in TaskRepository. This is a critical error that prevents proper task tracking.");
+                // Don't proceed if we can't persist the task - this would create inconsistent state
+                throw new InvalidOperationException($"Unable to persist task to database: {ex.Message}", ex);
             }
 
             // **CRITICAL INTEGRATION**: Enqueue TaskExecutionJob through Hangfire
@@ -109,8 +114,7 @@ public class HangfireOrchestrator
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to queue task via Hangfire - TaskId: {TaskId}, Command: {Command}",
-                taskId, command);
+            _logger.LogError(ex, "Failed to queue task via Hangfire - Command: {Command}", command);
             throw;
         }
     }
@@ -126,9 +130,7 @@ public class HangfireOrchestrator
     /// <returns>Task ID for tracking</returns>
     public async Task<string> ScheduleTaskAsync(string command, string repositoryPath, DateTime executeAt, TaskPriority priority = TaskPriority.Normal, string? connectionId = null)
     {
-        var taskId = Guid.NewGuid().ToString();
-
-        _logger.LogInformation("Scheduling task via Hangfire - TaskId: {TaskId}, ExecuteAt: {ExecuteAt}", taskId, executeAt);
+        _logger.LogInformation("Scheduling task via Hangfire - ExecuteAt: {ExecuteAt}, Repository: {RepositoryPath}", executeAt, repositoryPath);
 
         try
         {
@@ -137,6 +139,14 @@ public class HangfireOrchestrator
             if (availableAgent == null)
             {
                 throw new InvalidOperationException($"No available agents for repository: {repositoryPath}");
+            }
+
+            // Use injected TaskRepository to create scheduled task - proper DI lifecycle management
+            var taskId = await _taskRepository.QueueTaskAsync(command, repositoryPath, priority);
+
+            if (string.IsNullOrEmpty(taskId))
+            {
+                throw new InvalidOperationException("TaskRepository returned empty task ID for scheduled task");
             }
 
             var jobId = _jobClient.Schedule<TaskExecutionJob>(
@@ -155,7 +165,7 @@ public class HangfireOrchestrator
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to schedule task via Hangfire - TaskId: {TaskId}", taskId);
+            _logger.LogError(ex, "Failed to schedule task via Hangfire - Command: {Command}", command);
             throw;
         }
     }
@@ -183,7 +193,7 @@ public class HangfireOrchestrator
         _legacyOrchestrator.UpdateAgentStatus(agentId, ConvertToLegacyAgentStatus(status), currentTask);
         return result;
     }
-    public void UpdateAgentStatus(string agentId, Orchestra.Core.AgentStatus status, string? currentTask = null) => _legacyOrchestrator.UpdateAgentStatus(agentId, status, currentTask);
+    public void UpdateAgentStatus(string agentId, Orchestra.Core.Data.Entities.AgentStatus status, string? currentTask = null) => _legacyOrchestrator.UpdateAgentStatus(agentId, status, currentTask);
 
     public async Task<TaskRequest?> GetNextTaskForAgentAsync(string agentId) => await _entityOrchestrator.GetNextTaskForAgentAsync(agentId);
     public TaskRequest? GetNextTaskForAgent(string agentId) => _legacyOrchestrator.GetNextTaskForAgent(agentId);
@@ -256,9 +266,35 @@ public class HangfireOrchestrator
     /// <returns>Available agent or null if none found</returns>
     private async Task<Orchestra.Core.AgentInfo?> FindAvailableAgentAsync(string repositoryPath)
     {
+        // Always check legacy orchestrator first for reliability in tests and development
+        var allAgents = _legacyOrchestrator.GetAllAgents();
+
+        _logger.LogInformation("FindAvailableAgentAsync - Legacy agents: {AgentCount}, Repository: {RepositoryPath}",
+            allAgents.Count, repositoryPath);
+
+        foreach (var agent in allAgents)
+        {
+            _logger.LogInformation("Available legacy agent: {AgentId}, Status: {Status}, Repository: {AgentRepository}",
+                agent.Id, agent.Status, agent.RepositoryPath);
+        }
+
+        var availableAgent = allAgents
+            .Where(agent => agent.Status == Orchestra.Core.Data.Entities.AgentStatus.Idle || agent.Status == Orchestra.Core.Data.Entities.AgentStatus.Busy)
+            .Where(agent => string.IsNullOrEmpty(repositoryPath) ||
+                           IsRepositoryPathMatch(agent.RepositoryPath, repositoryPath))
+            .OrderBy(agent => agent.LastActiveTime)
+            .FirstOrDefault();
+
+        if (availableAgent != null)
+        {
+            _logger.LogDebug("Found available legacy agent: {AgentId} for repository: {RepositoryPath}",
+                availableAgent.Id, repositoryPath);
+            return availableAgent;
+        }
+
+        // If no legacy agent found, try Entity Framework orchestrator for persistent agents
         try
         {
-            // First try Entity Framework orchestrator for persistent agents
             var entityAgents = await _entityOrchestrator.GetAllAgentsAsync();
 
             _logger.LogInformation("FindAvailableAgentAsync - EF agents: {AgentCount}, Repository: {RepositoryPath}",
@@ -282,47 +318,30 @@ public class HangfireOrchestrator
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to query Entity Framework agents, falling back to legacy orchestrator");
+            _logger.LogWarning(ex, "Failed to query Entity Framework agents, continuing with agent creation attempt");
         }
 
-        // Fallback to legacy orchestrator for in-memory agents
-        var allAgents = _legacyOrchestrator.GetAllAgents();
-
-        _logger.LogInformation("FindAvailableAgentAsync - Legacy agents: {AgentCount}, Repository: {RepositoryPath}",
-            allAgents.Count, repositoryPath);
-
-        foreach (var agent in allAgents)
+        // Only attempt to create agent if auto-creation is enabled
+        if (_autoCreateAgents)
         {
-            _logger.LogInformation("Available legacy agent: {AgentId}, Status: {Status}, Repository: {AgentRepository}",
-                agent.Id, agent.Status, agent.RepositoryPath);
+            // If no agent found in either orchestrator, try to create one automatically
+            _logger.LogInformation("No available agents found for repository: {RepositoryPath}. Attempting to create a new agent.", repositoryPath);
+
+            var newAgent = await CreateAgentForRepositoryAsync(repositoryPath);
+            if (newAgent != null)
+            {
+                _logger.LogInformation("Successfully created new agent: {AgentId} for repository: {RepositoryPath}",
+                    newAgent.Id, repositoryPath);
+                return newAgent;
+            }
+
+            _logger.LogWarning("Failed to create agent for repository: {RepositoryPath}", repositoryPath);
         }
-
-        var availableAgent = allAgents
-            .Where(agent => agent.Status == Orchestra.Core.AgentStatus.Idle || agent.Status == Orchestra.Core.AgentStatus.Working)
-            .Where(agent => string.IsNullOrEmpty(repositoryPath) ||
-                           IsRepositoryPathMatch(agent.RepositoryPath, repositoryPath))
-            .OrderBy(agent => agent.LastActiveTime)
-            .FirstOrDefault();
-
-        if (availableAgent != null)
+        else
         {
-            _logger.LogDebug("Found available legacy agent: {AgentId} for repository: {RepositoryPath}",
-                availableAgent.Id, repositoryPath);
-            return availableAgent;
+            _logger.LogInformation("No available agents found for repository: {RepositoryPath}. Auto-creation is disabled.", repositoryPath);
         }
 
-        // If no agent found, try to create one automatically
-        _logger.LogInformation("No available agents found for repository: {RepositoryPath}. Attempting to create a new agent.", repositoryPath);
-
-        var newAgent = await CreateAgentForRepositoryAsync(repositoryPath);
-        if (newAgent != null)
-        {
-            _logger.LogInformation("Successfully created new agent: {AgentId} for repository: {RepositoryPath}",
-                newAgent.Id, repositoryPath);
-            return newAgent;
-        }
-
-        _logger.LogWarning("Failed to create agent for repository: {RepositoryPath}", repositoryPath);
         return null;
     }
 
@@ -397,7 +416,7 @@ public class HangfireOrchestrator
                 _legacyOrchestrator.RegisterAgent(agentId, agentName, "claude-code", repositoryPath);
 
                 // Create new agent info for return
-                var newAgent = new Orchestra.Core.AgentInfo(agentId, agentName, "claude-code", repositoryPath, Orchestra.Core.AgentStatus.Idle, DateTime.Now);
+                var newAgent = new Orchestra.Core.AgentInfo(agentId, agentName, "claude-code", repositoryPath, Orchestra.Core.Data.Entities.AgentStatus.Idle, DateTime.Now);
 
                 _logger.LogInformation("Successfully created and registered agent: {AgentId} for repository: {RepositoryPath}",
                     agentId, repositoryPath);
@@ -439,15 +458,15 @@ public class HangfireOrchestrator
     /// </summary>
     /// <param name="status">Web models agent status</param>
     /// <returns>Core models agent status</returns>
-    private static Orchestra.Core.AgentStatus ConvertToLegacyAgentStatus(Orchestra.Web.Models.AgentStatus status)
+    private static Orchestra.Core.Data.Entities.AgentStatus ConvertToLegacyAgentStatus(Orchestra.Web.Models.AgentStatus status)
     {
         return status switch
         {
-            Orchestra.Web.Models.AgentStatus.Idle => Orchestra.Core.AgentStatus.Idle,
-            Orchestra.Web.Models.AgentStatus.Working => Orchestra.Core.AgentStatus.Working,
-            Orchestra.Web.Models.AgentStatus.Error => Orchestra.Core.AgentStatus.Error,
-            Orchestra.Web.Models.AgentStatus.Offline => Orchestra.Core.AgentStatus.Offline,
-            _ => Orchestra.Core.AgentStatus.Offline
+            Orchestra.Web.Models.AgentStatus.Idle => Orchestra.Core.Data.Entities.AgentStatus.Idle,
+            Orchestra.Web.Models.AgentStatus.Working => Orchestra.Core.Data.Entities.AgentStatus.Busy,
+            Orchestra.Web.Models.AgentStatus.Error => Orchestra.Core.Data.Entities.AgentStatus.Error,
+            Orchestra.Web.Models.AgentStatus.Offline => Orchestra.Core.Data.Entities.AgentStatus.Offline,
+            _ => Orchestra.Core.Data.Entities.AgentStatus.Offline
         };
     }
 }

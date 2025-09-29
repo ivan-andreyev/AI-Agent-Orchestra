@@ -227,4 +227,14 @@ public class AgentRepository
             _ => Web.Models.AgentStatus.Offline
         };
     }
+
+    /// <summary>
+    /// Clears all agents from the database (for testing purposes)
+    /// </summary>
+    public async Task ClearAllAgentsAsync()
+    {
+        var allAgents = await _context.Agents.ToListAsync();
+        _context.Agents.RemoveRange(allAgents);
+        await _context.SaveChangesAsync();
+    }
 }

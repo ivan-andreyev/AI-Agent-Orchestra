@@ -5,19 +5,23 @@ using Orchestra.Core.Models;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;
+using Xunit;
+using Xunit.Abstractions;
+using Orchestra.Tests.Integration;
+using AgentStatus = Orchestra.Core.Data.Entities.AgentStatus;
 
 namespace Orchestra.Tests;
 
-public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class ApiIntegrationTests : IntegrationTestBase
 {
-    private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public ApiIntegrationTests(WebApplicationFactory<Program> factory)
+    public ApiIntegrationTests(TestWebApplicationFactory<Program> factory, ITestOutputHelper output)
+        : base(factory, output)
     {
-        _factory = factory;
-        _client = _factory.CreateClient();
+        _client = Factory.CreateClient();
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -134,7 +138,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var pingRequest = new
         {
-            Status = (int)AgentStatus.Working, // Use numeric enum value
+            Status = (int)AgentStatus.Busy, // Use numeric enum value
             CurrentTask = "Processing files"
         };
 
@@ -151,7 +155,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var agent = agents.FirstOrDefault(a => a.Id == agentId);
         Assert.NotNull(agent);
-        Assert.Equal(AgentStatus.Working, agent.Status);
+        Assert.Equal(AgentStatus.Busy, agent.Status);
         Assert.Equal("Processing files", agent.CurrentTask);
     }
 
@@ -230,7 +234,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         // Step 3: Agent pings as working
         var pingRequest = new
         {
-            Status = (int)AgentStatus.Working, // Use numeric enum value
+            Status = (int)AgentStatus.Busy, // Use numeric enum value
             CurrentTask = "Complete workflow test"
         };
         var pingResponse = await _client.PostAsJsonAsync($"/agents/{agentId}/ping", pingRequest);
@@ -245,7 +249,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.True(state.Agents.ContainsKey(agentId));
 
         var agent = state.Agents[agentId];
-        Assert.Equal(AgentStatus.Working, agent.Status);
+        Assert.Equal(AgentStatus.Busy, agent.Status);
         Assert.Equal("Complete workflow test", agent.CurrentTask);
     }
 }

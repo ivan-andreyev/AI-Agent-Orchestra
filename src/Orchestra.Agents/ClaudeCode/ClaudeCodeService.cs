@@ -44,9 +44,16 @@ public class ClaudeCodeService : IClaudeCodeService, IClaudeCodeCoreService
 
         try
         {
-            // Проверяем доступность через простую команду версии
-            var result = await GetAgentVersionAsync(agentId, cancellationToken);
-            var isAvailable = !string.IsNullOrWhiteSpace(result);
+            // Проверяем доступность через прямое выполнение команды версии
+            var workingDirectory = _configuration.DefaultWorkingDirectory ?? Environment.CurrentDirectory;
+            var versionCommand = "Provide your Claude Code CLI version information.";
+
+            var result = await _agentExecutor.ExecuteCommandAsync(
+                versionCommand,
+                workingDirectory,
+                cancellationToken);
+
+            var isAvailable = result.Success;
 
             _logger.LogDebug("Claude Code agent {AgentId} availability check result: {IsAvailable}",
                 agentId, isAvailable);
@@ -210,12 +217,13 @@ public class ClaudeCodeService : IClaudeCodeService, IClaudeCodeCoreService
         var executedSteps = new List<string>();
         var stepResults = new List<WorkflowStepResult>();
 
+        // Валидация workflow - позволяем исключениям валидации пробрасываться напрямую
+        executedSteps.Add("Workflow validation started");
+        await ValidateWorkflow(workflow);
+        executedSteps.Add("Workflow validation completed");
+
         try
         {
-            // Валидация workflow
-            executedSteps.Add("Workflow validation started");
-            await ValidateWorkflow(workflow);
-            executedSteps.Add("Workflow validation completed");
 
             // Подготовка команды для выполнения workflow
             var workflowCommand = await PrepareWorkflowCommand(workflow);

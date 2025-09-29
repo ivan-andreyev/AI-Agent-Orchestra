@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.IO;
 using System.Linq;
 using Orchestra.Core.Models;
+using Orchestra.Core.Data.Entities;
 
 namespace Orchestra.Core;
 
@@ -204,7 +205,7 @@ public class ClaudeSessionDiscovery
                 // to determine if the agent is actively working
                 if (timeSinceLastUpdate <= TimeSpan.FromMinutes(2))
                 {
-                    return AgentStatus.Working;
+                    return AgentStatus.Busy;
                 }
             }
         }
@@ -266,7 +267,7 @@ public class ClaudeSessionDiscovery
             var repositoryAgents = group.ToList();
 
             var idleCount = repositoryAgents.Count(a => a.Status == AgentStatus.Idle);
-            var workingCount = repositoryAgents.Count(a => a.Status == AgentStatus.Working);
+            var workingCount = repositoryAgents.Count(a => a.Status == AgentStatus.Busy);
             var errorCount = repositoryAgents.Count(a => a.Status == AgentStatus.Error);
             var offlineCount = repositoryAgents.Count(a => a.Status == AgentStatus.Offline);
 

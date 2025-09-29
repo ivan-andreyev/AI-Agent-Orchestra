@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orchestra.Core.Models;
+using Orchestra.Core.Data.Entities;
 
 namespace Orchestra.Core.Services;
 

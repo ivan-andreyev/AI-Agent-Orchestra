@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Orchestra.Core.Models;
+using Orchestra.Core.Data.Entities;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
 using TaskRequest = Orchestra.Core.Models.TaskRequest;
 
@@ -157,7 +158,7 @@ public class IntelligentOrchestrator
 
     private void AnalyzeAgentWorkload(List<AgentInfo> agents)
     {
-        var workingAgents = agents.Count(a => a.Status == AgentStatus.Working);
+        var workingAgents = agents.Count(a => a.Status == AgentStatus.Busy);
         var idleAgents = agents.Count(a => a.Status == AgentStatus.Idle);
         var errorAgents = agents.Count(a => a.Status == AgentStatus.Error);
 

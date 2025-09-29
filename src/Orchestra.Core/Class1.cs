@@ -1,4 +1,5 @@
 ﻿using Orchestra.Core.Models;
+using Orchestra.Core.Data.Entities;
 using TaskStatus = Orchestra.Core.Models.TaskStatus;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
@@ -20,14 +21,7 @@ public record AgentInfo(
     public int TasksCompleted { get; set; } = 0;
 };
 
-public enum AgentStatus
-{
-    Idle,
-    Working,
-    Busy,
-    Error,
-    Offline
-}
+// AgentStatus enum moved to Orchestra.Core.Data.Entities.Agent.cs
 
 
 public record TaskResult(

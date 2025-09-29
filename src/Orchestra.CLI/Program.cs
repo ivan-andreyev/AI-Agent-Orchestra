@@ -1,5 +1,6 @@
 using Orchestra.Core;
 using Orchestra.Core.Models;
+using Orchestra.Core.Data.Entities;
 using System.Text.Json;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
@@ -107,7 +108,7 @@ class Program
                     {
                         var statusColor = agent.Status switch
                         {
-                            AgentStatus.Working => ConsoleColor.Yellow,
+                            AgentStatus.Busy => ConsoleColor.Yellow,
                             AgentStatus.Idle => ConsoleColor.Green,
                             AgentStatus.Error => ConsoleColor.Red,
                             _ => ConsoleColor.Gray

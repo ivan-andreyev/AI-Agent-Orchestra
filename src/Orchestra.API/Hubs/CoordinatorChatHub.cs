@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR;
 using Orchestra.Core;
 using Orchestra.Core.Models;
 using Orchestra.Core.Models.Chat;
+using Orchestra.Core.Data.Entities;
 using Orchestra.Core.Services;
 using Orchestra.API.Services;
 using System.Text;
@@ -154,7 +155,7 @@ public class CoordinatorChatHub : Hub
         status.AppendLine();
         status.AppendLine($"**Agents:** {allAgents.Count} total");
         status.AppendLine($"• 🟢 Idle: {allAgents.Count(a => a.Status == AgentStatus.Idle)}");
-        status.AppendLine($"• 🔄 Working: {allAgents.Count(a => a.Status == AgentStatus.Working)}");
+        status.AppendLine($"• 🔄 Busy: {allAgents.Count(a => a.Status == AgentStatus.Busy)}");
         status.AppendLine($"• ⚠️ Error: {allAgents.Count(a => a.Status == AgentStatus.Error)}");
         status.AppendLine($"• 🔴 Offline: {allAgents.Count(a => a.Status == AgentStatus.Offline)}");
         status.AppendLine();
@@ -191,7 +192,7 @@ public class CoordinatorChatHub : Hub
         var filteredAgents = filter switch
         {
             "idle" => allAgents.Where(a => a.Status == AgentStatus.Idle),
-            "working" => allAgents.Where(a => a.Status == AgentStatus.Working),
+            "working" => allAgents.Where(a => a.Status == AgentStatus.Busy),
             "offline" => allAgents.Where(a => a.Status == AgentStatus.Offline),
             "error" => allAgents.Where(a => a.Status == AgentStatus.Error),
             "all" => allAgents,
@@ -217,7 +218,7 @@ public class CoordinatorChatHub : Hub
             var statusIcon = agent.Status switch
             {
                 AgentStatus.Idle => "🟢",
-                AgentStatus.Working => "🔄",
+                AgentStatus.Busy => "🔄",
                 AgentStatus.Error => "⚠️",
                 AgentStatus.Offline => "🔴",
                 _ => "❓"

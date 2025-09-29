@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using Orchestra.Core.Services;
 using Orchestra.Core.Models;
+using Orchestra.Core.Data.Entities;
 
 namespace Orchestra.Core;
 
@@ -159,7 +160,7 @@ public class AgentScheduler : BackgroundService
                 _logger.LogInformation("Assigning task {TaskId} to agent {AgentName}", task.Id, agent.Name);
 
                 // Обновляем статус агента на Working
-                _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Working, task.Command);
+                _orchestrator.UpdateAgentStatus(agent.Id, AgentStatus.Busy, task.Command);
 
                 // Отправляем команду агенту асинхронно
                 _ = Task.Run(async () => await ExecuteTaskOnAgent(agent, task));
@@ -291,7 +292,7 @@ public class AgentScheduler : BackgroundService
                 }
 
                 // Обновляем прогресс в markdown если агент работает
-                if (agent.Status == AgentStatus.Working)
+                if (agent.Status == AgentStatus.Busy)
                 {
                     _planReader.UpdatePlanProgress(plan.AgentId, $"Agent working on: {agent.CurrentTask}");
                     _logger.LogDebug("Updated progress for agent {AgentId}: {Progress}%", plan.AgentId, plan.ProgressPercent);

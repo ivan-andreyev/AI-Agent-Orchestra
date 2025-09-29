@@ -9,10 +9,9 @@
       "Bash(git add:*)",
       "Bash(dotnet script:*)",
       "Bash(del test_retry_executor.cs)",
-      "Bash(del nul)",
-      "Bash(del \"src\\Orchestra.Core\\nul\")",
       "Bash",
-      "WebSearch"
+      "WebSearch",
+      "Read(//c/Users/mrred/**)"
     ],
     "deny": [],
     "ask": []
