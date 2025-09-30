@@ -36,7 +36,8 @@ public record TaskRequest(
     TaskPriority Priority = TaskPriority.Normal,
     TaskStatus Status = TaskStatus.Pending,
     DateTime? StartedAt = null,
-    DateTime? CompletedAt = null
+    DateTime? CompletedAt = null,
+    string? Result = null
 )
 {
     /// <summary>

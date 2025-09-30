@@ -23,7 +23,7 @@ public class BackgroundTaskAssignmentService : BackgroundService
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
-        _assignmentInterval = TimeSpan.FromSeconds(30); // Check every 30 seconds
+        _assignmentInterval = TimeSpan.FromSeconds(2); // Check every 2 seconds for responsive task assignment
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

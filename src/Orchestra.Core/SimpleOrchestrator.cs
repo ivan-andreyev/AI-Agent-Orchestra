@@ -302,9 +302,9 @@ public class SimpleOrchestrator : IDisposable
     }
 
     /// <summary>
-    /// Updates the status of a specific task
+    /// Updates the status of a specific task with optional result data
     /// </summary>
-    public void UpdateTaskStatus(string taskId, TaskStatus newStatus)
+    public void UpdateTaskStatus(string taskId, TaskStatus newStatus, string? result = null)
     {
         lock (_lock)
         {
@@ -316,11 +316,20 @@ public class SimpleOrchestrator : IDisposable
                 var task = _taskQueue.Dequeue();
                 if (task.Id == taskId)
                 {
+                    // Validate status transition
+                    if (!IsValidStatusTransition(task.Status, newStatus))
+                    {
+                        // Invalid transition - re-enqueue original task
+                        newQueue.Enqueue(task);
+                        continue;
+                    }
+
                     var updatedTask = task with
                     {
                         Status = newStatus,
                         StartedAt = newStatus == TaskStatus.InProgress ? (task.StartedAt ?? DateTime.Now) : task.StartedAt,
-                        CompletedAt = newStatus is TaskStatus.Completed or TaskStatus.Failed or TaskStatus.Cancelled ? DateTime.Now : null
+                        CompletedAt = newStatus is TaskStatus.Completed or TaskStatus.Failed or TaskStatus.Cancelled ? DateTime.Now : task.CompletedAt,
+                        Result = result ?? task.Result
                     };
                     newQueue.Enqueue(updatedTask);
                 }
@@ -392,6 +401,43 @@ public class SimpleOrchestrator : IDisposable
         {
             return _taskQueue.FirstOrDefault(t => t.Id == taskId);
         }
+    }
+
+    /// <summary>
+    /// Gets all tasks with specific status for monitoring and management.
+    /// </summary>
+    public List<TaskRequest> GetTasksByStatus(TaskStatus status)
+    {
+        lock (_lock)
+        {
+            return _taskQueue.Where(t => t.Status == status).ToList();
+        }
+    }
+
+    /// <summary>
+    /// Validates if a status transition is allowed according to business rules.
+    /// </summary>
+    private bool IsValidStatusTransition(TaskStatus currentStatus, TaskStatus newStatus)
+    {
+        return (currentStatus, newStatus) switch
+        {
+            // Forward transitions
+            (TaskStatus.Pending, TaskStatus.Assigned) => true,
+            (TaskStatus.Assigned, TaskStatus.InProgress) => true,
+            (TaskStatus.InProgress, TaskStatus.Completed) => true,
+            (TaskStatus.InProgress, TaskStatus.Failed) => true,
+
+            // Cancellation allowed from any state except completed/failed
+            (TaskStatus.Pending, TaskStatus.Cancelled) => true,
+            (TaskStatus.Assigned, TaskStatus.Cancelled) => true,
+            (TaskStatus.InProgress, TaskStatus.Cancelled) => true,
+
+            // Same status updates (for result updates)
+            var (current, new_) when current == new_ => true,
+
+            // All other transitions are invalid
+            _ => false
+        };
     }
 
     /// <summary>
