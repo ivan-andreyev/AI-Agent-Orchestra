@@ -564,8 +564,8 @@ public class TaskExecutionJob
 
     private async Task UpdateTaskAndAgentStatus(string taskId, string agentId, TaskResult result, TaskStatus finalStatus)
     {
-        // Update task status based on execution outcome via orchestrator
-        _orchestrator.UpdateTaskStatus(taskId, finalStatus);
+        // Update task status based on execution outcome via orchestrator, including result output
+        _orchestrator.UpdateTaskStatus(taskId, finalStatus, result.Output);
 
         // Update agent status back to idle (agent metrics tracking will be added later)
         _orchestrator.UpdateAgentStatus(agentId, AgentStatus.Idle);
@@ -635,11 +635,12 @@ public class TaskExecutionJob
     private async Task HandleRetryableError(string taskId, string agentId, Exception ex, string errorType)
     {
         _logger.LogWarning("Retryable error for task {TaskId}: {ErrorType} - {Message}", taskId, errorType, ex.Message);
+        var errorMessage = $"Retryable error: {ex.Message}";
         await UpdateTaskAndAgentStatus(taskId, agentId, new TaskResult(
             taskId,
             agentId,
             TaskStatus.Failed,
-            $"Retryable error: {ex.Message}",
+            errorMessage,
             false,
             DateTime.UtcNow
         ), TaskStatus.Failed);
