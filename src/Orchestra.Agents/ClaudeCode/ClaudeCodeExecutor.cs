@@ -377,11 +377,12 @@ public class ClaudeCodeExecutor : IAgentExecutor
     {
         var args = new StringBuilder();
 
-        // Add --print flag for non-interactive mode
-        args.Append("--print");
+        // IMPORTANT: Do NOT use --print flag as it prevents actual file operations
+        // --print only shows what Claude would do, without executing
+        // For real E2E tests we need actual file operations
 
-        // Add output format
-        args.Append($" --output-format {_configuration.OutputFormat}");
+        // Add output format for structured responses
+        args.Append($"--output-format {_configuration.OutputFormat}");
 
         // CRITICAL: Skip permission checks for automated execution
         // This allows Claude to create/edit files without interactive prompts
