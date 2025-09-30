@@ -7,6 +7,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Orchestra.Core.Data;
+using Orchestra.Core.Services;
 
 namespace Orchestra.Tests;
 
@@ -28,6 +29,10 @@ public class RealEndToEndTests : IDisposable
     // Static flag and lock for database initialization synchronization
     private static bool _databaseInitialized = false;
     private static readonly object _dbLock = new object();
+
+    // Static flag and lock for Claude CLI warmup synchronization
+    private static bool _cliWarmedUp = false;
+    private static readonly object _cliWarmupLock = new object();
 
     public RealEndToEndTests(RealEndToEndTestFactory<Program> factory, ITestOutputHelper output)
     {
@@ -59,6 +64,22 @@ public class RealEndToEndTests : IDisposable
             {
                 // Subsequent tests: clean data only, keep schema
                 ClearTestData(dbContext);
+            }
+        }
+
+        // Warmup Claude CLI once for all tests (first request takes 15+ minutes)
+        lock (_cliWarmupLock)
+        {
+            if (!_cliWarmedUp)
+            {
+                _output.WriteLine("[WARMUP] Starting Claude CLI warmup (first test only, ~15 mins)...");
+                WarmupClaudeCodeCli();
+                _cliWarmedUp = true;
+                _output.WriteLine("[WARMUP] Claude CLI warmed up successfully!");
+            }
+            else
+            {
+                _output.WriteLine("[WARMUP] Claude CLI already warmed up, skipping");
             }
         }
     }
@@ -112,12 +133,26 @@ public class RealEndToEndTests : IDisposable
         var taskId = await QueueTask(command, testDir, TaskPriority.High);
         _output.WriteLine($"[TEST] Task queued successfully with ID: {taskId}");
 
-        // Wait for task execution (temporarily reduced for debugging)
-        _output.WriteLine($"[TEST] Waiting 2 minutes for debugging...");
-        await Task.Delay(TimeSpan.FromMinutes(2));
+        // Wait for task execution (CLI is warmed up, should complete in 30-60 seconds)
+        _output.WriteLine($"[TEST] Waiting 1 minute for task execution...");
+        await Task.Delay(TimeSpan.FromMinutes(1));
+
+        // Debug: Check directory and files
+        _output.WriteLine($"[TEST] Checking directory: {testDir}");
+        _output.WriteLine($"[TEST] Directory exists: {Directory.Exists(testDir)}");
+        if (Directory.Exists(testDir))
+        {
+            var files = Directory.GetFiles(testDir);
+            _output.WriteLine($"[TEST] Files in directory: {files.Length}");
+            foreach (var file in files)
+            {
+                _output.WriteLine($"[TEST]   - {file}");
+            }
+        }
 
         // Assert: Verify file was created by Claude Code
         var fileExists = File.Exists(testFilePath);
+        _output.WriteLine($"[TEST] File exists at {testFilePath}: {fileExists}");
         Assert.True(fileExists, $"File should exist at {testFilePath}");
 
         if (fileExists)
@@ -149,7 +184,7 @@ public class RealEndToEndTests : IDisposable
         await QueueTask(command, testDir, TaskPriority.High);
 
         // Wait for execution (Claude Code first request takes 15+ minutes)
-        await Task.Delay(TimeSpan.FromMinutes(18));
+        await Task.Delay(TimeSpan.FromMinutes(1));
 
         // Assert: Verify file was modified
         var content = await File.ReadAllTextAsync(testFilePath);
@@ -184,7 +219,7 @@ public class RealEndToEndTests : IDisposable
         await QueueTask(command, testDir, TaskPriority.High);
 
         // Wait for execution (Claude Code first request takes 15+ minutes)
-        await Task.Delay(TimeSpan.FromMinutes(18));
+        await Task.Delay(TimeSpan.FromMinutes(1));
 
         // Assert: Verify output file was created with correct content
         var outputFile = Path.Combine(testDir, "files_list.txt");
@@ -222,7 +257,7 @@ public class RealEndToEndTests : IDisposable
         _output.WriteLine($"[TEST] QueueTask response: {responseContent}");
 
         var result = JsonSerializer.Deserialize<JsonElement>(responseContent, _jsonOptions);
-        var taskId = result.GetProperty("taskId").GetString() ?? string.Empty;
+        var taskId = result.GetProperty("TaskId").GetString() ?? string.Empty;
         _output.WriteLine($"[TEST] Task ID: {taskId}");
 
         return taskId;
@@ -235,6 +270,60 @@ public class RealEndToEndTests : IDisposable
         var content = await response.Content.ReadAsStringAsync();
         return JsonSerializer.Deserialize<OrchestratorState>(content, _jsonOptions)
             ?? throw new InvalidOperationException("Failed to deserialize state");
+    }
+
+    /// <summary>
+    /// Прогревает Claude Code CLI при первом запуске теста.
+    /// Первый запуск CLI занимает 15+ минут из-за загрузки модели,
+    /// последующие запуски выполняются за 10-30 секунд.
+    /// </summary>
+    private void WarmupClaudeCodeCli()
+    {
+        var warmupDir = Path.Combine(Path.GetTempPath(), $"Orchestra_CLI_Warmup_{Guid.NewGuid():N}");
+
+        try
+        {
+            Directory.CreateDirectory(warmupDir);
+            _output.WriteLine($"[WARMUP] Created warmup directory: {warmupDir}");
+
+            using var scope = _factory.Services.CreateScope();
+            var executor = scope.ServiceProvider.GetRequiredService<IAgentExecutor>();
+
+            _output.WriteLine("[WARMUP] Executing warmup command (this will take 15+ minutes on first run)...");
+            var startTime = DateTime.UtcNow;
+
+            // Синхронный вызов для прогрева
+            var result = executor.ExecuteCommandAsync("Say hello", warmupDir, CancellationToken.None).GetAwaiter().GetResult();
+
+            var duration = DateTime.UtcNow - startTime;
+            _output.WriteLine($"[WARMUP] Warmup completed in {duration.TotalSeconds:F1} seconds");
+            _output.WriteLine($"[WARMUP] Success: {result.Success}");
+
+            if (!result.Success)
+            {
+                _output.WriteLine($"[WARMUP] Warning: Warmup failed with error: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _output.WriteLine($"[WARMUP] Exception during warmup: {ex.Message}");
+            throw new InvalidOperationException("Failed to warm up Claude Code CLI", ex);
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(warmupDir))
+                {
+                    Directory.Delete(warmupDir, recursive: true);
+                    _output.WriteLine($"[WARMUP] Cleaned up warmup directory");
+                }
+            }
+            catch (Exception ex)
+            {
+                _output.WriteLine($"[WARMUP] Failed to cleanup warmup directory: {ex.Message}");
+            }
+        }
     }
 
     #endregion

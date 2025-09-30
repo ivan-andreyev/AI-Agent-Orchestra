@@ -244,7 +244,8 @@ public class TaskExecutionJob
                                 repositoryPath.Contains("ScalingRepo") ||
                                 repositoryPath.Contains("HighVolumeRepo") ||
                                 repositoryPath.Contains("RepoContention") ||
-                                repositoryPath.Contains("MixedDurationRepo"));
+                                repositoryPath.Contains("MixedDurationRepo") ||
+                                repositoryPath.Contains("Orchestra_RealE2E_"));
 
         if (string.IsNullOrWhiteSpace(repositoryPath) || (!isTestRepository && !Directory.Exists(repositoryPath)))
         {
@@ -310,7 +311,8 @@ public class TaskExecutionJob
                                 repositoryPath.Contains("ScalingRepo") ||
                                 repositoryPath.Contains("HighVolumeRepo") ||
                                 repositoryPath.Contains("RepoContention") ||
-                                repositoryPath.Contains("MixedDurationRepo"));
+                                repositoryPath.Contains("MixedDurationRepo") ||
+                                repositoryPath.Contains("Orchestra_RealE2E_"));
 
         if (!isTestRepository)
         {

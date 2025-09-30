@@ -258,13 +258,14 @@ public class ClaudeCodeExecutor : IAgentExecutor
         _logger.LogInformation("Command: {Command}", command);
         _logger.LogInformation("====================================");
 
-        // Note: Do NOT set WorkingDirectory for .cmd files on Windows
-        // .cmd files have issues with some temp directory paths
-        // Instead, we rely on --add-dir to grant access to the target directory
+        // Set WorkingDirectory to ensure Claude CLI operates in the correct directory
+        // Note: Originally avoided setting WorkingDirectory for .cmd files due to temp directory issues,
+        // but setting it is necessary for file operations to work in the expected location
         var processStartInfo = new ProcessStartInfo
         {
             FileName = _configuration.DefaultCliPath,
             Arguments = arguments,
+            WorkingDirectory = workingDirectory, // Set working directory for CLI execution
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
