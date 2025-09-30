@@ -65,16 +65,20 @@
                     <span class="stat-value">@_tasks.Count</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">High Priority:</span>
-                    <span class="stat-value high">@_tasks.Count(t => t.Priority == TaskPriority.High || t.Priority == TaskPriority.Critical)</span>
+                    <span class="stat-label">Pending:</span>
+                    <span class="stat-value queued">@_tasks.Count(t => t.Status == Orchestra.Core.Models.TaskStatus.Pending)</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">Normal:</span>
-                    <span class="stat-value">@_tasks.Count(t => t.Priority == TaskPriority.Normal)</span>
+                    <span class="stat-label">In Progress:</span>
+                    <span class="stat-value inprogress">@_tasks.Count(t => t.Status == Orchestra.Core.Models.TaskStatus.InProgress)</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">Low:</span>
-                    <span class="stat-value low">@_tasks.Count(t => t.Priority == TaskPriority.Low)</span>
+                    <span class="stat-label">Completed:</span>
+                    <span class="stat-value completed">@_tasks.Count(t => t.Status == Orchestra.Core.Models.TaskStatus.Completed)</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Failed:</span>
+                    <span class="stat-value failed">@_tasks.Count(t => t.Status == Orchestra.Core.Models.TaskStatus.Failed)</span>
                 </div>
             </div>
 
@@ -87,11 +91,38 @@
                                 @GetPriorityIcon(task.Priority)
                                 <span class="priority-text">@task.Priority</span>
                             </div>
+                            <div class="task-status @GetStatusClass(task.Status)">
+                                <span class="status-icon">@GetStatusIcon(task.Status)</span>
+                                <span class="status-text">@task.Status</span>
+                                @if (task.Status == Orchestra.Core.Models.TaskStatus.InProgress && task.StartedAt.HasValue)
+                                {
+                                    <span class="status-duration">@GetTaskDuration(task.StartedAt.Value)</span>
+                                }
+                            </div>
                             <div class="task-time">@GetTimeAgo(task.CreatedAt)</div>
                         </div>
+
+                        @if (task.Status == Orchestra.Core.Models.TaskStatus.InProgress)
+                        {
+                            <div class="task-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill indeterminate"></div>
+                                </div>
+                            </div>
+                        }
+
                         <div class="task-command" title="@task.Command">
                             @GetShortCommand(task.Command)
                         </div>
+
+                        @if (!string.IsNullOrEmpty(task.Result) && task.Status is Orchestra.Core.Models.TaskStatus.Completed or Orchestra.Core.Models.TaskStatus.Failed)
+                        {
+                            <div class="task-result @(task.Status == Orchestra.Core.Models.TaskStatus.Failed ? "error" : "success")"
+                                 title="@task.Result">
+                                <span class="result-icon">@(task.Status == Orchestra.Core.Models.TaskStatus.Failed ? "❌" : "✅")</span>
+                                <span class="result-text">@GetShortResult(task.Result)</span>
+                            </div>
+                        }
                         <div class="task-details">
                             <div class="task-id">ID: @task.Id[..8]...</div>
                             @if (_showAllTasks && !string.IsNullOrEmpty(task.RepositoryPath))
@@ -336,6 +367,53 @@
         }
 
         return command[..maxLength] + "...";
+    }
+
+    private static string GetStatusClass(Orchestra.Core.Models.TaskStatus status)
+    {
+        return $"status-{status.ToString().ToLower()}";
+    }
+
+    private static string GetStatusIcon(Orchestra.Core.Models.TaskStatus status)
+    {
+        return status switch
+        {
+            Orchestra.Core.Models.TaskStatus.Pending => "⏳",
+            Orchestra.Core.Models.TaskStatus.Assigned => "📋",
+            Orchestra.Core.Models.TaskStatus.InProgress => "⚡",
+            Orchestra.Core.Models.TaskStatus.Completed => "✅",
+            Orchestra.Core.Models.TaskStatus.Failed => "❌",
+            Orchestra.Core.Models.TaskStatus.Cancelled => "🚫",
+            _ => "❓"
+        };
+    }
+
+    private static string GetTaskDuration(DateTime startTime)
+    {
+        var duration = DateTime.Now - startTime;
+
+        if (duration.TotalMinutes < 1)
+        {
+            return $"{(int)duration.TotalSeconds}s";
+        }
+
+        if (duration.TotalHours < 1)
+        {
+            return $"{(int)duration.TotalMinutes}m {duration.Seconds}s";
+        }
+
+        return $"{(int)duration.TotalHours}h {duration.Minutes}m";
+    }
+
+    private static string GetShortResult(string result)
+    {
+        const int maxLength = 50;
+        if (result.Length <= maxLength)
+        {
+            return result;
+        }
+
+        return result[..maxLength] + "...";
     }
 
     private static string GetTimeAgo(DateTime createdAt)
