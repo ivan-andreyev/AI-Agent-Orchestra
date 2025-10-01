@@ -91,7 +91,7 @@ public class TaskExecutionJob
             {
                 // STEP 3: INITIALIZE execution tracking and update TaskRepository
                 await InitializeExecutionTracking(correlationId, taskId, agentId);
-                await UpdateTaskStatusInRepository(taskId, TaskStatus.InProgress, "Task execution started");
+                await UpdateTaskStatusInRepository(taskId, TaskStatus.InProgress, agentId, "Task execution started");
                 await UpdateJobProgress(jobId, 30, "Execution tracking initialized");
 
                 // STEP 4: PREPARE execution environment
@@ -114,7 +114,7 @@ public class TaskExecutionJob
                 // STEP 7: UPDATE task and agent status
                 var finalStatus = result.Success ? TaskStatus.Completed : TaskStatus.Failed;
                 await UpdateTaskAndAgentStatus(taskId, agentId, result, finalStatus);
-                await UpdateTaskStatusInRepository(taskId, finalStatus,
+                await UpdateTaskStatusInRepository(taskId, finalStatus, agentId,
                     result.Output, result.ErrorMessage);
                 await UpdateJobProgress(jobId, 95, "Task and agent status updated");
 
@@ -609,11 +609,11 @@ public class TaskExecutionJob
     /// <param name="status">New task status</param>
     /// <param name="result">Task result output (optional)</param>
     /// <param name="errorMessage">Error message if task failed (optional)</param>
-    private async Task UpdateTaskStatusInRepository(string taskId, TaskStatus status, string? result = null, string? errorMessage = null)
+    private async Task UpdateTaskStatusInRepository(string taskId, TaskStatus status, string? agentId = null, string? result = null, string? errorMessage = null)
     {
         try
         {
-            var success = await _taskRepository.UpdateTaskStatusAsync(taskId, status, result, errorMessage);
+            var success = await _taskRepository.UpdateTaskStatusAsync(taskId, status, agentId, result, errorMessage);
             if (success)
             {
                 _logger.LogDebug("Task status updated in repository - TaskId: {TaskId}, Status: {Status}", taskId, status);

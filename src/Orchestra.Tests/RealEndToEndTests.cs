@@ -8,6 +8,9 @@ using Xunit.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Orchestra.Core.Data;
 using Orchestra.Core.Services;
+using Hangfire;
+using Hangfire.Storage;
+using Hangfire.Storage.Monitoring;
 
 namespace Orchestra.Tests;
 
@@ -93,6 +96,13 @@ public class RealEndToEndTests : IDisposable
         dbContext.Agents.RemoveRange(dbContext.Agents);
         dbContext.Repositories.RemoveRange(dbContext.Repositories);
         dbContext.SaveChanges();
+
+        // CRITICAL: Also clear SimpleOrchestrator in-memory state
+        // HangfireOrchestrator.RegisterAgentAsync registers in BOTH EntityFramework AND SimpleOrchestrator
+        // If we only clear database, agents remain in SimpleOrchestrator and can be Busy from previous tests
+        using var scope = _factory.Services.CreateScope();
+        var legacyOrchestrator = scope.ServiceProvider.GetRequiredService<Core.SimpleOrchestrator>();
+        legacyOrchestrator.ClearAllAgents();
     }
 
     [Fact(Timeout = 1200000)] // 20 minutes timeout (first Claude request can take 15+ minutes)
@@ -126,16 +136,18 @@ public class RealEndToEndTests : IDisposable
         Assert.True(state.Agents.ContainsKey(agentId), "Agent should be registered");
         Assert.Equal(AgentStatus.Idle, state.Agents[agentId].Status);
 
-        // Queue a simple file creation task
-        var command = "Create a file called test.txt with the exact content: Hello from Real E2E Test";
+        // Queue a simple file creation task with absolute path
+        var command = $"Create a file at the absolute path: {testFilePath}\n" +
+                      $"File content should be exactly: Hello from Real E2E Test";
         _output.WriteLine($"[TEST] Queuing task: {command}");
+        _output.WriteLine($"[TEST] Expected file location: {testFilePath}");
         _output.WriteLine($"[TEST] Task repository path: {testDir}");
         var taskId = await QueueTask(command, testDir, TaskPriority.High);
         _output.WriteLine($"[TEST] Task queued successfully with ID: {taskId}");
 
-        // Wait for task execution (CLI is warmed up, should complete in 30-60 seconds)
-        _output.WriteLine($"[TEST] Waiting 1 minute for task execution...");
-        await Task.Delay(TimeSpan.FromMinutes(1));
+        // Wait for task execution (Hangfire Server needs time to start + execute)
+        _output.WriteLine($"[TEST] Waiting 2 minutes for task execution...");
+        await Task.Delay(TimeSpan.FromMinutes(2));
 
         // Debug: Check directory and files
         _output.WriteLine($"[TEST] Checking directory: {testDir}");
@@ -149,6 +161,9 @@ public class RealEndToEndTests : IDisposable
                 _output.WriteLine($"[TEST]   - {file}");
             }
         }
+
+        // Comprehensive Hangfire diagnostics
+        DiagnoseHangfireExecution(taskId, "RealClaudeCode_CreateFile");
 
         // Assert: Verify file was created by Claude Code
         var fileExists = File.Exists(testFilePath);
@@ -179,12 +194,16 @@ public class RealEndToEndTests : IDisposable
         // Act: Register agent
         await RegisterAgent(agentId, "Real Claude Modify Agent", "claude-code", testDir);
 
-        // Queue task to read and modify file
-        var command = "Read the file modify_test.txt and append the text: \\nModified by Claude Code";
-        await QueueTask(command, testDir, TaskPriority.High);
+        // Queue task to read and modify file with absolute path
+        var command = $"Read the file at absolute path: {testFilePath}\n" +
+                      $"Then append this text to the file: \\nModified by Claude Code";
+        var taskId = await QueueTask(command, testDir, TaskPriority.High);
 
-        // Wait for execution (Claude Code first request takes 15+ minutes)
-        await Task.Delay(TimeSpan.FromMinutes(1));
+        // Wait for execution (Hangfire Server needs time to start + execute)
+        await Task.Delay(TimeSpan.FromMinutes(2));
+
+        // Comprehensive Hangfire diagnostics
+        DiagnoseHangfireExecution(taskId, "RealClaudeCode_ReadAndModifyFile");
 
         // Assert: Verify file was modified
         var content = await File.ReadAllTextAsync(testFilePath);
@@ -214,15 +233,19 @@ public class RealEndToEndTests : IDisposable
         // Ping agent as busy before task
         await PingAgent(agentId, AgentStatus.Busy, "About to list files");
 
-        // Queue task to list files
-        var command = "List all .txt files in the current directory and save the list to files_list.txt";
-        await QueueTask(command, testDir, TaskPriority.High);
+        // Queue task to list files with absolute paths
+        var outputFile = Path.Combine(testDir, "files_list.txt");
+        var command = $"List all .txt files in directory: {testDir}\n" +
+                      $"Save the list to file at absolute path: {outputFile}";
+        var taskId = await QueueTask(command, testDir, TaskPriority.High);
 
-        // Wait for execution (Claude Code first request takes 15+ minutes)
-        await Task.Delay(TimeSpan.FromMinutes(1));
+        // Wait for execution (Hangfire Server needs time to start + execute)
+        await Task.Delay(TimeSpan.FromMinutes(2));
+
+        // Comprehensive Hangfire diagnostics
+        DiagnoseHangfireExecution(taskId, "RealClaudeCode_ListFiles");
 
         // Assert: Verify output file was created with correct content
-        var outputFile = Path.Combine(testDir, "files_list.txt");
         if (File.Exists(outputFile))
         {
             var content = await File.ReadAllTextAsync(outputFile);
@@ -324,6 +347,137 @@ public class RealEndToEndTests : IDisposable
                 _output.WriteLine($"[WARMUP] Failed to cleanup warmup directory: {ex.Message}");
             }
         }
+    }
+
+    /// <summary>
+    /// Comprehensive Hangfire diagnostics для отладки RealE2E тестов
+    /// </summary>
+    private void DiagnoseHangfireExecution(string taskId, string testName)
+    {
+        _output.WriteLine($"");
+        _output.WriteLine($"=== HANGFIRE DIAGNOSTICS START: {testName} ===");
+
+        try
+        {
+            // 1. Check Hangfire Storage
+            var storage = JobStorage.Current;
+            _output.WriteLine($"[DIAG] Hangfire Storage: {storage?.GetType().Name ?? "NULL"}");
+
+            if (storage == null)
+            {
+                _output.WriteLine($"[DIAG] ❌ CRITICAL: Hangfire Storage is NULL - Server not initialized!");
+                return;
+            }
+
+            // 2. Get Monitoring API
+            var monitoringApi = storage.GetMonitoringApi();
+            _output.WriteLine($"[DIAG] Monitoring API available: {monitoringApi != null}");
+
+            if (monitoringApi == null)
+            {
+                _output.WriteLine($"[DIAG] ❌ CRITICAL: Monitoring API is NULL!");
+                return;
+            }
+
+            // 3. Check Enqueued jobs
+            var enqueuedJobs = monitoringApi.EnqueuedJobs("default", 0, 100);
+            _output.WriteLine($"[DIAG] Enqueued jobs (default queue): {enqueuedJobs.Count}");
+            foreach (var job in enqueuedJobs.Take(5))
+            {
+                _output.WriteLine($"[DIAG]   Enqueued: JobId={job.Key}, Method={job.Value?.Job?.Method?.Name ?? "unknown"}");
+            }
+
+            // 4. Check Processing jobs
+            var processingJobs = monitoringApi.ProcessingJobs(0, 100);
+            _output.WriteLine($"[DIAG] Processing jobs: {processingJobs.Count}");
+            foreach (var job in processingJobs.Take(5))
+            {
+                _output.WriteLine($"[DIAG]   Processing: JobId={job.Key}, Method={job.Value?.Job?.Method?.Name ?? "unknown"}, Server={job.Value?.ServerId ?? "unknown"}");
+            }
+
+            // 5. Check Succeeded jobs
+            var succeededJobs = monitoringApi.SucceededJobs(0, 100);
+            _output.WriteLine($"[DIAG] Succeeded jobs: {succeededJobs.Count}");
+            foreach (var job in succeededJobs.Take(5))
+            {
+                var args = job.Value?.Job?.Args;
+                var hasTaskId = args?.Any(arg => arg?.ToString()?.Contains(taskId) == true) ?? false;
+                _output.WriteLine($"[DIAG]   Succeeded: JobId={job.Key}, Method={job.Value?.Job?.Method?.Name ?? "unknown"}, ContainsTaskId={hasTaskId}");
+
+                if (hasTaskId)
+                {
+                    _output.WriteLine($"[DIAG]   ✅ FOUND SUCCEEDED JOB FOR TASK: {taskId}");
+                }
+            }
+
+            // 6. Check Failed jobs
+            var failedJobs = monitoringApi.FailedJobs(0, 100);
+            _output.WriteLine($"[DIAG] Failed jobs: {failedJobs.Count}");
+            foreach (var job in failedJobs.Take(5))
+            {
+                var args = job.Value?.Job?.Args;
+                var hasTaskId = args?.Any(arg => arg?.ToString()?.Contains(taskId) == true) ?? false;
+                _output.WriteLine($"[DIAG]   Failed: JobId={job.Key}, Method={job.Value?.Job?.Method?.Name ?? "unknown"}, ContainsTaskId={hasTaskId}");
+                _output.WriteLine($"[DIAG]     Exception: {job.Value?.ExceptionMessage ?? "none"}");
+
+                if (hasTaskId)
+                {
+                    _output.WriteLine($"[DIAG]   ❌ FOUND FAILED JOB FOR TASK: {taskId}");
+                    _output.WriteLine($"[DIAG]     Full Exception: {job.Value?.ExceptionDetails ?? "none"}");
+                }
+            }
+
+            // 7. Check Servers
+            var servers = monitoringApi.Servers();
+            _output.WriteLine($"[DIAG] Active Hangfire Servers: {servers.Count}");
+            foreach (var server in servers)
+            {
+                _output.WriteLine($"[DIAG]   Server: {server.Name}, Queues: [{string.Join(", ", server.Queues)}], Workers: {server.WorkersCount}, StartedAt: {server.StartedAt}");
+            }
+
+            if (servers.Count == 0)
+            {
+                _output.WriteLine($"[DIAG] ❌ CRITICAL: No active Hangfire Servers! Jobs cannot execute!");
+            }
+
+            // 8. Check Database Task Status
+            using var scope = _factory.Services.CreateScope();
+            using var dbContext = scope.ServiceProvider.GetRequiredService<OrchestraDbContext>();
+            var task = dbContext.Tasks.FirstOrDefault(t => t.Id == taskId);
+
+            if (task != null)
+            {
+                _output.WriteLine($"[DIAG] Database Task Status: {task.Status}");
+                _output.WriteLine($"[DIAG]   AgentId: {task.AgentId ?? "null"}");
+                _output.WriteLine($"[DIAG]   UpdatedAt: {task.UpdatedAt}");
+                _output.WriteLine($"[DIAG]   ErrorMessage: {task.ErrorMessage ?? "none"}");
+            }
+            else
+            {
+                _output.WriteLine($"[DIAG] ❌ Task NOT FOUND in database: {taskId}");
+            }
+
+            // 9. Check Statistics
+            var stats = monitoringApi.GetStatistics();
+            _output.WriteLine($"[DIAG] Statistics:");
+            _output.WriteLine($"[DIAG]   Enqueued: {stats.Enqueued}");
+            _output.WriteLine($"[DIAG]   Scheduled: {stats.Scheduled}");
+            _output.WriteLine($"[DIAG]   Processing: {stats.Processing}");
+            _output.WriteLine($"[DIAG]   Succeeded: {stats.Succeeded}");
+            _output.WriteLine($"[DIAG]   Failed: {stats.Failed}");
+            _output.WriteLine($"[DIAG]   Deleted: {stats.Deleted}");
+            _output.WriteLine($"[DIAG]   Recurring: {stats.Recurring}");
+            _output.WriteLine($"[DIAG]   Servers: {stats.Servers}");
+            _output.WriteLine($"[DIAG]   Queues: {stats.Queues}");
+        }
+        catch (Exception ex)
+        {
+            _output.WriteLine($"[DIAG] ❌ Exception during diagnostics: {ex.Message}");
+            _output.WriteLine($"[DIAG]   Stack: {ex.StackTrace}");
+        }
+
+        _output.WriteLine($"=== HANGFIRE DIAGNOSTICS END ===");
+        _output.WriteLine($"");
     }
 
     #endregion

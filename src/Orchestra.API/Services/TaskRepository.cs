@@ -138,7 +138,7 @@ public class TaskRepository
     /// <summary>
     /// Обновить статус задачи
     /// </summary>
-    public async Task<bool> UpdateTaskStatusAsync(string taskId, Orchestra.Core.Models.TaskStatus status, string? result = null, string? errorMessage = null)
+    public async Task<bool> UpdateTaskStatusAsync(string taskId, Orchestra.Core.Models.TaskStatus status, string? agentId = null, string? result = null, string? errorMessage = null)
     {
         try
         {
@@ -151,6 +151,12 @@ public class TaskRepository
 
             task.Status = status;
             task.UpdatedAt = DateTime.UtcNow;
+
+            // Set AgentId if provided (for Hangfire task execution tracking)
+            if (!string.IsNullOrEmpty(agentId))
+            {
+                task.AgentId = agentId;
+            }
 
             if (status == Orchestra.Core.Models.TaskStatus.Completed || status == Orchestra.Core.Models.TaskStatus.Failed)
             {
