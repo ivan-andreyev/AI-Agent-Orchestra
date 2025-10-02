@@ -137,8 +137,8 @@ public class RealEndToEndTests : IDisposable
         Assert.Equal(AgentStatus.Idle, state.Agents[agentId].Status);
 
         // Queue a simple file creation task with absolute path
-        var command = $"Create a file at the absolute path: {testFilePath}\n" +
-                      $"File content should be exactly: Hello from Real E2E Test";
+        // Use single-line command format - multi-line with \n confuses Claude CLI
+        var command = $"Create a file at '{testFilePath}' with the content 'Hello from Real E2E Test'";
         _output.WriteLine($"[TEST] Queuing task: {command}");
         _output.WriteLine($"[TEST] Expected file location: {testFilePath}");
         _output.WriteLine($"[TEST] Task repository path: {testDir}");
@@ -195,8 +195,8 @@ public class RealEndToEndTests : IDisposable
         await RegisterAgent(agentId, "Real Claude Modify Agent", "claude-code", testDir);
 
         // Queue task to read and modify file with absolute path
-        var command = $"Read the file at absolute path: {testFilePath}\n" +
-                      $"Then append this text to the file: \\nModified by Claude Code";
+        // Use single-line command format - multi-line with \n confuses Claude CLI
+        var command = $"Read the file at '{testFilePath}' and append this text to the end: Modified by Claude Code";
         var taskId = await QueueTask(command, testDir, TaskPriority.High);
 
         // Wait for execution (Hangfire Server needs time to start + execute)

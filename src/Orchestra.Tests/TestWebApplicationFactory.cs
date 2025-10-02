@@ -45,7 +45,7 @@ public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartu
             var testConfig = new Dictionary<string, string?>
             {
                 ["ASPNETCORE_ENVIRONMENT"] = "Testing",  // Force testing environment
-                ["HANGFIRE_CONNECTION"] = "InMemory",    // Signal for in-memory storage
+                ["HANGFIRE_CONNECTION"] = $"Data Source={_hangfireDbName}",
                 ["EFCORE_CONNECTION"] = _efCoreDbName
             };
 

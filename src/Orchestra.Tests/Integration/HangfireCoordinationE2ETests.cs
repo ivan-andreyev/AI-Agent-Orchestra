@@ -1,10 +1,7 @@
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
 using Orchestra.Core;
 using Orchestra.Core.Models;
-using Orchestra.Core.Data;
 using Orchestra.API.Services;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -20,64 +17,32 @@ namespace Orchestra.Tests.Integration;
 /// End-to-End integration test for Hangfire coordination without complex database dependencies.
 /// This test validates the complete workflow: API → HangfireOrchestrator → TaskExecutionJob → Agent Execution
 /// Focus: Verifying actual task execution through background jobs with real coordination
+/// Now uses shared collection fixture via IntegrationTestBase for proper isolation
 /// </summary>
 [Collection("Integration")]
-public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+public class HangfireCoordinationE2ETests : IntegrationTestBase
 {
-    private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _jsonOptions;
-    private readonly ITestOutputHelper _output;
-    private readonly IServiceScope _scope;
-    private readonly HangfireOrchestrator _hangfireOrchestrator;
     private readonly SimpleOrchestrator _simpleOrchestrator;
     private readonly ILogger<HangfireCoordinationE2ETests> _logger;
 
-    public HangfireCoordinationE2ETests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+    public HangfireCoordinationE2ETests(TestWebApplicationFactory<Program> factory, ITestOutputHelper output)
+        : base(factory, output)
     {
-        _factory = factory;
-        _output = output;
-        _client = _factory.CreateClient();
+        _client = Factory.CreateClient();
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
         };
 
-        // Get services from DI container
-        _scope = _factory.Services.CreateScope();
-        _hangfireOrchestrator = _scope.ServiceProvider.GetRequiredService<HangfireOrchestrator>();
-        _simpleOrchestrator = _scope.ServiceProvider.GetRequiredService<SimpleOrchestrator>();
-        _logger = _scope.ServiceProvider.GetRequiredService<ILogger<HangfireCoordinationE2ETests>>();
+        // Get additional services specific to E2E tests
+        _simpleOrchestrator = TestScope.ServiceProvider.GetRequiredService<SimpleOrchestrator>();
+        _logger = TestScope.ServiceProvider.GetRequiredService<ILogger<HangfireCoordinationE2ETests>>();
 
-        // Ensure database is properly migrated for testing
-        EnsureDatabaseSetup();
-
+        // Setup coordination agents
         SetupCoordinationAgentsAsync().Wait();
-    }
-
-    /// <summary>
-    /// Ensures database is properly setup with migrations applied for testing.
-    /// Fixes the critical "SQLite Error 1: 'no such table: Agents'" issue.
-    /// </summary>
-    private void EnsureDatabaseSetup()
-    {
-        try
-        {
-            var dbContext = _scope.ServiceProvider.GetRequiredService<OrchestraDbContext>();
-
-            _output.WriteLine("Applying database migrations for test environment...");
-
-            // Apply migrations to create all required tables
-            dbContext.Database.Migrate();
-
-            _output.WriteLine("Database migrations applied successfully");
-        }
-        catch (Exception ex)
-        {
-            _output.WriteLine($"Database setup error: {ex.Message}");
-            // Don't fail immediately - let individual tests handle database-dependent operations gracefully
-        }
     }
 
     private async Task SetupCoordinationAgentsAsync()
@@ -91,27 +56,27 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         _simpleOrchestrator.RegisterAgent("coordination-claude-1", "E2E Coordination Test Agent 1", "claude-code", testRepo1);
         _simpleOrchestrator.RegisterAgent("coordination-claude-2", "E2E Coordination Test Agent 2", "claude-code", testRepo2);
 
-        _output.WriteLine("Coordination test agents registered in SimpleOrchestrator");
+        Output.WriteLine("Coordination test agents registered in SimpleOrchestrator");
 
         // Verify agents are available
         var legacyAgents = _simpleOrchestrator.GetAllAgents();
-        _output.WriteLine($"Legacy orchestrator agents available: {legacyAgents.Count}");
+        Output.WriteLine($"Legacy orchestrator agents available: {legacyAgents.Count}");
 
         foreach (var agent in legacyAgents)
         {
-            _output.WriteLine($"Legacy Agent: {agent.Id}, Status: {agent.Status}, Repository: {agent.RepositoryPath}");
+            Output.WriteLine($"Legacy Agent: {agent.Id}, Status: {agent.Status}, Repository: {agent.RepositoryPath}");
         }
 
         // Also try to register with HangfireOrchestrator for completeness, but don't fail if it doesn't work
         try
         {
-            await _hangfireOrchestrator.RegisterAgentAsync("coordination-claude-1", "E2E Coordination Test Agent 1", "claude-code", testRepo1);
-            await _hangfireOrchestrator.RegisterAgentAsync("coordination-claude-2", "E2E Coordination Test Agent 2", "claude-code", testRepo2);
-            _output.WriteLine("Agents also registered with HangfireOrchestrator");
+            await HangfireOrchestrator.RegisterAgentAsync("coordination-claude-1", "E2E Coordination Test Agent 1", "claude-code", testRepo1);
+            await HangfireOrchestrator.RegisterAgentAsync("coordination-claude-2", "E2E Coordination Test Agent 2", "claude-code", testRepo2);
+            Output.WriteLine("Agents also registered with HangfireOrchestrator");
         }
         catch (Exception ex)
         {
-            _output.WriteLine($"Could not register agents with HangfireOrchestrator (this is expected in test environment): {ex.Message}");
+            Output.WriteLine($"Could not register agents with HangfireOrchestrator (this is expected in test environment): {ex.Message}");
         }
     }
 
@@ -122,38 +87,38 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         var testCommand = "echo 'E2E Coordination Test - Single Task'";
         var testRepository = @"C:\E2ECoordination-Test-1";
 
-        _output.WriteLine($"=== STARTING E2E COORDINATION TEST ===");
-        _output.WriteLine($"Command: {testCommand}");
-        _output.WriteLine($"Repository: {testRepository}");
+        Output.WriteLine($"=== STARTING E2E COORDINATION TEST ===");
+        Output.WriteLine($"Command: {testCommand}");
+        Output.WriteLine($"Repository: {testRepository}");
 
         // Verify initial agent state
         var initialAgent = _simpleOrchestrator.GetAgentById("coordination-claude-1");
         Assert.NotNull(initialAgent);
         Assert.Equal(AgentStatus.Idle, initialAgent.Status);
-        _output.WriteLine($"Initial agent state - Status: {initialAgent.Status}");
+        Output.WriteLine($"Initial agent state - Status: {initialAgent.Status}");
 
         // ACT: Execute coordination workflow
-        _output.WriteLine("STEP 1: Queueing task via HangfireOrchestrator...");
-        var taskId = await _hangfireOrchestrator.QueueTaskAsync(testCommand, testRepository, TaskPriority.High);
+        Output.WriteLine("STEP 1: Queueing task via HangfireOrchestrator...");
+        var taskId = await HangfireOrchestrator.QueueTaskAsync(testCommand, testRepository, TaskPriority.High);
 
         Assert.NotNull(taskId);
-        _output.WriteLine($"Task queued successfully - TaskId: {taskId}");
+        Output.WriteLine($"Task queued successfully - TaskId: {taskId}");
 
         // STEP 2: Wait for Hangfire to process the task
-        _output.WriteLine("STEP 2: Waiting for Hangfire background job execution...");
+        Output.WriteLine("STEP 2: Waiting for Hangfire background job execution...");
         await WaitForCoordinationCompletion(taskId, "coordination-claude-1", TimeSpan.FromSeconds(30));
 
         // VERIFY: Agent coordination completed successfully
-        _output.WriteLine("STEP 3: Verifying coordination results...");
+        Output.WriteLine("STEP 3: Verifying coordination results...");
         var finalAgent = _simpleOrchestrator.GetAgentById("coordination-claude-1");
         Assert.NotNull(finalAgent);
 
-        _output.WriteLine($"Final agent state - Status: {finalAgent.Status}");
+        Output.WriteLine($"Final agent state - Status: {finalAgent.Status}");
 
         // Agent should be back to Idle after task completion
         Assert.Equal(AgentStatus.Idle, finalAgent.Status);
 
-        _output.WriteLine("=== E2E COORDINATION TEST COMPLETED SUCCESSFULLY ===");
+        Output.WriteLine("=== E2E COORDINATION TEST COMPLETED SUCCESSFULLY ===");
     }
 
     [Fact]
@@ -165,7 +130,7 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         var repo1 = @"C:\E2ECoordination-Test-1";
         var repo2 = @"C:\E2ECoordination-Test-2";
 
-        _output.WriteLine($"=== STARTING MULTI-AGENT COORDINATION TEST ===");
+        Output.WriteLine($"=== STARTING MULTI-AGENT COORDINATION TEST ===");
 
         // Verify both agents are idle
         var agent1 = _simpleOrchestrator.GetAgentById("coordination-claude-1");
@@ -175,19 +140,19 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         Assert.Equal(AgentStatus.Idle, agent1.Status);
         Assert.Equal(AgentStatus.Idle, agent2.Status);
 
-        _output.WriteLine("Both agents verified as idle - ready for coordination");
+        Output.WriteLine("Both agents verified as idle - ready for coordination");
 
         // ACT: Queue both tasks simultaneously
-        _output.WriteLine("STEP 1: Queueing both tasks simultaneously...");
-        var task1Id = await _hangfireOrchestrator.QueueTaskAsync(task1Command, repo1, TaskPriority.Normal);
-        var task2Id = await _hangfireOrchestrator.QueueTaskAsync(task2Command, repo2, TaskPriority.Normal);
+        Output.WriteLine("STEP 1: Queueing both tasks simultaneously...");
+        var task1Id = await HangfireOrchestrator.QueueTaskAsync(task1Command, repo1, TaskPriority.Normal);
+        var task2Id = await HangfireOrchestrator.QueueTaskAsync(task2Command, repo2, TaskPriority.Normal);
 
         Assert.NotNull(task1Id);
         Assert.NotNull(task2Id);
-        _output.WriteLine($"Tasks queued - Task1: {task1Id}, Task2: {task2Id}");
+        Output.WriteLine($"Tasks queued - Task1: {task1Id}, Task2: {task2Id}");
 
         // STEP 2: Wait for both tasks to complete
-        _output.WriteLine("STEP 2: Waiting for multi-agent coordination to complete...");
+        Output.WriteLine("STEP 2: Waiting for multi-agent coordination to complete...");
         var completionTasks = new[]
         {
             WaitForCoordinationCompletion(task1Id, "coordination-claude-1", TimeSpan.FromSeconds(45)),
@@ -197,21 +162,21 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         await Task.WhenAll(completionTasks);
 
         // VERIFY: Both agents completed their tasks
-        _output.WriteLine("STEP 3: Verifying multi-agent coordination results...");
+        Output.WriteLine("STEP 3: Verifying multi-agent coordination results...");
         var finalAgent1 = _simpleOrchestrator.GetAgentById("coordination-claude-1");
         var finalAgent2 = _simpleOrchestrator.GetAgentById("coordination-claude-2");
 
         Assert.NotNull(finalAgent1);
         Assert.NotNull(finalAgent2);
 
-        _output.WriteLine($"Agent 1 final status: {finalAgent1.Status}");
-        _output.WriteLine($"Agent 2 final status: {finalAgent2.Status}");
+        Output.WriteLine($"Agent 1 final status: {finalAgent1.Status}");
+        Output.WriteLine($"Agent 2 final status: {finalAgent2.Status}");
 
         // Both agents should be idle after completion
         Assert.Equal(AgentStatus.Idle, finalAgent1.Status);
         Assert.Equal(AgentStatus.Idle, finalAgent2.Status);
 
-        _output.WriteLine("=== MULTI-AGENT COORDINATION TEST COMPLETED SUCCESSFULLY ===");
+        Output.WriteLine("=== MULTI-AGENT COORDINATION TEST COMPLETED SUCCESSFULLY ===");
     }
 
     [Fact]
@@ -221,10 +186,10 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         var testCommand = "echo 'API Integration Coordination Test'";
         var testRepository = @"C:\E2ECoordination-Test-1";
 
-        _output.WriteLine($"=== STARTING API INTEGRATION COORDINATION TEST ===");
+        Output.WriteLine($"=== STARTING API INTEGRATION COORDINATION TEST ===");
 
         // ACT: Use API endpoint to queue task
-        _output.WriteLine("STEP 1: Queueing task via API endpoint...");
+        Output.WriteLine("STEP 1: Queueing task via API endpoint...");
         var taskRequest = new
         {
             Command = testCommand,
@@ -235,48 +200,48 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         var response = await _client.PostAsJsonAsync("/tasks/queue", taskRequest);
         response.EnsureSuccessStatusCode();
 
-        _output.WriteLine("Task queued successfully via API");
+        Output.WriteLine("Task queued successfully via API");
 
         // STEP 2: Wait for task coordination
-        _output.WriteLine("STEP 2: Waiting for API-triggered coordination...");
+        Output.WriteLine("STEP 2: Waiting for API-triggered coordination...");
 
         // Since we don't have the taskId from API response, wait and check agent status
         await Task.Delay(15000); // Give time for processing
 
         // VERIFY: Check overall system state
-        _output.WriteLine("STEP 3: Verifying system state after API coordination...");
+        Output.WriteLine("STEP 3: Verifying system state after API coordination...");
 
         try
         {
-            var systemState = await _hangfireOrchestrator.GetCurrentStateAsync();
-            _output.WriteLine($"System state - Agents: {systemState.Agents.Count}, Queue: {systemState.TaskQueue.Count}");
+            var systemState = await HangfireOrchestrator.GetCurrentStateAsync();
+            Output.WriteLine($"System state - Agents: {systemState.Agents.Count}, Queue: {systemState.TaskQueue.Count}");
 
             // Verify agent processed the task (should be idle again)
             var agent = systemState.Agents.Values.FirstOrDefault(a => a.Id == "coordination-claude-1");
             if (agent != null)
             {
-                _output.WriteLine($"Coordination agent found - Status: {agent.Status}");
+                Output.WriteLine($"Coordination agent found - Status: {agent.Status}");
             }
 
-            _output.WriteLine("✅ API coordination system state retrieved successfully");
+            Output.WriteLine("✅ API coordination system state retrieved successfully");
         }
         catch (Exception ex)
         {
-            _output.WriteLine($"Database-dependent state check failed: {ex.Message}");
-            _output.WriteLine("This is expected if Entity Framework features are not fully configured");
+            Output.WriteLine($"Database-dependent state check failed: {ex.Message}");
+            Output.WriteLine("This is expected if Entity Framework features are not fully configured");
 
             // Alternative verification using SimpleOrchestrator (which doesn't require database)
-            _output.WriteLine("FALLBACK: Verifying coordination via SimpleOrchestrator...");
+            Output.WriteLine("FALLBACK: Verifying coordination via SimpleOrchestrator...");
             var agents = _simpleOrchestrator.GetAllAgents();
             var coordinationAgent = agents.FirstOrDefault(a => a.Id == "coordination-claude-1");
             if (coordinationAgent != null)
             {
-                _output.WriteLine($"Coordination agent status via SimpleOrchestrator: {coordinationAgent.Status}");
-                _output.WriteLine("✅ API coordination completed - agent is accessible via SimpleOrchestrator");
+                Output.WriteLine($"Coordination agent status via SimpleOrchestrator: {coordinationAgent.Status}");
+                Output.WriteLine("✅ API coordination completed - agent is accessible via SimpleOrchestrator");
             }
         }
 
-        _output.WriteLine("=== API INTEGRATION COORDINATION TEST COMPLETED ===");
+        Output.WriteLine("=== API INTEGRATION COORDINATION TEST COMPLETED ===");
     }
 
     /// <summary>
@@ -288,7 +253,7 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
         var maxWaitTime = startTime.Add(timeout);
         var hasStartedWorking = false;
 
-        _output.WriteLine($"Monitoring coordination for TaskId: {taskId}, AgentId: {agentId}");
+        Output.WriteLine($"Monitoring coordination for TaskId: {taskId}, AgentId: {agentId}");
 
         while (DateTime.UtcNow < maxWaitTime)
         {
@@ -297,20 +262,20 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
                 var agent = _simpleOrchestrator.GetAgentById(agentId);
                 if (agent != null)
                 {
-                    _output.WriteLine($"Agent {agentId} current status: {agent.Status}");
+                    Output.WriteLine($"Agent {agentId} current status: {agent.Status}");
 
                     // Track when agent starts working
                     if (!hasStartedWorking && (agent.Status == AgentStatus.Busy))
                     {
                         hasStartedWorking = true;
-                        _output.WriteLine($"Agent {agentId} started working on task");
+                        Output.WriteLine($"Agent {agentId} started working on task");
                     }
 
                     // If agent was working and is now idle, task is complete
                     if (hasStartedWorking && agent.Status == AgentStatus.Idle)
                     {
                         var elapsed = DateTime.UtcNow - startTime;
-                        _output.WriteLine($"Coordination completed for {agentId} in {elapsed.TotalSeconds:F1}s");
+                        Output.WriteLine($"Coordination completed for {agentId} in {elapsed.TotalSeconds:F1}s");
                         return;
                     }
                 }
@@ -319,21 +284,15 @@ public class HangfireCoordinationE2ETests : IClassFixture<WebApplicationFactory<
             }
             catch (Exception ex)
             {
-                _output.WriteLine($"Error monitoring coordination: {ex.Message}");
+                Output.WriteLine($"Error monitoring coordination: {ex.Message}");
                 await Task.Delay(3000); // Wait longer on error
             }
         }
 
         var totalElapsed = DateTime.UtcNow - startTime;
-        _output.WriteLine($"Coordination monitoring timeout after {totalElapsed.TotalSeconds:F1}s for TaskId: {taskId}");
+        Output.WriteLine($"Coordination monitoring timeout after {totalElapsed.TotalSeconds:F1}s for TaskId: {taskId}");
 
         // Don't throw - let the test decide how to handle timeouts
-        _output.WriteLine($"Final agent status: {_simpleOrchestrator.GetAgentById(agentId)?.Status ?? AgentStatus.Offline}");
-    }
-
-    public void Dispose()
-    {
-        _scope?.Dispose();
-        _client?.Dispose();
+        Output.WriteLine($"Final agent status: {_simpleOrchestrator.GetAgentById(agentId)?.Status ?? AgentStatus.Offline}");
     }
 }

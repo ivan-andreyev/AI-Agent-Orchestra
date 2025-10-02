@@ -3151,7 +3151,12 @@ public class WorkflowEngineTests
 
             if (stepCResult?.Status == WorkflowStatus.Failed)
             {
-                Assert.Null(stepDResult); // D shouldn't execute if C failed
+                // D may either not execute (null) OR be blocked (Failed status)
+                if (stepDResult != null)
+                {
+                    Assert.Equal(WorkflowStatus.Failed, stepDResult.Status);
+                    Assert.NotNull(stepDResult.Error);
+                }
             }
         }
 

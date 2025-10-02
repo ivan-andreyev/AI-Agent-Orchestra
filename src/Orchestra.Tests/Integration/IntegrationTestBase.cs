@@ -60,13 +60,14 @@ public abstract class IntegrationTestBase : IDisposable
 
     /// <summary>
     /// Initializes test database with required schema
-    /// Uses EnsureCreated() to create schema from EF Core model without migrations
+    /// Uses EnsureDeleted() + EnsureCreated() for complete isolation
     /// </summary>
     private void InitializeTestDatabase()
     {
         try
         {
             // Delete existing database to ensure clean state
+            // CRITICAL: This ensures full isolation including Hangfire internal state
             DbContext.Database.EnsureDeleted();
 
             // Create database with all tables from EF Core model

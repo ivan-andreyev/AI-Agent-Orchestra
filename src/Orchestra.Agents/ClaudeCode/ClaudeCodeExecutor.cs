@@ -254,8 +254,11 @@ public class ClaudeCodeExecutor : IAgentExecutor
         _logger.LogInformation("=== Claude CLI Execution Details ===");
         _logger.LogInformation("CLI Path: {CliPath}", _configuration.DefaultCliPath);
         _logger.LogInformation("Working Directory: {WorkingDirectory}", workingDirectory);
-        _logger.LogInformation("Arguments: {Arguments}", arguments);
-        _logger.LogInformation("Command: {Command}", command);
+        _logger.LogInformation("Directory Exists: {DirectoryExists}", Directory.Exists(workingDirectory));
+        _logger.LogInformation("Arguments Length: {ArgumentsLength} chars", arguments.Length);
+        _logger.LogInformation("Original Command: {Command}", command);
+        _logger.LogInformation("Full Arguments: {Arguments}", arguments);
+        _logger.LogInformation("Full Command Line: {FullCommandLine}", $"\"{_configuration.DefaultCliPath}\" {arguments}");
         _logger.LogInformation("====================================");
 
         // Set WorkingDirectory to ensure Claude CLI operates in the correct directory
@@ -337,14 +340,59 @@ public class ClaudeCodeExecutor : IAgentExecutor
             _logger.LogInformation("=== Claude CLI Result ===");
             _logger.LogInformation("Exit Code: {ExitCode}", process.ExitCode);
             _logger.LogInformation("Output Length: {OutputLength} chars", output.Length);
+
+            // CRITICAL: Log FULL output without truncation for debugging empty file issue
             if (!string.IsNullOrEmpty(output))
             {
-                _logger.LogInformation("Output: {Output}", output.Length > 500 ? output.Substring(0, 500) + "..." : output);
+                _logger.LogInformation("STDOUT (FULL): {Output}", output);
             }
+            else
+            {
+                _logger.LogWarning("STDOUT is EMPTY");
+            }
+
             if (!string.IsNullOrEmpty(error))
             {
-                _logger.LogWarning("Error: {Error}", error);
+                _logger.LogWarning("STDERR (FULL): {Error}", error);
             }
+
+            // Log files in working directory after execution WITH CONTENTS
+            try
+            {
+                if (Directory.Exists(workingDirectory))
+                {
+                    var files = Directory.GetFiles(workingDirectory, "*", SearchOption.AllDirectories);
+                    _logger.LogInformation("Files in working directory after execution: {FileCount}", files.Length);
+                    foreach (var file in files.Take(10))  // Log first 10 files
+                    {
+                        var relativePath = Path.GetRelativePath(workingDirectory, file);
+                        var fileInfo = new FileInfo(file);
+
+                        // CRITICAL: Log file contents to debug empty file issue
+                        try
+                        {
+                            var fileContent = File.ReadAllText(file);
+                            var contentPreview = fileContent.Length > 100 ? fileContent.Substring(0, 100) + "..." : fileContent;
+                            _logger.LogInformation("  File: {FileName}, Size: {Size} bytes, Content: \"{Content}\"",
+                                relativePath, fileInfo.Length, contentPreview);
+                        }
+                        catch (Exception readEx)
+                        {
+                            _logger.LogWarning("  File: {FileName}, Size: {Size} bytes, Content: <Could not read: {Error}>",
+                                relativePath, fileInfo.Length, readEx.Message);
+                        }
+                    }
+                    if (files.Length > 10)
+                    {
+                        _logger.LogInformation("  ... and {MoreFiles} more files", files.Length - 10);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Could not list files in working directory: {Error}", ex.Message);
+            }
+
             _logger.LogInformation("========================");
 
             if (!success && _configuration.EnableVerboseLogging)

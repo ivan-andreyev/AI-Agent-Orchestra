@@ -102,8 +102,24 @@ public class TaskExecutionJob
                 var result = await ExecuteCommandWithMonitoring(
                     agentId, command, repositoryPath, correlationId, taskId, jobId, cancellationToken.ShutdownToken);
 
-                _logger.LogInformation("DEBUG: Agent execution result - Success: {Success}, ErrorMessage: '{ErrorMessage}', Output: '{Output}'",
-                    result.Success, result.ErrorMessage, result.Output);
+                // CRITICAL: Log full execution result for debugging
+                _logger.LogInformation("=== Task Execution Result ===");
+                _logger.LogInformation("TaskId: {TaskId}, AgentId: {AgentId}", taskId, agentId);
+                _logger.LogInformation("Success: {Success}", result.Success);
+                _logger.LogInformation("Output Length: {OutputLength} chars", result.Output?.Length ?? 0);
+                if (!string.IsNullOrEmpty(result.Output))
+                {
+                    _logger.LogInformation("Output (full): {Output}", result.Output);
+                }
+                else
+                {
+                    _logger.LogWarning("Output is EMPTY or NULL");
+                }
+                if (!string.IsNullOrEmpty(result.ErrorMessage))
+                {
+                    _logger.LogWarning("ErrorMessage: {ErrorMessage}", result.ErrorMessage);
+                }
+                _logger.LogInformation("===========================");
 
                 await UpdateJobProgress(jobId, 80, "Command execution completed");
 

@@ -10,6 +10,7 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Hangfire.Dashboard;
 using Hangfire.InMemory;
+using Hangfire.Storage.SQLite;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -74,7 +75,8 @@ public class Startup
         // Detect if we're in testing mode with special configuration
         var efCoreConnection = Environment.GetEnvironmentVariable("EFCORE_CONNECTION") ?? configuration["EFCORE_CONNECTION"];
         var hangfireConnection = Environment.GetEnvironmentVariable("HANGFIRE_CONNECTION") ?? configuration["HANGFIRE_CONNECTION"];
-        var useInMemoryHangfire = hangfireConnection == "InMemory" || isTestEnvironment;
+        var useInMemoryHangfire = hangfireConnection == "InMemory";
+        var useSqliteForHangfire = !string.IsNullOrEmpty(hangfireConnection) && hangfireConnection.StartsWith("Data Source=");
         var useSqliteForEfCore = isTestEnvironment && !string.IsNullOrEmpty(efCoreConnection) && !efCoreConnection.Contains("Host=");
 
         // PostgreSQL Database Connection (for production)
@@ -109,6 +111,18 @@ public class Startup
                 .UseSimpleAssemblyNameTypeSerializer()
                 .UseRecommendedSerializerSettings()
                 .UseInMemoryStorage());
+        }
+        else if (useSqliteForHangfire)
+        {
+            // For tests with isolation: use SQLite storage for independent test execution
+            services.AddHangfire(configuration => configuration
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSQLiteStorage(hangfireConnection, new Hangfire.Storage.SQLite.SQLiteStorageOptions
+                {
+                    QueuePollInterval = TimeSpan.FromMilliseconds(100)
+                }));
         }
         else
         {

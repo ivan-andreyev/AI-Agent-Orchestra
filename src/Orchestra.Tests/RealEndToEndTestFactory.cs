@@ -42,7 +42,7 @@ public class RealEndToEndTestFactory<TStartup> : WebApplicationFactory<TStartup>
             var testConfig = new Dictionary<string, string?>
             {
                 ["ASPNETCORE_ENVIRONMENT"] = "Testing",
-                ["HANGFIRE_CONNECTION"] = "InMemory",
+                ["HANGFIRE_CONNECTION"] = $"Data Source={_hangfireDbName}",
                 ["EFCORE_CONNECTION"] = _efCoreDbName,
                 // Configure Claude Code CLI for real execution
                 // First Claude request can take 10+ minutes due to model loading
