@@ -197,3 +197,87 @@ After implementing fix:
 - Changes are minimal
 - Can easily revert if issues arise
 - Enhanced logging will catch any problems immediately
+
+---
+
+## ✅ IMPLEMENTATION COMPLETED (2025-10-01)
+
+### Actual Root Cause (REVISED)
+
+**Initial hypothesis:** `--output-format text` doesn't write file content
+**Actual root cause:** Multi-line commands with `\n` confuse Claude CLI
+
+### Investigation Results
+
+Tried multiple approaches:
+1. ❌ **OutputFormat "markdown"** - Invalid format (not supported)
+2. ❌ **OutputFormat "json"** - Files still created empty (0 bytes)
+3. ❌ **Remove --output-format entirely** - Files not created at all
+4. ✅ **Single-line command format** - **SUCCESS!**
+
+### Solution Implemented
+
+**File:** `src/Orchestra.Tests/RealEndToEndTests.cs`
+
+**Before (FAILED):**
+```csharp
+var command = $"Create a file at the absolute path: {testFilePath}\n" +
+              $"File content should be exactly: Hello from Real E2E Test";
+```
+
+**After (SUCCESS):**
+```csharp
+// Use single-line command format - multi-line with \n confuses Claude CLI
+var command = $"Create a file at '{testFilePath}' with the content 'Hello from Real E2E Test'";
+```
+
+### Verification Results
+
+**Isolation Test:**
+```bash
+dotnet test --filter "RealClaudeCode_CreateFile"
+Result: ✅ Пройден! (1/1 passed)
+```
+
+**Full Suite:**
+```bash
+dotnet test
+Result: ❌ 580/582 passed
+```
+
+### New Issue Discovered
+
+**Problem:** Full suite fails with SQLiteStorage disposal error
+```
+[DIAG] ❌ Exception: Cannot access a disposed object. SQLiteStorage
+```
+
+**Analysis:**
+- NOT a code issue - single-line commands work correctly (verified in isolation)
+- Test infrastructure issue: SQLiteStorage disposed during parallel test execution
+- DiagnoseHangfireExecution() accesses storage after disposal
+- Needs separate fix for test infrastructure (test isolation/parallelization)
+
+### Commit
+
+**Hash:** 0731c5c
+**Message:** fix: Change RealE2E test commands to single-line format
+
+**Changes included:**
+- Single-line commands in RealEndToEndTests.cs
+- Enhanced logging in ClaudeCodeExecutor.cs
+- Full output logging in TaskExecutionJob.cs
+- Test isolation improvements
+
+### Status
+
+- ✅ Root cause identified and fixed
+- ✅ Solution verified (works in isolation)
+- ⚠️ Test infrastructure issue requires separate investigation
+- 📊 Current: 580/582 tests passing (2 RealE2E fail due to infrastructure)
+
+### Next Steps
+
+1. Investigate SQLiteStorage disposal in parallel test execution
+2. Fix test infrastructure for proper isolation
+3. Achieve 582/582 tests passing

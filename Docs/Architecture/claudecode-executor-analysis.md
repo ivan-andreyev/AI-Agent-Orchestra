@@ -337,6 +337,113 @@ if (success && files.Length > 0)
 
 - **Started:** 2025-10-01 00:00 UTC
 - **Enhanced logging added:** 2025-10-01 00:08 UTC
-- **Root cause identified:** 2025-10-01 00:15 UTC
-- **Fix to implement:** Option 1 (remove --output-format text)
-- **Tests passing 582/582:** TBD (after fix)
+- **Initial root cause identified:** 2025-10-01 00:15 UTC
+- **Investigation continued:** 2025-10-01 00:20-01:00 UTC
+- **Solution implemented:** 2025-10-01 01:00 UTC
+- **Commit:** 0731c5c
+
+---
+
+## ✅ SOLUTION FOUND AND IMPLEMENTED
+
+### Actual Root Cause (REVISED)
+
+**Initial hypothesis:** `--output-format text` prevents file content writing
+**Actual root cause:** **Multi-line commands with `\n` confuse Claude CLI**
+
+### Investigation Results
+
+Systematically tested all hypotheses:
+
+1. ❌ **Hypothesis: OutputFormat issue**
+   - Tried "markdown" → Invalid format error
+   - Tried "json" → Files still empty (0 bytes)
+   - Tried removing --output-format → Files not created at all
+   - **Conclusion:** NOT an output format issue
+
+2. ✅ **Hypothesis: Command format issue**
+   - Changed from multi-line (`\n`) to single-line
+   - **Result:** Test PASSES in isolation!
+
+### Solution: Single-Line Command Format
+
+**File:** `src/Orchestra.Tests/RealEndToEndTests.cs`
+
+**Before (FAILED - 0 bytes):**
+```csharp
+var command = $"Create a file at the absolute path: {testFilePath}\n" +
+              $"File content should be exactly: Hello from Real E2E Test";
+```
+
+**After (SUCCESS - file created with content):**
+```csharp
+// Use single-line command format - multi-line with \n confuses Claude CLI
+var command = $"Create a file at '{testFilePath}' with the content 'Hello from Real E2E Test'";
+```
+
+### Why This Works
+
+**Problem with multi-line:**
+- `\n` in command string confuses Claude CLI parsing
+- Claude CLI interprets multi-line as separate instructions
+- Creates file but doesn't process content instruction
+
+**Solution with single-line:**
+- Single clear instruction: "Create file X with content Y"
+- Claude CLI processes as atomic operation
+- File created AND content written correctly
+
+### Verification
+
+**Isolation test (proves fix works):**
+```bash
+$ dotnet test --filter "RealClaudeCode_CreateFile"
+Result: ✅ Пройден! (1/1 passed)
+```
+
+**Full suite (reveals infrastructure issue):**
+```bash
+$ dotnet test
+Result: ❌ 580/582 passed
+Error: "Cannot access a disposed object. SQLiteStorage"
+```
+
+### New Issue: Test Infrastructure
+
+**Problem:** Full suite fails NOT because of code, but because of test infrastructure
+
+**Evidence:**
+- Same tests PASS in isolation
+- Fail in full suite with SQLiteStorage disposal error
+- DiagnoseHangfireExecution() accesses disposed storage
+
+**Root cause:**
+- Parallel test execution disposes SQLiteStorage
+- Diagnostics run after disposal
+- Test isolation/cleanup issue
+
+**Status:** Separate issue, requires test infrastructure fix
+
+### Final Status
+
+- ✅ **Original problem SOLVED:** Empty files fixed with single-line commands
+- ✅ **Solution verified:** Works correctly in isolation
+- ⚠️ **New issue identified:** Test infrastructure needs fix for parallel execution
+- 📊 **Current:** 580/582 tests passing (2 RealE2E fail due to infrastructure)
+
+### Commit
+
+**Hash:** 0731c5c
+**Message:** fix: Change RealE2E test commands to single-line format
+
+**Files changed:**
+- RealEndToEndTests.cs: Single-line commands
+- ClaudeCodeExecutor.cs: Enhanced logging
+- TaskExecutionJob.cs: Full output logging
+
+### Lessons Learned
+
+1. **Initial hypothesis was wrong** - OutputFormat not the issue
+2. **Enhanced logging critical** - Revealed exact command execution
+3. **Test isolation important** - Separation reveals true issues
+4. **Simple solution best** - Single-line format vs complex workarounds
