@@ -165,8 +165,12 @@ AI-Agent-Orchestra/
 │   ├── TECHNICAL-ARCHITECTURE.md  # Technical design
 │   ├── MVP-ROADMAP.md             # Development roadmap
 │   ├── TECHNICAL-DEBT.md          # Known technical debt registry
-│   └── WorkPlans/                 # Detailed implementation plans
-│       └── Remove-HangfireServer-Tests-Plan-REVISED.md  # Test infrastructure improvement
+│   ├── PLANS-INDEX.md             # Centralized registry of all work plans
+│   ├── WorkPlans/                 # Infrastructure improvement plans
+│   │   └── Remove-HangfireServer-Tests-Plan-REVISED.md  # Test parallelization
+│   └── plans/                     # Feature implementation plans
+│       ├── actions-block-refactoring-workplan.md  # ACTIVE - Phase 1&2 incomplete
+│       └── Architecture/          # Architecture-specific plans
 ├── src/                           # Source code
 │   ├── Orchestra.API/             # REST API and SignalR hubs
 │   ├── Orchestra.Core/            # Domain logic and interfaces
