@@ -391,6 +391,12 @@ public class OrchestrationController : ControllerBase
 - ⏱️ Test execution time: ~9-10 minutes
 - 🔄 Phase 1 solution: Disabled parallelization to prevent HangfireServer conflicts
 
+**Known Technical Debt**:
+- 🔴 **JobStorage.Current** - Mutable global state in Hangfire
+  - **Impact**: Prevents parallel test execution, blocks multi-tenant scenarios
+  - **MVP Status**: Does NOT block MVP (production works perfectly)
+  - **Details**: [TECHNICAL-DEBT.md - Hangfire JobStorage.Current](./TECHNICAL-DEBT.md#critical-hangfire-jobstoragecurrent---mutable-global-state)
+
 **Planned Improvement**:
 - 📋 [Remove HangfireServer from Tests Plan](./WorkPlans/Remove-HangfireServer-Tests-Plan-REVISED.md)
   - **Goal**: Enable parallel test execution with synchronous job execution
@@ -402,6 +408,7 @@ public class OrchestrationController : ControllerBase
     - Better test isolation
     - Faster CI/CD pipelines
     - Easier debugging (synchronous execution)
+  - **Addresses**: Test-specific aspect of JobStorage.Current technical debt
 
 ## Success Metrics & KPIs
 

@@ -14,7 +14,141 @@
 
 ## Problem Analysis
 
-### Root Cause
+### Root Cause: JobStorage.Current - Mutable Global State
+
+**ARCHITECTURAL TECHNICAL DEBT**: This is a fundamental design issue with Hangfire's global state pattern that affects test isolation.
+
+#### The Core Problem
+
+Hangfire uses `JobStorage.Current` - a **mutable static global variable** - to provide storage access:
+
+```csharp
+// From Hangfire.JobStorage class
+public abstract class JobStorage
+{
+    private static JobStorage _current;
+
+    public static JobStorage Current
+    {
+        get => _current;
+        set => _current = value; // ⚠️ MUTABLE GLOBAL STATE
+    }
+}
+```
+
+#### Why This Works in Production
+
+```
+Production Environment:
+┌─────────────────────────────────────┐
+│ Single ASP.NET Core Process         │
+│                                     │
+│  Startup.ConfigureServices()        │
+│     ↓                               │
+│  AddHangfire(PostgreSQL)            │
+│     ↓                               │
+│  JobStorage.Current = PostgreSQL    │  ← Set ONCE at startup
+│     ↓                               │
+│  HangfireServer starts              │
+│     ↓                               │
+│  Serves jobs from Current           │  ← Never changes
+│                                     │
+└─────────────────────────────────────┘
+
+Result: ✅ JobStorage.Current never mutates → Perfect concurrency
+```
+
+#### Why This BREAKS in Tests
+
+```
+Test Environment (Parallel Execution):
+┌──────────────────────────────────────────────────────────────┐
+│ Single dotnet test Process                                   │
+│                                                              │
+│  ┌─────────────────────┐    ┌─────────────────────┐        │
+│  │ Integration Tests   │    │ RealE2E Tests       │        │
+│  │ (xUnit Collection)  │    │ (xUnit Collection)  │        │
+│  │                     │    │                     │        │
+│  │ Factory creates:    │    │ Factory creates:    │        │
+│  │  → SQLite Storage1  │    │  → SQLite Storage2  │        │
+│  │  → Sets Current = 1 │    │  → Sets Current = 2 │        │
+│  │     ↓               │    │     ↓               │        │
+│  │  Jobs enqueued      │    │  Jobs enqueued      │        │
+│  └─────────────────────┘    └─────────────────────┘        │
+│           ↓                           ↓                     │
+│  ┌────────────────────────────────────────────┐            │
+│  │ HangfireServer (Singleton IHostedService)  │            │
+│  │                                            │            │
+│  │  while (true) {                            │            │
+│  │    var storage = JobStorage.Current;      │ ← Which one?│
+│  │    // Sometimes Storage1, sometimes Storage2!          │
+│  │    var jobs = storage.GetJobs();          │            │
+│  │  }                                         │            │
+│  └────────────────────────────────────────────┘            │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+
+Result: ❌ Race condition → ObjectDisposedException
+```
+
+#### The Race Condition Timeline
+
+```
+Time  | Integration Collection        | RealE2E Collection           | HangfireServer
+------|-------------------------------|------------------------------|------------------
+T0    | Factory.Create()              |                              |
+T1    | JobStorage.Current = SQLite1  |                              |
+T2    | Server.Start()                |                              | Connects to SQLite1
+T3    | Enqueue job1                  |                              | Processing job1
+T4    |                               | Factory.Create()             |
+T5    |                               | JobStorage.Current = SQLite2 | ⚠️ Sees storage change
+T6    | Factory.Dispose()             |                              |
+T7    | SQLite1.Dispose()             |                              | ⚠️ Still has reference!
+T8    |                               | Enqueue job2                 | Tries to use SQLite1
+T9    |                               |                              | 💥 ObjectDisposedException
+```
+
+#### Why Sequential Execution (Phase 1) Works
+
+```
+Sequential Execution:
+┌────────────────────────────────────────┐
+│ Integration Collection runs FIRST      │
+│  → Sets JobStorage.Current = Storage1  │
+│  → HangfireServer processes all jobs   │
+│  → Collection completes                │
+│  → Storage1.Dispose()                  │
+└────────────────────────────────────────┘
+         ↓ No overlap
+┌────────────────────────────────────────┐
+│ RealE2E Collection runs SECOND         │
+│  → Sets JobStorage.Current = Storage2  │
+│  → HangfireServer processes all jobs   │
+│  → Collection completes                │
+│  → Storage2.Dispose()                  │
+└────────────────────────────────────────┘
+
+Result: ✅ No concurrent access to JobStorage.Current → No race condition
+Trade-off: 2x slower (9-10 min vs 4-5 min)
+```
+
+### Broader Implications (TECHNICAL DEBT)
+
+**MVP Impact**: ❌ **DOES NOT BLOCK MVP**
+- Production code works perfectly (single JobStorage.Current)
+- Tests work with Phase 1 fix (sequential execution)
+
+**Future Scaling Impact**: ⚠️ **POTENTIAL ISSUE**
+- Horizontal scaling with multiple app instances → each has own JobStorage.Current ✅ OK
+- Multi-tenant scenarios in single process → shared JobStorage.Current ⚠️ PROBLEM
+- Advanced deployment patterns (blue-green with shared storage) → potential issues
+
+**Recommended Future Work** (Post-MVP):
+1. **Phase 2** (This Plan): Fix tests with synchronous execution
+2. **Phase 3** (Future): Refactor production code to use DI-based JobStorage (eliminate global state)
+3. **Phase 4** (Future): Support multi-tenant scenarios with isolated job storage
+
+### Root Cause Summary
 ```
 HangfireServer (singleton) → serves → JobStorage (isolated per collection)
 Integration Collection → SQLiteStorage-1

@@ -164,6 +164,7 @@ AI-Agent-Orchestra/
 │   ├── PRODUCT-VISION.md          # Product vision and strategy
 │   ├── TECHNICAL-ARCHITECTURE.md  # Technical design
 │   ├── MVP-ROADMAP.md             # Development roadmap
+│   ├── TECHNICAL-DEBT.md          # Known technical debt registry
 │   └── WorkPlans/                 # Detailed implementation plans
 │       └── Remove-HangfireServer-Tests-Plan-REVISED.md  # Test infrastructure improvement
 ├── src/                           # Source code
