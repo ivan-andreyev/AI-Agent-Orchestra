@@ -162,10 +162,9 @@ public class RealEndToEndTests : IDisposable
             }
         }
 
-        // Comprehensive Hangfire diagnostics
-        DiagnoseHangfireExecution(taskId, "RealClaudeCode_CreateFile");
-
         // Assert: Verify file was created by Claude Code
+        // Note: Hangfire diagnostics removed - tests should not depend on diagnostics
+        // Tests verify actual file operations, not internal Hangfire state
         var fileExists = File.Exists(testFilePath);
         _output.WriteLine($"[TEST] File exists at {testFilePath}: {fileExists}");
         Assert.True(fileExists, $"File should exist at {testFilePath}");
@@ -202,10 +201,8 @@ public class RealEndToEndTests : IDisposable
         // Wait for execution (Hangfire Server needs time to start + execute)
         await Task.Delay(TimeSpan.FromMinutes(2));
 
-        // Comprehensive Hangfire diagnostics
-        DiagnoseHangfireExecution(taskId, "RealClaudeCode_ReadAndModifyFile");
-
         // Assert: Verify file was modified
+        // Note: Hangfire diagnostics removed for reliability
         var content = await File.ReadAllTextAsync(testFilePath);
         Assert.Contains("Initial content", content);
         Assert.Contains("Modified by Claude Code", content);
@@ -242,10 +239,8 @@ public class RealEndToEndTests : IDisposable
         // Wait for execution (Hangfire Server needs time to start + execute)
         await Task.Delay(TimeSpan.FromMinutes(2));
 
-        // Comprehensive Hangfire diagnostics
-        DiagnoseHangfireExecution(taskId, "RealClaudeCode_ListFiles");
-
         // Assert: Verify output file was created with correct content
+        // Note: Hangfire diagnostics removed for reliability
         if (File.Exists(outputFile))
         {
             var content = await File.ReadAllTextAsync(outputFile);
@@ -365,17 +360,27 @@ public class RealEndToEndTests : IDisposable
 
             if (storage == null)
             {
-                _output.WriteLine($"[DIAG] ❌ CRITICAL: Hangfire Storage is NULL - Server not initialized!");
+                _output.WriteLine($"[DIAG] ⚠️  Hangfire Storage not available, skipping diagnostics (non-critical)");
                 return;
             }
 
-            // 2. Get Monitoring API
-            var monitoringApi = storage.GetMonitoringApi();
+            // 2. Get Monitoring API (may throw ObjectDisposedException if storage disposed)
+            IMonitoringApi? monitoringApi = null;
+            try
+            {
+                monitoringApi = storage.GetMonitoringApi();
+            }
+            catch (ObjectDisposedException)
+            {
+                _output.WriteLine($"[DIAG] ⚠️  Storage disposed, diagnostics unavailable (non-critical)");
+                return;
+            }
+
             _output.WriteLine($"[DIAG] Monitoring API available: {monitoringApi != null}");
 
             if (monitoringApi == null)
             {
-                _output.WriteLine($"[DIAG] ❌ CRITICAL: Monitoring API is NULL!");
+                _output.WriteLine($"[DIAG] ⚠️  Monitoring API not available, skipping diagnostics");
                 return;
             }
 
@@ -470,9 +475,16 @@ public class RealEndToEndTests : IDisposable
             _output.WriteLine($"[DIAG]   Servers: {stats.Servers}");
             _output.WriteLine($"[DIAG]   Queues: {stats.Queues}");
         }
+        catch (ObjectDisposedException ex)
+        {
+            // Storage disposed - happens when parallel test collections dispose their storages
+            // This is non-critical since tests should not depend on diagnostics
+            _output.WriteLine($"[DIAG] ⚠️  Storage disposed during diagnostics (non-critical): {ex.Message}");
+        }
         catch (Exception ex)
         {
-            _output.WriteLine($"[DIAG] ❌ Exception during diagnostics: {ex.Message}");
+            _output.WriteLine($"[DIAG] ❌ Unexpected exception during diagnostics: {ex.Message}");
+            _output.WriteLine($"[DIAG]   Type: {ex.GetType().Name}");
             _output.WriteLine($"[DIAG]   Stack: {ex.StackTrace}");
         }
 

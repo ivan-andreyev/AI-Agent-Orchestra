@@ -174,3 +174,4 @@ When adding new features, always follow the Command + Handler + Event + Tests pa
 - **code-reviewer** (mentioned in architecture, not implemented)
 
 **Note**: All agents except pre-completion-validator are considered part of "армии ревьюеров" (army of reviewers).
+- В тестах не бывает "отдельных проблем", или "unrelated problems". Все проблемы - наши, насущные и критичные!
