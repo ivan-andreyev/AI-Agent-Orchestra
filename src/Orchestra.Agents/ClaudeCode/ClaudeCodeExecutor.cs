@@ -313,6 +313,10 @@ public class ClaudeCodeExecutor : IAgentExecutor
                 // to prevent premature cancellation by test framework or Hangfire
                 using var timeoutCts = new CancellationTokenSource(_configuration.DefaultTimeout);
                 await process.WaitForExitAsync(timeoutCts.Token);
+
+                // Wait for async event handlers to finish processing output
+                // OutputDataReceived/ErrorDataReceived may still be processing data
+                await Task.Delay(100);
             }
             catch (OperationCanceledException)
             {
@@ -321,12 +325,14 @@ public class ClaudeCodeExecutor : IAgentExecutor
                 {
                     if (!process.HasExited)
                     {
-                        process.Kill();
+                        // Kill entire process tree to prevent zombie child processes (node.js from claude.cmd)
+                        // Claude CLI spawns node.js processes that must be terminated
+                        process.Kill(entireProcessTree: true);
                     }
                 }
                 catch (Exception killEx)
                 {
-                    _logger.LogWarning(killEx, "Failed to kill process after timeout");
+                    _logger.LogWarning(killEx, "Failed to kill process tree after timeout");
                 }
                 throw new TimeoutException($"Claude CLI process timed out after {_configuration.DefaultTimeout}");
             }
