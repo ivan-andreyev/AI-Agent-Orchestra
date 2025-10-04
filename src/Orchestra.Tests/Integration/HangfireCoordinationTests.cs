@@ -13,7 +13,7 @@ namespace Orchestra.Tests.Integration;
 /// TaskExecutionJob execution to completion with mock agent execution.
 /// </summary>
 [Collection("Integration")]
-public class HangfireCoordinationTests : IntegrationTestBase
+public class HangfireCoordinationTests : IntegrationTestBase, IClassFixture<TestWebApplicationFactory<Program>>
 {
     public HangfireCoordinationTests(TestWebApplicationFactory<Program> factory, ITestOutputHelper output)
         : base(factory, output)

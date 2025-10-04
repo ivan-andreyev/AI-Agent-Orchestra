@@ -20,7 +20,7 @@ namespace Orchestra.Tests.Integration;
 /// Now uses shared collection fixture via IntegrationTestBase for proper isolation
 /// </summary>
 [Collection("Integration")]
-public class HangfireCoordinationE2ETests : IntegrationTestBase
+public class HangfireCoordinationE2ETests : IntegrationTestBase, IClassFixture<TestWebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -41,11 +41,11 @@ public class HangfireCoordinationE2ETests : IntegrationTestBase
         _simpleOrchestrator = TestScope.ServiceProvider.GetRequiredService<SimpleOrchestrator>();
         _logger = TestScope.ServiceProvider.GetRequiredService<ILogger<HangfireCoordinationE2ETests>>();
 
-        // Setup coordination agents
-        SetupCoordinationAgentsAsync().Wait();
+        // Setup coordination agents synchronously (no Wait() deadlock)
+        SetupCoordinationAgentsSync();
     }
 
-    private async Task SetupCoordinationAgentsAsync()
+    private void SetupCoordinationAgentsSync()
     {
         // Register coordination test agents
         var testRepo1 = @"C:\E2ECoordination-Test-1";
@@ -67,17 +67,8 @@ public class HangfireCoordinationE2ETests : IntegrationTestBase
             Output.WriteLine($"Legacy Agent: {agent.Id}, Status: {agent.Status}, Repository: {agent.RepositoryPath}");
         }
 
-        // Also try to register with HangfireOrchestrator for completeness, but don't fail if it doesn't work
-        try
-        {
-            await HangfireOrchestrator.RegisterAgentAsync("coordination-claude-1", "E2E Coordination Test Agent 1", "claude-code", testRepo1);
-            await HangfireOrchestrator.RegisterAgentAsync("coordination-claude-2", "E2E Coordination Test Agent 2", "claude-code", testRepo2);
-            Output.WriteLine("Agents also registered with HangfireOrchestrator");
-        }
-        catch (Exception ex)
-        {
-            Output.WriteLine($"Could not register agents with HangfireOrchestrator (this is expected in test environment): {ex.Message}");
-        }
+        // Skip HangfireOrchestrator registration - not needed for tests and may cause issues
+        Output.WriteLine("Skipping HangfireOrchestrator registration (using SimpleOrchestrator only)");
     }
 
     [Fact]

@@ -13,7 +13,7 @@ using AgentStatus = Orchestra.Core.Data.Entities.AgentStatus;
 namespace Orchestra.Tests;
 
 [Collection("Integration")]
-public class ApiIntegrationTests : IntegrationTestBase
+public class ApiIntegrationTests : IntegrationTestBase, IClassFixture<TestWebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _jsonOptions;

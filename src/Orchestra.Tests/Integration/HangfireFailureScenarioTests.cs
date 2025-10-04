@@ -13,7 +13,7 @@ namespace Orchestra.Tests.Integration;
 /// Tests edge cases, error conditions, and system resilience.
 /// </summary>
 [Collection("Integration")]
-public class HangfireFailureScenarioTests : IntegrationTestBase
+public class HangfireFailureScenarioTests : IntegrationTestBase, IClassFixture<TestWebApplicationFactory<Program>>
 {
     public HangfireFailureScenarioTests(TestWebApplicationFactory<Program> factory, ITestOutputHelper output)
         : base(factory, output)

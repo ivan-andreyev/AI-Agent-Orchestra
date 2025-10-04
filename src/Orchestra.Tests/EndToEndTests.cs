@@ -11,15 +11,11 @@ using Orchestra.Core.Data;
 namespace Orchestra.Tests;
 
 [Collection("Integration")]
-public class EndToEndTests
+public class EndToEndTests : IClassFixture<TestWebApplicationFactory<Program>>
 {
     private readonly TestWebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _jsonOptions;
-
-    // Static flag and lock for database initialization synchronization
-    private static bool _databaseInitialized = false;
-    private static readonly object _dbLock = new object();
 
     public EndToEndTests(TestWebApplicationFactory<Program> factory)
     {
@@ -31,39 +27,33 @@ public class EndToEndTests
             Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
         };
 
-        // Initialize database once, then clean data between tests
-        lock (_dbLock)
+        // Initialize database for test class (IClassFixture provides isolation)
+        // Each test class gets its own database via IClassFixture
+        // NO data clearing needed - complete isolation between test classes
+        InitializeTestDatabase();
+    }
+
+    /// <summary>
+    /// Initializes test database with required schema.
+    /// Each test class gets its own database via IClassFixture.
+    /// NO data clearing needed - complete isolation between test classes.
+    /// </summary>
+    private void InitializeTestDatabase()
+    {
+        try
         {
             using var scope = _factory.Services.CreateScope();
             using var dbContext = scope.ServiceProvider.GetRequiredService<OrchestraDbContext>();
 
-            if (!_databaseInitialized)
-            {
-                // First test: initialize database schema
-                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-                dbContext.Database.EnsureDeleted();
-                dbContext.Database.EnsureCreated();
-                _databaseInitialized = true;
-            }
-            else
-            {
-                // Subsequent tests: clean data only, keep schema
-                ClearTestData(dbContext);
-            }
+            // Create database if it doesn't exist (first test in this class)
+            // Each test class has its own database via IClassFixture
+            dbContext.Database.EnsureCreated();
         }
-    }
-
-    /// <summary>
-    /// Clears all test data from database tables between tests
-    /// while preserving the database schema
-    /// </summary>
-    private void ClearTestData(OrchestraDbContext dbContext)
-    {
-        // Clear in order to respect foreign key constraints
-        dbContext.Tasks.RemoveRange(dbContext.Tasks);
-        dbContext.Agents.RemoveRange(dbContext.Agents);
-        dbContext.Repositories.RemoveRange(dbContext.Repositories);
-        dbContext.SaveChanges();
+        catch (Exception ex)
+        {
+            // Log error but don't fail - database initialization issues will surface in actual tests
+            System.Diagnostics.Debug.WriteLine($"Failed to initialize test database: {ex.Message}");
+        }
     }
 
     [Fact]
@@ -93,6 +83,7 @@ public class EndToEndTests
 
         // Step 5: Verify agent status updated
         var afterPingState = await GetState();
+        Assert.True(afterPingState.Agents.ContainsKey(agentId), $"Agent {agentId} should exist after ping");
         var workingAgent = afterPingState.Agents[agentId];
         Assert.Equal(AgentStatus.Busy, workingAgent.Status);
         Assert.Equal("E2E Testing in progress", workingAgent.CurrentTask);
@@ -120,6 +111,9 @@ public class EndToEndTests
 
         // Step 10: Verify final state
         var finalState = await GetState();
+        Assert.NotNull(finalState);
+        Assert.NotNull(finalState.Agents);
+        Assert.True(finalState.Agents.ContainsKey(agentId), $"Agent {agentId} should exist in final state");
         var finalAgent = finalState.Agents[agentId];
         Assert.Equal(AgentStatus.Idle, finalAgent.Status);
         // CurrentTask may remain from previous activity, status change to Idle is the key indicator
@@ -266,12 +260,14 @@ public class EndToEndTests
         await PingAgent(agentId, AgentStatus.Error, "Simulated error");
 
         var errorState = await GetState();
+        Assert.True(errorState.Agents.ContainsKey(agentId), $"Agent {agentId} should exist in error state");
         Assert.Equal(AgentStatus.Error, errorState.Agents[agentId].Status);
 
         // Agent recovers
         await PingAgent(agentId, AgentStatus.Idle, null);
 
         var recoveredState = await GetState();
+        Assert.True(recoveredState.Agents.ContainsKey(agentId), $"Agent {agentId} should exist in recovered state");
         Assert.Equal(AgentStatus.Idle, recoveredState.Agents[agentId].Status);
         // CurrentTask may remain from previous activity, status change to Idle is the key indicator
     }

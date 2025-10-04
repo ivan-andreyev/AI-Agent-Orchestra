@@ -12,7 +12,7 @@ namespace Orchestra.Tests.Integration;
 /// Tests system behavior under load and concurrent operations.
 /// </summary>
 [Collection("Integration")]
-public class HangfireScalingTests : IntegrationTestBase
+public class HangfireScalingTests : IntegrationTestBase, IClassFixture<TestWebApplicationFactory<Program>>
 {
     public HangfireScalingTests(TestWebApplicationFactory<Program> factory, ITestOutputHelper output)
         : base(factory, output)

@@ -12,7 +12,7 @@ namespace Orchestra.Tests.Integration;
 /// Very simple Hangfire test to isolate the core issue
 /// </summary>
 [Collection("Integration")]
-public class SimpleHangfireTest : IntegrationTestBase
+public class SimpleHangfireTest : IntegrationTestBase, IClassFixture<TestWebApplicationFactory<Program>>
 {
     public SimpleHangfireTest(TestWebApplicationFactory<Program> factory, ITestOutputHelper output)
         : base(factory, output)
