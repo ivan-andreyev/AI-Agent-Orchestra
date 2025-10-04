@@ -73,75 +73,159 @@ public class ClaudeCodeExecutor : IAgentExecutor
 
         try
         {
-            // Пытаемся найти активную сессию Claude Code через HTTP API
-            var httpResult = await TryExecuteViaHttpApi(command, workingDirectory, cancellationToken);
-            if (httpResult != null)
-            {
-                var httpExecutionTime = DateTime.UtcNow - startTime;
-                _logger.LogInformation("Command executed via HTTP API in {ExecutionTime}ms",
-                    httpExecutionTime.TotalMilliseconds);
-
-                return new AgentExecutionResponse
-                {
-                    Success = httpResult.Success,
-                    Output = httpResult.Output,
-                    ErrorMessage = httpResult.ErrorMessage,
-                    ExecutionTime = httpExecutionTime,
-                    Metadata = new Dictionary<string, object>
-                    {
-                        { "ExecutionMethod", "HTTP API" },
-                        { "WorkingDirectory", workingDirectory },
-                        { "AgentType", AgentType }
-                    }
-                };
-            }
-
-            // Fallback на CLI выполнение
-            var cliResult = await ExecuteViaCli(command, workingDirectory, cancellationToken);
-            var executionTime = DateTime.UtcNow - startTime;
-
-            _logger.LogInformation("Command executed via CLI in {ExecutionTime}ms",
-                executionTime.TotalMilliseconds);
-
-            return new AgentExecutionResponse
-            {
-                Success = cliResult.Success,
-                Output = cliResult.Output,
-                ErrorMessage = cliResult.ErrorMessage,
-                ExecutionTime = executionTime,
-                Metadata = new Dictionary<string, object>
-                {
-                    { "ExecutionMethod", "CLI" },
-                    { "WorkingDirectory", workingDirectory },
-                    { "AgentType", AgentType },
-                    { "CliPath", _configuration.DefaultCliPath }
-                }
-            };
-        }
-        catch (Exception ex)
-        {
-            var executionTime = DateTime.UtcNow - startTime;
-            _logger.LogError(ex, "Failed to execute Claude Code command: {Command}", command);
-
-            return new AgentExecutionResponse
-            {
-                Success = false,
-                Output = "",
-                ErrorMessage = $"Execution failed: {ex.Message}",
-                ExecutionTime = executionTime,
-                Metadata = new Dictionary<string, object>
-                {
-                    { "ExecutionMethod", "Failed" },
-                    { "Exception", ex.GetType().Name },
-                    { "WorkingDirectory", workingDirectory },
-                    { "AgentType", AgentType }
-                }
-            };
+            // Execute with retry logic using configured retry parameters
+            return await ExecuteWithRetryAsync(command, workingDirectory, startTime, cancellationToken);
         }
         finally
         {
             _executionSemaphore.Release();
         }
+    }
+
+    /// <summary>
+    /// Executes command with exponential backoff retry logic
+    /// </summary>
+    private async Task<AgentExecutionResponse> ExecuteWithRetryAsync(
+        string command,
+        string workingDirectory,
+        DateTime startTime,
+        CancellationToken cancellationToken)
+    {
+        Exception? lastException = null;
+        var retryCount = 0;
+
+        for (int attempt = 0; attempt <= _configuration.RetryAttempts; attempt++)
+        {
+            try
+            {
+                // Пытаемся найти активную сессию Claude Code через HTTP API
+                var httpResult = await TryExecuteViaHttpApi(command, workingDirectory, cancellationToken);
+                if (httpResult != null)
+                {
+                    var httpExecutionTime = DateTime.UtcNow - startTime;
+                    _logger.LogInformation("Command executed via HTTP API in {ExecutionTime}ms (attempt {Attempt}/{MaxAttempts})",
+                        httpExecutionTime.TotalMilliseconds, attempt + 1, _configuration.RetryAttempts + 1);
+
+                    return new AgentExecutionResponse
+                    {
+                        Success = httpResult.Success,
+                        Output = httpResult.Output,
+                        ErrorMessage = httpResult.ErrorMessage,
+                        ExecutionTime = httpExecutionTime,
+                        Metadata = new Dictionary<string, object>
+                        {
+                            { "ExecutionMethod", "HTTP API" },
+                            { "WorkingDirectory", workingDirectory },
+                            { "AgentType", AgentType },
+                            { "RetryAttempt", attempt },
+                            { "TotalAttempts", attempt + 1 }
+                        }
+                    };
+                }
+
+                // Fallback на CLI выполнение
+                var cliResult = await ExecuteViaCli(command, workingDirectory, cancellationToken);
+                var executionTime = DateTime.UtcNow - startTime;
+
+                _logger.LogInformation("Command executed via CLI in {ExecutionTime}ms (attempt {Attempt}/{MaxAttempts})",
+                    executionTime.TotalMilliseconds, attempt + 1, _configuration.RetryAttempts + 1);
+
+                return new AgentExecutionResponse
+                {
+                    Success = cliResult.Success,
+                    Output = cliResult.Output,
+                    ErrorMessage = cliResult.ErrorMessage,
+                    ExecutionTime = executionTime,
+                    Metadata = new Dictionary<string, object>
+                    {
+                        { "ExecutionMethod", "CLI" },
+                        { "WorkingDirectory", workingDirectory },
+                        { "AgentType", AgentType },
+                        { "CliPath", _configuration.DefaultCliPath },
+                        { "RetryAttempt", attempt },
+                        { "TotalAttempts", attempt + 1 }
+                    }
+                };
+            }
+            catch (Exception ex) when (IsRetryableException(ex) && attempt < _configuration.RetryAttempts)
+            {
+                lastException = ex;
+                retryCount = attempt + 1;
+
+                var delay = CalculateExponentialBackoff(attempt);
+                _logger.LogWarning(ex, "Claude Code execution attempt {Attempt}/{MaxAttempts} failed, retrying after {Delay}ms: {Message}",
+                    attempt + 1, _configuration.RetryAttempts + 1, delay.TotalMilliseconds, ex.Message);
+
+                await Task.Delay(delay, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                // Non-retryable exception or final attempt
+                var executionTime = DateTime.UtcNow - startTime;
+                _logger.LogError(ex, "Failed to execute Claude Code command after {Attempts} attempt(s): {Command}",
+                    attempt + 1, command);
+
+                return new AgentExecutionResponse
+                {
+                    Success = false,
+                    Output = "",
+                    ErrorMessage = $"Execution failed after {attempt + 1} attempt(s): {ex.Message}",
+                    ExecutionTime = executionTime,
+                    Metadata = new Dictionary<string, object>
+                    {
+                        { "ExecutionMethod", "Failed" },
+                        { "Exception", ex.GetType().Name },
+                        { "WorkingDirectory", workingDirectory },
+                        { "AgentType", AgentType },
+                        { "TotalAttempts", attempt + 1 }
+                    }
+                };
+            }
+        }
+
+        // All retries exhausted
+        var finalExecutionTime = DateTime.UtcNow - startTime;
+        _logger.LogError(lastException, "All {RetryAttempts} retry attempts exhausted for command: {Command}",
+            _configuration.RetryAttempts, command);
+
+        return new AgentExecutionResponse
+        {
+            Success = false,
+            Output = "",
+            ErrorMessage = $"All {retryCount} retry attempts exhausted. Last error: {lastException?.Message}",
+            ExecutionTime = finalExecutionTime,
+            Metadata = new Dictionary<string, object>
+            {
+                { "ExecutionMethod", "Failed" },
+                { "Exception", lastException?.GetType().Name ?? "Unknown" },
+                { "WorkingDirectory", workingDirectory },
+                { "AgentType", AgentType },
+                { "TotalAttempts", retryCount + 1 }
+            }
+        };
+    }
+
+    /// <summary>
+    /// Determines if an exception is retryable
+    /// </summary>
+    private static bool IsRetryableException(Exception ex)
+    {
+        return ex is HttpRequestException ||
+               ex is TimeoutException ||
+               ex is IOException ||
+               ex is UnauthorizedAccessException ||
+               (ex is InvalidOperationException && ex.Message.Contains("process"));
+    }
+
+    /// <summary>
+    /// Calculates exponential backoff delay with jitter
+    /// </summary>
+    private TimeSpan CalculateExponentialBackoff(int attempt)
+    {
+        var baseDelayMs = _configuration.RetryDelay.TotalMilliseconds;
+        var exponentialDelayMs = baseDelayMs * Math.Pow(2, attempt);
+        var jitterMs = Random.Shared.NextDouble() * 0.3 * exponentialDelayMs; // 0-30% jitter
+        return TimeSpan.FromMilliseconds(exponentialDelayMs + jitterMs);
     }
 
     #region HTTP API выполнение

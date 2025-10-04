@@ -216,9 +216,13 @@ public class Startup
         services.AddScoped<IConnectionSessionService, ConnectionSessionService>();
 
         // Register Agent Executor - configurable agent implementation
-        // Use ClaudeAgentExecutor for real Claude Code integration, SimulationAgentExecutor for testing
-        services.AddSingleton<IAgentExecutor, ClaudeAgentExecutor>();
-        // Alternative for testing/fallback: services.AddScoped<IAgentExecutor, SimulationAgentExecutor>();
+        // Use ClaudeCodeExecutor for comprehensive Claude Code integration with retry logic
+        services.AddSingleton<Orchestra.Agents.ClaudeCode.ClaudeCodeExecutor>();
+        services.AddSingleton<IAgentExecutor>(provider =>
+            provider.GetRequiredService<Orchestra.Agents.ClaudeCode.ClaudeCodeExecutor>());
+        // Alternative implementations:
+        // - ClaudeAgentExecutor: Simpler implementation (legacy)
+        // - SimulationAgentExecutor: For testing/fallback
 
         // Register Claude Code services for advanced Claude Code integration
         services.Configure<Orchestra.Agents.ClaudeCode.ClaudeCodeConfiguration>(
