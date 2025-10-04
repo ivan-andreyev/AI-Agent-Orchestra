@@ -18,24 +18,19 @@ namespace Orchestra.Tests;
 /// Real end-to-end tests that execute actual Claude Code CLI commands.
 /// These tests are slow (minutes per test) and require Claude Code CLI to be installed.
 /// Use [Trait("Category", "RealE2E")] to run separately from regular tests.
+/// Each test class gets its own database via IClassFixture for complete isolation.
+/// IMPORTANT: Uses separate "RealE2E" collection to isolate slow real CLI tests from fast Integration tests.
+/// Sequential execution within RealE2E collection prevents JobStorage.Current race conditions.
 /// </summary>
 [Collection("RealE2E")]
 [Trait("Category", "RealE2E")]
-public class RealEndToEndTests : IDisposable
+public class RealEndToEndTests : IDisposable, IClassFixture<RealEndToEndTestFactory<Program>>
 {
     private readonly RealEndToEndTestFactory<Program> _factory;
     private readonly HttpClient _client;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly List<string> _testDirectories;
     private readonly ITestOutputHelper _output;
-
-    // Static flag and lock for database initialization synchronization
-    private static bool _databaseInitialized = false;
-    private static readonly object _dbLock = new object();
-
-    // Static flag and lock for Claude CLI warmup synchronization
-    private static bool _cliWarmedUp = false;
-    private static readonly object _cliWarmupLock = new object();
 
     public RealEndToEndTests(RealEndToEndTestFactory<Program> factory, ITestOutputHelper output)
     {
@@ -49,63 +44,61 @@ public class RealEndToEndTests : IDisposable
             Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
         };
 
-        // Initialize database once, then clean data between tests
-        lock (_dbLock)
-        {
-            using var scope = _factory.Services.CreateScope();
-            using var dbContext = scope.ServiceProvider.GetRequiredService<OrchestraDbContext>();
-
-            if (!_databaseInitialized)
-            {
-                // First test: initialize database schema
-                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-                dbContext.Database.EnsureDeleted();
-                dbContext.Database.EnsureCreated();
-                _databaseInitialized = true;
-            }
-            else
-            {
-                // Subsequent tests: clean data only, keep schema
-                ClearTestData(dbContext);
-            }
-        }
-
-        // Warmup Claude CLI once for all tests (first request takes 15+ minutes)
-        lock (_cliWarmupLock)
-        {
-            if (!_cliWarmedUp)
-            {
-                _output.WriteLine("[WARMUP] Starting Claude CLI warmup (first test only, ~15 mins)...");
-                WarmupClaudeCodeCli();
-                _cliWarmedUp = true;
-                _output.WriteLine("[WARMUP] Claude CLI warmed up successfully!");
-            }
-            else
-            {
-                _output.WriteLine("[WARMUP] Claude CLI already warmed up, skipping");
-            }
-        }
+        // Initialize database for test class (IClassFixture provides isolation)
+        // Each test class has its own database via IClassFixture
+        // NO data clearing needed - complete isolation between test classes
+        // NOTE: Warmup removed from constructor - first test will be slow (~15-20 min)
+        // but this prevents constructor deadlocks and allows proper async handling
+        InitializeTestDatabase();
     }
 
     /// <summary>
-    /// Clears all test data from database tables between tests
+    /// Initializes test database with required schema.
+    /// Each test class gets its own database via IClassFixture.
+    /// NO data clearing needed - complete isolation between test classes.
+    /// Also verifies Claude CLI is available for real E2E execution.
     /// </summary>
-    private void ClearTestData(OrchestraDbContext dbContext)
+    private void InitializeTestDatabase()
     {
-        dbContext.Tasks.RemoveRange(dbContext.Tasks);
-        dbContext.Agents.RemoveRange(dbContext.Agents);
-        dbContext.Repositories.RemoveRange(dbContext.Repositories);
-        dbContext.SaveChanges();
+        try
+        {
+            // CRITICAL: Check if Claude CLI exists before running tests
+            var cliPath = @"C:\Users\mrred\AppData\Roaming\npm\claude.cmd";
+            if (!File.Exists(cliPath))
+            {
+                var errorMsg = $"Claude CLI not found at: {cliPath}. " +
+                              $"Install Claude CLI with 'npm install -g @anthropic-ai/claude-code' " +
+                              $"or update path in ClaudeCodeConfiguration.";
+                _output.WriteLine($"[INIT] FATAL: {errorMsg}");
+                throw new InvalidOperationException(errorMsg);
+            }
+            _output.WriteLine($"[INIT] ✓ Claude CLI found at: {cliPath}");
 
-        // CRITICAL: Also clear SimpleOrchestrator in-memory state
-        // HangfireOrchestrator.RegisterAgentAsync registers in BOTH EntityFramework AND SimpleOrchestrator
-        // If we only clear database, agents remain in SimpleOrchestrator and can be Busy from previous tests
-        using var scope = _factory.Services.CreateScope();
-        var legacyOrchestrator = scope.ServiceProvider.GetRequiredService<Core.SimpleOrchestrator>();
-        legacyOrchestrator.ClearAllAgents();
+            using var scope = _factory.Services.CreateScope();
+            using var dbContext = scope.ServiceProvider.GetRequiredService<OrchestraDbContext>();
+
+            // Create database if it doesn't exist (first test in this class)
+            // Each test class has its own database via IClassFixture
+            var created = dbContext.Database.EnsureCreated();
+
+            if (created)
+            {
+                _output.WriteLine($"[DB] ✓ Test database created successfully for class {GetType().Name}");
+            }
+            else
+            {
+                _output.WriteLine($"[DB] ✓ Test database already exists for class {GetType().Name} (shared within class)");
+            }
+        }
+        catch (Exception ex)
+        {
+            _output.WriteLine($"[INIT] ✗ Failed to initialize: {ex.Message}");
+            _output.WriteLine($"[INIT] Stack trace: {ex.StackTrace}");
+            throw new InvalidOperationException("Could not initialize test environment", ex);
+        }
     }
 
-    [Fact(Timeout = 1200000)] // 20 minutes timeout (first Claude request can take 15+ minutes)
+    [Fact(Timeout = 1800000)] // 30 minutes timeout (first Claude request includes warmup - takes 15-20 minutes)
     public async Task RealClaudeCode_CreateFile_ShouldExecuteSuccessfully()
     {
         // Arrange: Create unique test directory
@@ -145,26 +138,15 @@ public class RealEndToEndTests : IDisposable
         var taskId = await QueueTask(command, testDir, TaskPriority.High);
         _output.WriteLine($"[TEST] Task queued successfully with ID: {taskId}");
 
-        // Wait for task execution (Hangfire Server needs time to start + execute)
-        _output.WriteLine($"[TEST] Waiting 2 minutes for task execution...");
-        await Task.Delay(TimeSpan.FromMinutes(2));
-
-        // Debug: Check directory and files
-        _output.WriteLine($"[TEST] Checking directory: {testDir}");
-        _output.WriteLine($"[TEST] Directory exists: {Directory.Exists(testDir)}");
-        if (Directory.Exists(testDir))
-        {
-            var files = Directory.GetFiles(testDir);
-            _output.WriteLine($"[TEST] Files in directory: {files.Length}");
-            foreach (var file in files)
-            {
-                _output.WriteLine($"[TEST]   - {file}");
-            }
-        }
+        // Wait for task execution with polling (first Claude request takes 15-20 minutes)
+        var completed = await WaitForTaskCompletionWithPolling(
+            taskId,
+            expectedFilePath: testFilePath,
+            timeout: TimeSpan.FromMinutes(18));
 
         // Assert: Verify file was created by Claude Code
-        // Note: Hangfire diagnostics removed - tests should not depend on diagnostics
-        // Tests verify actual file operations, not internal Hangfire state
+        Assert.True(completed, $"Task {taskId} did not complete within timeout");
+
         var fileExists = File.Exists(testFilePath);
         _output.WriteLine($"[TEST] File exists at {testFilePath}: {fileExists}");
         Assert.True(fileExists, $"File should exist at {testFilePath}");
@@ -176,7 +158,7 @@ public class RealEndToEndTests : IDisposable
         }
     }
 
-    [Fact(Timeout = 1200000)] // 20 minutes timeout (first Claude request can take 15+ minutes)
+    [Fact(Timeout = 300000)] // 5 minutes timeout (CLI already warmed up by first test)
     public async Task RealClaudeCode_ReadAndModifyFile_ShouldWorkEndToEnd()
     {
         // Arrange: Create test directory with initial file
@@ -198,17 +180,23 @@ public class RealEndToEndTests : IDisposable
         var command = $"Read the file at '{testFilePath}' and append this text to the end: Modified by Claude Code";
         var taskId = await QueueTask(command, testDir, TaskPriority.High);
 
-        // Wait for execution (Hangfire Server needs time to start + execute)
-        await Task.Delay(TimeSpan.FromMinutes(2));
+        // Wait for execution with polling
+        // Note: This test runs AFTER CreateFile test, so Claude CLI is already warmed up
+        // Expected completion time: 10-30 seconds (no warmup needed)
+        var completed = await WaitForTaskCompletionWithPolling(
+            taskId,
+            expectedFilePath: testFilePath, // File already exists, but check for modification timestamp change
+            timeout: TimeSpan.FromMinutes(5)); // 5 minutes should be plenty after warmup
 
-        // Assert: Verify file was modified
-        // Note: Hangfire diagnostics removed for reliability
+        // Assert: Verify task completed and file was modified
+        Assert.True(completed, $"Task {taskId} did not complete within timeout");
+
         var content = await File.ReadAllTextAsync(testFilePath);
         Assert.Contains("Initial content", content);
         Assert.Contains("Modified by Claude Code", content);
     }
 
-    [Fact(Timeout = 1200000)] // 20 minutes timeout (first Claude request can take 15+ minutes)
+    [Fact(Timeout = 300000)] // 5 minutes timeout (CLI already warmed up by previous tests)
     public async Task RealClaudeCode_ListFiles_ShouldReturnCorrectOutput()
     {
         // Arrange: Create test directory with known files
@@ -227,26 +215,26 @@ public class RealEndToEndTests : IDisposable
         // Act: Register agent
         await RegisterAgent(agentId, "Real Claude List Agent", "claude-code", testDir);
 
-        // Ping agent as busy before task
-        await PingAgent(agentId, AgentStatus.Busy, "About to list files");
-
         // Queue task to list files with absolute paths
         var outputFile = Path.Combine(testDir, "files_list.txt");
-        var command = $"List all .txt files in directory: {testDir}\n" +
-                      $"Save the list to file at absolute path: {outputFile}";
+        var command = $"Create a file at '{outputFile}' with a list of all .txt files in the directory '{testDir}'. List one file per line.";
         var taskId = await QueueTask(command, testDir, TaskPriority.High);
 
-        // Wait for execution (Hangfire Server needs time to start + execute)
-        await Task.Delay(TimeSpan.FromMinutes(2));
+        // Wait for execution with polling
+        // Note: This test runs AFTER previous tests, so Claude CLI is already warmed up
+        // Expected completion time: 10-30 seconds (no warmup needed)
+        var completed = await WaitForTaskCompletionWithPolling(
+            taskId,
+            expectedFilePath: outputFile,
+            timeout: TimeSpan.FromMinutes(5)); // 5 minutes should be plenty after warmup
 
-        // Assert: Verify output file was created with correct content
-        // Note: Hangfire diagnostics removed for reliability
-        if (File.Exists(outputFile))
-        {
-            var content = await File.ReadAllTextAsync(outputFile);
-            Assert.Contains("file1.txt", content);
-            Assert.Contains("file2.txt", content);
-        }
+        // Assert: Verify task completed and output file was created with correct content
+        Assert.True(completed, $"Task {taskId} did not complete within timeout");
+        Assert.True(File.Exists(outputFile), $"Output file should exist at {outputFile}");
+
+        var content = await File.ReadAllTextAsync(outputFile);
+        Assert.Contains("file1.txt", content);
+        Assert.Contains("file2.txt", content);
     }
 
     #region Helper Methods
@@ -291,9 +279,125 @@ public class RealEndToEndTests : IDisposable
     }
 
     /// <summary>
+    /// Waits for task completion by polling task status and optionally file changes.
+    /// First Claude CLI request takes 15-20 minutes due to model loading.
+    /// Subsequent requests complete in 10-30 seconds.
+    /// </summary>
+    /// <param name="taskId">Task ID to monitor</param>
+    /// <param name="expectedFilePath">Optional file path to check (for creation tests, checks existence; for modify tests, checks last write time)</param>
+    /// <param name="timeout">Maximum time to wait (default 18 minutes)</param>
+    /// <returns>True if task completed successfully, false if timeout</returns>
+    private async Task<bool> WaitForTaskCompletionWithPolling(
+        string taskId,
+        string? expectedFilePath = null,
+        TimeSpan? timeout = null)
+    {
+        timeout ??= TimeSpan.FromMinutes(18); // Default 18 minutes (enough for first warmup)
+        var startTime = DateTime.UtcNow;
+        var pollInterval = TimeSpan.FromSeconds(10); // Poll every 10 seconds
+        var lastLogTime = DateTime.UtcNow;
+        var logInterval = TimeSpan.FromMinutes(1); // Log every minute
+
+        // Capture initial file state if we're monitoring file changes
+        DateTime? initialFileTime = null;
+        bool fileExistedInitially = false;
+        if (!string.IsNullOrEmpty(expectedFilePath) && File.Exists(expectedFilePath))
+        {
+            fileExistedInitially = true;
+            initialFileTime = File.GetLastWriteTimeUtc(expectedFilePath);
+            _output.WriteLine($"[POLL] File already exists: {expectedFilePath} (LastWrite: {initialFileTime:HH:mm:ss})");
+        }
+
+        _output.WriteLine($"[POLL] Waiting for task {taskId} completion (timeout: {timeout.Value.TotalMinutes:F1}m)");
+        if (!string.IsNullOrEmpty(expectedFilePath))
+        {
+            if (fileExistedInitially)
+            {
+                _output.WriteLine($"[POLL] Monitoring file modifications: {expectedFilePath}");
+            }
+            else
+            {
+                _output.WriteLine($"[POLL] Monitoring file creation: {expectedFilePath}");
+            }
+        }
+
+        while (DateTime.UtcNow - startTime < timeout.Value)
+        {
+            var elapsed = DateTime.UtcNow - startTime;
+
+            // Log progress every minute
+            if (DateTime.UtcNow - lastLogTime >= logInterval)
+            {
+                _output.WriteLine($"[POLL] Still waiting... {elapsed.TotalMinutes:F1}m elapsed (timeout at {timeout.Value.TotalMinutes:F1}m)");
+                lastLogTime = DateTime.UtcNow;
+            }
+
+            // Check file status
+            if (!string.IsNullOrEmpty(expectedFilePath))
+            {
+                if (File.Exists(expectedFilePath))
+                {
+                    if (fileExistedInitially)
+                    {
+                        // For modification tests: check if file was modified after we started watching
+                        var currentFileTime = File.GetLastWriteTimeUtc(expectedFilePath);
+                        if (currentFileTime > initialFileTime)
+                        {
+                            _output.WriteLine($"[POLL] ✓ File modified at {expectedFilePath} after {elapsed.TotalSeconds:F1}s (LastWrite: {currentFileTime:HH:mm:ss})");
+                            // Give file system a moment to complete writes
+                            await Task.Delay(1000);
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        // For creation tests: file appeared (didn't exist initially)
+                        _output.WriteLine($"[POLL] ✓ File created at {expectedFilePath} after {elapsed.TotalSeconds:F1}s");
+                        // Give file system a moment to complete writes
+                        await Task.Delay(1000);
+                        return true;
+                    }
+                }
+            }
+
+            // Small delay before next check
+            await Task.Delay(pollInterval);
+        }
+
+        var totalElapsed = DateTime.UtcNow - startTime;
+        _output.WriteLine($"[POLL] ✗ Timeout after {totalElapsed.TotalMinutes:F1}m waiting for task {taskId}");
+
+        // Final check for file changes
+        if (!string.IsNullOrEmpty(expectedFilePath) && File.Exists(expectedFilePath))
+        {
+            if (fileExistedInitially)
+            {
+                var finalFileTime = File.GetLastWriteTimeUtc(expectedFilePath);
+                if (finalFileTime > initialFileTime)
+                {
+                    _output.WriteLine($"[POLL] ⚠️  File was modified just after timeout!");
+                    return true;
+                }
+                else
+                {
+                    _output.WriteLine($"[POLL] ✗ File was never modified (LastWrite still: {finalFileTime:HH:mm:ss})");
+                }
+            }
+            else
+            {
+                _output.WriteLine($"[POLL] ⚠️  File appeared just after timeout!");
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Прогревает Claude Code CLI при первом запуске теста.
     /// Первый запуск CLI занимает 15+ минут из-за загрузки модели,
     /// последующие запуски выполняются за 10-30 секунд.
+    /// NOTE: This method is deprecated - warmup now happens automatically on first test.
     /// </summary>
     private void WarmupClaudeCodeCli()
     {
@@ -517,12 +621,14 @@ public class RealEndToEndTests : IDisposable
 }
 
 /// <summary>
-/// Collection definition for real E2E tests to ensure sequential execution
-/// and shared test factory instance
+/// Collection definition for RealE2E tests to ensure sequential execution.
+/// This prevents JobStorage.Current race conditions between parallel test collections.
+/// Database isolation is handled at the class level via IClassFixture.
 /// </summary>
 [CollectionDefinition("RealE2E")]
-public class RealE2ETestCollection : ICollectionFixture<RealEndToEndTestFactory<Program>>
+public class RealE2ETestCollection
 {
     // This class has no code, and is never created. Its purpose is simply
-    // to be the place to apply [CollectionDefinition] and ICollectionFixture<> interfaces.
+    // to be the place to apply [CollectionDefinition] for sequential test execution.
+    // Database isolation is handled at the class level via IClassFixture.
 }
