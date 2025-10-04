@@ -60,26 +60,24 @@ public abstract class IntegrationTestBase : IDisposable
 
     /// <summary>
     /// Initializes test database with required schema
-    /// Uses EnsureDeleted() + EnsureCreated() for complete isolation
+    /// Each test class gets its own database via IClassFixture<TestWebApplicationFactory>
+    /// NO data clearing needed - complete isolation between test classes
     /// </summary>
     private void InitializeTestDatabase()
     {
         try
         {
-            // Delete existing database to ensure clean state
-            // CRITICAL: This ensures full isolation including Hangfire internal state
-            DbContext.Database.EnsureDeleted();
-
-            // Create database with all tables from EF Core model
+            // Create database if it doesn't exist (first test in this class)
+            // Each test class has its own database via IClassFixture
             var created = DbContext.Database.EnsureCreated();
 
             if (created)
             {
-                Output.WriteLine("Test database created successfully with all required tables");
+                Output.WriteLine($"Test database created successfully for class {GetType().Name}");
             }
             else
             {
-                Output.WriteLine("Test database already exists and is up to date");
+                Output.WriteLine($"Test database already exists for class {GetType().Name} (shared within class)");
             }
         }
         catch (Exception ex)
@@ -269,96 +267,20 @@ public abstract class IntegrationTestBase : IDisposable
         Output.WriteLine("Standard test environment setup completed");
     }
 
-    /// <summary>
-    /// Cleans up test environment with comprehensive state reset
-    /// Uses TestWebApplicationFactory reset methods for consistent cleanup
-    /// </summary>
-    protected virtual async Task CleanupTestEnvironmentAsync()
-    {
-        try
-        {
-            Output.WriteLine("Starting comprehensive test environment cleanup...");
-
-            // Use factory's reset method for comprehensive cleanup
-            await Factory.ResetTestStateAsync();
-
-            // Additional delay to ensure all cleanup is complete
-            await Task.Delay(200);
-
-            Output.WriteLine("Test environment cleanup completed successfully using factory reset");
-        }
-        catch (Exception ex)
-        {
-            Output.WriteLine($"Error during cleanup: {ex.Message}");
-            Output.WriteLine($"Cleanup stack trace: {ex.StackTrace}");
-
-            // Fallback to legacy cleanup if factory reset fails
-            try
-            {
-                Output.WriteLine("Attempting fallback cleanup...");
-                await FallbackCleanupAsync();
-            }
-            catch (Exception fallbackEx)
-            {
-                Output.WriteLine($"Fallback cleanup also failed: {fallbackEx.Message}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// Fallback cleanup method in case factory reset fails
-    /// </summary>
-    private async Task FallbackCleanupAsync()
-    {
-        // Reset mock behaviors first
-        AgentRegistry.ResetAllAgents();
-        Output.WriteLine("Mock agent behaviors reset (fallback)");
-
-        // Wait for any pending operations
-        await Task.Delay(500);
-
-        using var scope = Factory.Services.CreateScope();
-
-        // Reset SimpleOrchestrator state
-        var simpleOrchestrator = scope.ServiceProvider.GetRequiredService<SimpleOrchestrator>();
-        simpleOrchestrator.ClearAllAgents();
-        Output.WriteLine("SimpleOrchestrator state cleared (fallback)");
-
-        // Clear database state
-        try
-        {
-            var dbContext = scope.ServiceProvider.GetRequiredService<OrchestraDbContext>();
-
-            await dbContext.Tasks.ExecuteDeleteAsync();
-            await dbContext.Agents.ExecuteDeleteAsync();
-            await dbContext.ChatMessages.ExecuteDeleteAsync();
-            await dbContext.ChatSessions.ExecuteDeleteAsync();
-            await dbContext.OrchestrationLogs.ExecuteDeleteAsync();
-            await dbContext.PerformanceMetrics.ExecuteDeleteAsync();
-            await dbContext.UserPreferences.ExecuteDeleteAsync();
-
-            await dbContext.SaveChangesAsync();
-            Output.WriteLine("Database cleared (fallback)");
-        }
-        catch (Exception ex)
-        {
-            Output.WriteLine($"Fallback database cleanup failed: {ex.Message}");
-        }
-    }
-
     public virtual void Dispose()
     {
         try
         {
-            CleanupTestEnvironmentAsync().Wait(TimeSpan.FromSeconds(5));
+            // Simplified disposal - just dispose scope
+            // Factory cleanup happens automatically when test class is disposed (IClassFixture)
+            TestScope?.Dispose();
+
+            // Small delay to allow async operations to complete
+            Thread.Sleep(100);
         }
         catch (Exception ex)
         {
             Output.WriteLine($"Error during test disposal: {ex.Message}");
-        }
-        finally
-        {
-            TestScope?.Dispose();
         }
     }
 }

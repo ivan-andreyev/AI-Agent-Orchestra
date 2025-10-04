@@ -15,24 +15,23 @@ namespace Orchestra.Tests;
 /// <summary>
 /// Custom WebApplicationFactory that provides test isolation by using unique databases
 /// for each test run. This prevents test interference through shared SQLite storage.
-/// Separates EF Core and Hangfire databases to avoid SQLiteStorage disposal conflicts.
+/// Uses Hangfire InMemoryStorage for complete test isolation without database conflicts.
 /// </summary>
 /// <typeparam name="TStartup">The startup class type</typeparam>
 public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartup>
     where TStartup : class
 {
     private readonly string _testInstanceId;
-    private readonly string _hangfireDbName;
     private readonly string _efCoreDbName;
 
     public TestWebApplicationFactory()
     {
-        // Create unique database names for this test factory instance
+        // Create unique database name for this test factory instance
         // Use Guid, DateTime ticks, and process ID to ensure uniqueness even across rapid parallel test execution
+        // Note: Hangfire uses InMemoryStorage - no database file needed
         var processId = Environment.ProcessId;
         var threadId = Environment.CurrentManagedThreadId;
         _testInstanceId = $"{Guid.NewGuid().ToString("N")}_{DateTime.Now.Ticks}_{processId}_{threadId}";
-        _hangfireDbName = $"test-orchestra-hangfire-{_testInstanceId}.db";
         _efCoreDbName = $"test-orchestra-efcore-{_testInstanceId}.db";
     }
 
@@ -41,11 +40,12 @@ public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartu
         builder.ConfigureAppConfiguration((context, config) =>
         {
             // Override database connection strings with test-specific databases
-            // This separates EF Core and Hangfire databases to prevent disposal conflicts
+            // Set HANGFIRE_CONNECTION = "InMemory" to trigger Hangfire InMemoryStorage
+            // in Startup.cs (line 106-113) which provides complete test isolation without database conflicts
             var testConfig = new Dictionary<string, string?>
             {
                 ["ASPNETCORE_ENVIRONMENT"] = "Testing",  // Force testing environment
-                ["HANGFIRE_CONNECTION"] = $"Data Source={_hangfireDbName}",
+                ["HANGFIRE_CONNECTION"] = "InMemory",    // Use InMemoryStorage for Hangfire
                 ["EFCORE_CONNECTION"] = _efCoreDbName
             };
 
@@ -219,23 +219,54 @@ public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartu
     {
         if (disposing)
         {
-            // Clean up both test database files
             try
             {
-                if (File.Exists(_hangfireDbName))
+                // Step 1: Stop Hangfire server gracefully to prevent zombie background jobs
+                try
                 {
-                    File.Delete(_hangfireDbName);
+                    var server = Services.GetService<Hangfire.BackgroundJobServer>();
+                    if (server != null)
+                    {
+                        server.SendStop();
+                        server.Dispose();
+                    }
                 }
-                
+                catch
+                {
+                    // Ignore - server may already be stopped
+                }
+
+                // Step 2: Wait briefly for background jobs to complete
+                System.Threading.Thread.Sleep(500);
+
+                // Step 3: Close all SQLite connections to release file locks
+                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+                // Step 4: Delete test database file with retries (file might be locked briefly)
                 if (File.Exists(_efCoreDbName))
                 {
-                    File.Delete(_efCoreDbName);
+                    for (int i = 0; i < 3; i++)  // 3 retry attempts
+                    {
+                        try
+                        {
+                            File.Delete(_efCoreDbName);
+                            break;  // Success - exit loop
+                        }
+                        catch
+                        {
+                            if (i < 2)  // Not last attempt
+                            {
+                                System.Threading.Thread.Sleep(100);  // Wait before retry
+                            }
+                            // Ignore errors on last attempt - file will be cleaned up eventually
+                        }
+                    }
                 }
             }
             catch
             {
-                // Ignore cleanup errors - database files might be locked during disposal
-                // This is expected in some test scenarios and doesn't affect test isolation
+                // Ignore all cleanup errors - disposal should never fail
+                // Files will be cleaned up by OS or next test run
             }
         }
 
