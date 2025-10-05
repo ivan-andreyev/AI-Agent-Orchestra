@@ -1,10 +1,14 @@
+using Orchestra.Core.Services;
+
 namespace Orchestra.Agents.ClaudeCode;
 
 /// <summary>
 /// Конфигурация для агента Claude Code с настройками CLI и поведения
 /// </summary>
-public class ClaudeCodeConfiguration
+public class ClaudeCodeConfiguration : BaseAgentConfiguration
 {
+    /// <inheritdoc />
+    public override string AgentType => "claude-code";
     /// <summary>
     /// Путь к исполняемому файлу Claude Code CLI
     /// </summary>
@@ -13,7 +17,7 @@ public class ClaudeCodeConfiguration
     /// <summary>
     /// Таймаут по умолчанию для выполнения команд
     /// </summary>
-    public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromMinutes(10);
+    public new TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
     /// <summary>
     /// Разрешенные инструменты для Claude Code агентов
@@ -48,17 +52,17 @@ public class ClaudeCodeConfiguration
     /// <summary>
     /// Количество попыток повтора при сбоях выполнения
     /// </summary>
-    public int RetryAttempts { get; set; } = 3;
+    public new int RetryAttempts { get; set; } = 3;
 
     /// <summary>
     /// Задержка между попытками повтора
     /// </summary>
-    public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(2);
+    public new TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// Максимальное количество одновременных выполнений команд
     /// </summary>
-    public int MaxConcurrentExecutions { get; set; } = 3;
+    public new int MaxConcurrentExecutions { get; set; } = 3;
 
     /// <summary>
     /// Таймаут для выполнения workflow'ов
@@ -84,4 +88,51 @@ public class ClaudeCodeConfiguration
     /// Таймаут для очистки процессов Claude Code CLI
     /// </summary>
     public TimeSpan ProcessCleanupTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Валидирует специфичные для Claude Code свойства
+    /// </summary>
+    /// <param name="errors">Список для добавления ошибок валидации</param>
+    protected override void ValidateSpecificProperties(List<string> errors)
+    {
+        // Валидация DefaultCliPath
+        if (string.IsNullOrWhiteSpace(DefaultCliPath))
+        {
+            errors.Add("DefaultCliPath cannot be empty");
+        }
+        else if (!File.Exists(DefaultCliPath))
+        {
+            errors.Add($"DefaultCliPath does not exist: {DefaultCliPath}");
+        }
+
+        // Валидация MaxCommandLength
+        if (MaxCommandLength < 100 || MaxCommandLength > 1_000_000)
+        {
+            errors.Add($"MaxCommandLength must be between 100 and 1,000,000, got {MaxCommandLength}");
+        }
+
+        // Валидация WorkflowTimeout
+        if (WorkflowTimeout < TimeSpan.FromMinutes(1))
+        {
+            errors.Add($"WorkflowTimeout must be at least 1 minute, got {WorkflowTimeout.TotalMinutes} minutes");
+        }
+
+        // Валидация WarmupDelayMs
+        if (WarmupDelayMs < 0 || WarmupDelayMs > 60000)
+        {
+            errors.Add($"WarmupDelayMs must be between 0 and 60000, got {WarmupDelayMs}");
+        }
+
+        // Валидация HealthCheckInterval
+        if (HealthCheckInterval < TimeSpan.FromMinutes(1))
+        {
+            errors.Add($"HealthCheckInterval must be at least 1 minute, got {HealthCheckInterval.TotalMinutes} minutes");
+        }
+
+        // Валидация ProcessCleanupTimeout
+        if (ProcessCleanupTimeout < TimeSpan.FromSeconds(1))
+        {
+            errors.Add($"ProcessCleanupTimeout must be at least 1 second, got {ProcessCleanupTimeout.TotalSeconds} seconds");
+        }
+    }
 }

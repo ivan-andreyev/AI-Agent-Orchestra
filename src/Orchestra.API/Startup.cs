@@ -224,9 +224,21 @@ public class Startup
         // - ClaudeAgentExecutor: Simpler implementation (legacy)
         // - SimulationAgentExecutor: For testing/fallback
 
-        // Register Claude Code services for advanced Claude Code integration
+        // Register Agent Configuration Infrastructure (SRP pattern)
+        services.AddSingleton<Orchestra.Core.Services.IAgentConfigurationRegistry,
+            Orchestra.Core.Services.AgentConfigurationRegistry>();
+        services.AddSingleton<Orchestra.Core.Services.IAgentConfigurationValidator,
+            Orchestra.Core.Services.AgentConfigurationValidator>();
+        services.AddSingleton<Orchestra.Core.Services.IAgentConfigurationFactory,
+            Orchestra.Core.Services.AgentConfigurationFactory>();
+
+        // Register Claude Code configuration
         services.Configure<Orchestra.Agents.ClaudeCode.ClaudeCodeConfiguration>(
             configuration.GetSection("ClaudeCode"));
+
+        // Register ClaudeCodeConfiguration as IAgentConfiguration for factory
+        services.AddSingleton<Orchestra.Core.Services.IAgentConfiguration>(provider =>
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<Orchestra.Agents.ClaudeCode.ClaudeCodeConfiguration>>().Value);
 
         // Configure background services options
         services.Configure<Orchestra.Core.Services.AgentHealthCheckOptions>(

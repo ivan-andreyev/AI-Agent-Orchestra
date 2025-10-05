@@ -9,14 +9,12 @@ namespace Orchestra.Agents.ClaudeCode;
 /// <summary>
 /// Исполнитель команд для агентов Claude Code через CLI интерфейс
 /// </summary>
-public class ClaudeCodeExecutor : IAgentExecutor
+public class ClaudeCodeExecutor : BaseAgentExecutor<ClaudeCodeExecutor>
 {
     private readonly ClaudeCodeConfiguration _configuration;
-    private readonly ILogger<ClaudeCodeExecutor> _logger;
-    private static readonly SemaphoreSlim _executionSemaphore = new(3, 3); // Ограничение параллельных выполнений
 
     /// <inheritdoc />
-    public string AgentType => "Claude Code";
+    public override string AgentType => "claude-code";
 
     /// <summary>
     /// Инициализирует новый экземпляр ClaudeCodeExecutor
@@ -27,59 +25,36 @@ public class ClaudeCodeExecutor : IAgentExecutor
     public ClaudeCodeExecutor(
         IOptions<ClaudeCodeConfiguration> configuration,
         ILogger<ClaudeCodeExecutor> logger)
+        : base(logger, configuration?.Value)
     {
         _configuration = configuration?.Value ?? throw new ArgumentNullException(nameof(configuration));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Валидируем что конфигурация правильного типа
+        if (_configuration.AgentType != AgentType)
+        {
+            throw new ArgumentException(
+                $"Invalid configuration type: expected '{AgentType}', got '{_configuration.AgentType}'",
+                nameof(configuration));
+        }
     }
 
-    /// <inheritdoc />
-    public async Task<AgentExecutionResponse> ExecuteCommandAsync(
+    /// <summary>
+    /// Выполняет специфичную для Claude Code логику выполнения команды
+    /// </summary>
+    /// <param name="command">Команда для выполнения (уже провалидирована)</param>
+    /// <param name="workingDirectory">Рабочая директория (уже провалидирована и существует)</param>
+    /// <param name="cancellationToken">Токен отмены операции</param>
+    /// <returns>Результат выполнения команды</returns>
+    protected override async Task<AgentExecutionResponse> ExecuteCommandCoreAsync(
         string command,
         string workingDirectory,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        // Валидация входных параметров
-        if (string.IsNullOrWhiteSpace(command))
-        {
-            throw new ArgumentException("Command cannot be null or empty", nameof(command));
-        }
+        Logger.LogDebug("Executing Claude Code command: {Command}", command.Length > 100 ? command.Substring(0, 100) + "..." : command);
 
-        if (string.IsNullOrWhiteSpace(workingDirectory))
-        {
-            workingDirectory = _configuration.DefaultWorkingDirectory ?? Environment.CurrentDirectory;
-        }
-
-        // Ensure working directory exists - create if needed
-        if (!Directory.Exists(workingDirectory))
-        {
-            _logger.LogInformation("Working directory does not exist, creating: {WorkingDirectory}", workingDirectory);
-            try
-            {
-                Directory.CreateDirectory(workingDirectory);
-            }
-            catch (Exception ex)
-            {
-                throw new DirectoryNotFoundException($"Working directory not found and could not be created: {workingDirectory}", ex);
-            }
-        }
-
+        // Execute with retry logic using configured retry parameters
         var startTime = DateTime.UtcNow;
-
-        _logger.LogInformation("Executing Claude Code command in directory {WorkingDirectory}: {Command}",
-            workingDirectory, command.Length > 100 ? command.Substring(0, 100) + "..." : command);
-
-        // Ограничиваем количество параллельных выполнений
-        await _executionSemaphore.WaitAsync(cancellationToken);
-
-        try
-        {
-            // Execute with retry logic using configured retry parameters
-            return await ExecuteWithRetryAsync(command, workingDirectory, startTime, cancellationToken);
-        }
-        finally
-        {
-            _executionSemaphore.Release();
-        }
+        return await ExecuteWithRetryAsync(command, workingDirectory, startTime, cancellationToken);
     }
 
     /// <summary>
@@ -103,7 +78,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
                 if (httpResult != null)
                 {
                     var httpExecutionTime = DateTime.UtcNow - startTime;
-                    _logger.LogInformation("Command executed via HTTP API in {ExecutionTime}ms (attempt {Attempt}/{MaxAttempts})",
+                    Logger.LogInformation("Command executed via HTTP API in {ExecutionTime}ms (attempt {Attempt}/{MaxAttempts})",
                         httpExecutionTime.TotalMilliseconds, attempt + 1, _configuration.RetryAttempts + 1);
 
                     return new AgentExecutionResponse
@@ -127,7 +102,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
                 var cliResult = await ExecuteViaCli(command, workingDirectory, cancellationToken);
                 var executionTime = DateTime.UtcNow - startTime;
 
-                _logger.LogInformation("Command executed via CLI in {ExecutionTime}ms (attempt {Attempt}/{MaxAttempts})",
+                Logger.LogInformation("Command executed via CLI in {ExecutionTime}ms (attempt {Attempt}/{MaxAttempts})",
                     executionTime.TotalMilliseconds, attempt + 1, _configuration.RetryAttempts + 1);
 
                 return new AgentExecutionResponse
@@ -153,7 +128,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
                 retryCount = attempt + 1;
 
                 var delay = CalculateExponentialBackoff(attempt);
-                _logger.LogWarning(ex, "Claude Code execution attempt {Attempt}/{MaxAttempts} failed, retrying after {Delay}ms: {Message}",
+                Logger.LogWarning(ex, "Claude Code execution attempt {Attempt}/{MaxAttempts} failed, retrying after {Delay}ms: {Message}",
                     attempt + 1, _configuration.RetryAttempts + 1, delay.TotalMilliseconds, ex.Message);
 
                 await Task.Delay(delay, cancellationToken);
@@ -162,7 +137,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
             {
                 // Non-retryable exception or final attempt
                 var executionTime = DateTime.UtcNow - startTime;
-                _logger.LogError(ex, "Failed to execute Claude Code command after {Attempts} attempt(s): {Command}",
+                Logger.LogError(ex, "Failed to execute Claude Code command after {Attempts} attempt(s): {Command}",
                     attempt + 1, command);
 
                 return new AgentExecutionResponse
@@ -185,7 +160,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
 
         // All retries exhausted
         var finalExecutionTime = DateTime.UtcNow - startTime;
-        _logger.LogError(lastException, "All {RetryAttempts} retry attempts exhausted for command: {Command}",
+        Logger.LogError(lastException, "All {RetryAttempts} retry attempts exhausted for command: {Command}",
             _configuration.RetryAttempts, command);
 
         return new AgentExecutionResponse
@@ -256,7 +231,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
                         continue;
                     }
 
-                    _logger.LogDebug("Found Claude Code API on port {Port}", port);
+                    Logger.LogDebug("Found Claude Code API on port {Port}", port);
 
                     // Выполняем команду через API
                     var requestBody = new
@@ -285,13 +260,13 @@ public class ClaudeCodeExecutor : IAgentExecutor
                     }
                     else
                     {
-                        _logger.LogWarning("HTTP API execution failed on port {Port}: {StatusCode} - {Response}",
+                        Logger.LogWarning("HTTP API execution failed on port {Port}: {StatusCode} - {Response}",
                             port, response.StatusCode, responseContent);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug("Port {Port} not available: {Error}", port, ex.Message);
+                    Logger.LogDebug("Port {Port} not available: {Error}", port, ex.Message);
                     continue;
                 }
             }
@@ -300,7 +275,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "HTTP API execution failed, falling back to CLI");
+            Logger.LogWarning(ex, "HTTP API execution failed, falling back to CLI");
             return null;
         }
     }
@@ -323,7 +298,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
     {
         if (!File.Exists(_configuration.DefaultCliPath))
         {
-            _logger.LogError("Claude Code CLI not found at: {CliPath}", _configuration.DefaultCliPath);
+            Logger.LogError("Claude Code CLI not found at: {CliPath}", _configuration.DefaultCliPath);
             return new AgentExecutionResult
             {
                 Success = false,
@@ -335,15 +310,15 @@ public class ClaudeCodeExecutor : IAgentExecutor
         var arguments = PrepareCliArguments(command, workingDirectory);
 
         // Detailed logging for debugging
-        _logger.LogInformation("=== Claude CLI Execution Details ===");
-        _logger.LogInformation("CLI Path: {CliPath}", _configuration.DefaultCliPath);
-        _logger.LogInformation("Working Directory: {WorkingDirectory}", workingDirectory);
-        _logger.LogInformation("Directory Exists: {DirectoryExists}", Directory.Exists(workingDirectory));
-        _logger.LogInformation("Arguments Length: {ArgumentsLength} chars", arguments.Length);
-        _logger.LogInformation("Original Command: {Command}", command);
-        _logger.LogInformation("Full Arguments: {Arguments}", arguments);
-        _logger.LogInformation("Full Command Line: {FullCommandLine}", $"\"{_configuration.DefaultCliPath}\" {arguments}");
-        _logger.LogInformation("====================================");
+        Logger.LogInformation("=== Claude CLI Execution Details ===");
+        Logger.LogInformation("CLI Path: {CliPath}", _configuration.DefaultCliPath);
+        Logger.LogInformation("Working Directory: {WorkingDirectory}", workingDirectory);
+        Logger.LogInformation("Directory Exists: {DirectoryExists}", Directory.Exists(workingDirectory));
+        Logger.LogInformation("Arguments Length: {ArgumentsLength} chars", arguments.Length);
+        Logger.LogInformation("Original Command: {Command}", command);
+        Logger.LogInformation("Full Arguments: {Arguments}", arguments);
+        Logger.LogInformation("Full Command Line: {FullCommandLine}", $"\"{_configuration.DefaultCliPath}\" {arguments}");
+        Logger.LogInformation("====================================");
 
         // Set WorkingDirectory to ensure Claude CLI operates in the correct directory
         // Note: Originally avoided setting WorkingDirectory for .cmd files due to temp directory issues,
@@ -404,7 +379,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
             }
             catch (OperationCanceledException)
             {
-                _logger.LogWarning("Process timed out after {Timeout}, killing Claude Code CLI process", _configuration.DefaultTimeout);
+                Logger.LogWarning("Process timed out after {Timeout}, killing Claude Code CLI process", _configuration.DefaultTimeout);
                 try
                 {
                     if (!process.HasExited)
@@ -416,7 +391,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
                 }
                 catch (Exception killEx)
                 {
-                    _logger.LogWarning(killEx, "Failed to kill process tree after timeout");
+                    Logger.LogWarning(killEx, "Failed to kill process tree after timeout");
                 }
                 throw new TimeoutException($"Claude CLI process timed out after {_configuration.DefaultTimeout}");
             }
@@ -427,23 +402,23 @@ public class ClaudeCodeExecutor : IAgentExecutor
             var success = process.ExitCode == 0;
 
             // Always log output and errors for debugging
-            _logger.LogInformation("=== Claude CLI Result ===");
-            _logger.LogInformation("Exit Code: {ExitCode}", process.ExitCode);
-            _logger.LogInformation("Output Length: {OutputLength} chars", output.Length);
+            Logger.LogInformation("=== Claude CLI Result ===");
+            Logger.LogInformation("Exit Code: {ExitCode}", process.ExitCode);
+            Logger.LogInformation("Output Length: {OutputLength} chars", output.Length);
 
             // CRITICAL: Log FULL output without truncation for debugging empty file issue
             if (!string.IsNullOrEmpty(output))
             {
-                _logger.LogInformation("STDOUT (FULL): {Output}", output);
+                Logger.LogInformation("STDOUT (FULL): {Output}", output);
             }
             else
             {
-                _logger.LogWarning("STDOUT is EMPTY");
+                Logger.LogWarning("STDOUT is EMPTY");
             }
 
             if (!string.IsNullOrEmpty(error))
             {
-                _logger.LogWarning("STDERR (FULL): {Error}", error);
+                Logger.LogWarning("STDERR (FULL): {Error}", error);
             }
 
             // Log files in working directory after execution WITH CONTENTS
@@ -452,7 +427,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
                 if (Directory.Exists(workingDirectory))
                 {
                     var files = Directory.GetFiles(workingDirectory, "*", SearchOption.AllDirectories);
-                    _logger.LogInformation("Files in working directory after execution: {FileCount}", files.Length);
+                    Logger.LogInformation("Files in working directory after execution: {FileCount}", files.Length);
                     foreach (var file in files.Take(10))  // Log first 10 files
                     {
                         var relativePath = Path.GetRelativePath(workingDirectory, file);
@@ -463,31 +438,31 @@ public class ClaudeCodeExecutor : IAgentExecutor
                         {
                             var fileContent = File.ReadAllText(file);
                             var contentPreview = fileContent.Length > 100 ? fileContent.Substring(0, 100) + "..." : fileContent;
-                            _logger.LogInformation("  File: {FileName}, Size: {Size} bytes, Content: \"{Content}\"",
+                            Logger.LogInformation("  File: {FileName}, Size: {Size} bytes, Content: \"{Content}\"",
                                 relativePath, fileInfo.Length, contentPreview);
                         }
                         catch (Exception readEx)
                         {
-                            _logger.LogWarning("  File: {FileName}, Size: {Size} bytes, Content: <Could not read: {Error}>",
+                            Logger.LogWarning("  File: {FileName}, Size: {Size} bytes, Content: <Could not read: {Error}>",
                                 relativePath, fileInfo.Length, readEx.Message);
                         }
                     }
                     if (files.Length > 10)
                     {
-                        _logger.LogInformation("  ... and {MoreFiles} more files", files.Length - 10);
+                        Logger.LogInformation("  ... and {MoreFiles} more files", files.Length - 10);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning("Could not list files in working directory: {Error}", ex.Message);
+                Logger.LogWarning("Could not list files in working directory: {Error}", ex.Message);
             }
 
-            _logger.LogInformation("========================");
+            Logger.LogInformation("========================");
 
             if (!success && _configuration.EnableVerboseLogging)
             {
-                _logger.LogWarning("Claude Code CLI exited with code {ExitCode}. Error: {Error}",
+                Logger.LogWarning("Claude Code CLI exited with code {ExitCode}. Error: {Error}",
                     process.ExitCode, error);
             }
 
@@ -500,7 +475,7 @@ public class ClaudeCodeExecutor : IAgentExecutor
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to execute Claude Code CLI process");
+            Logger.LogError(ex, "Failed to execute Claude Code CLI process");
 
             return new AgentExecutionResult
             {
