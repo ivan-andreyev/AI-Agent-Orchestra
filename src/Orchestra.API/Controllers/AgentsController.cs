@@ -241,6 +241,43 @@ public class AgentsController : ControllerBase
     }
 
     /// <summary>
+    /// Удалить агента
+    /// </summary>
+    /// <param name="id">Идентификатор агента</param>
+    /// <param name="hardDelete">Жёсткое удаление (true) или мягкое удаление/деактивация (false)</param>
+    /// <returns>Результат удаления</returns>
+    [HttpDelete("{id}")]
+    public async Task<ActionResult<DeleteAgentResult>> DeleteAgent(string id, [FromQuery] bool hardDelete = false)
+    {
+        try
+        {
+            var command = new DeleteAgentCommand
+            {
+                AgentId = id,
+                HardDelete = hardDelete
+            };
+
+            var result = await _mediator.Send(command);
+
+            if (result.Success)
+            {
+                _logger.LogInformation("Agent {AgentId} deleted successfully (HardDelete: {HardDelete})", id, hardDelete);
+                return Ok(result);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to delete agent {AgentId}: {Error}", id, result.ErrorMessage);
+                return BadRequest(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete agent {AgentId}", id);
+            return StatusCode(500, new { Message = "Agent deletion failed", Error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Автоматическое обнаружение агентов
     /// </summary>
     /// <param name="request">Параметры обнаружения</param>

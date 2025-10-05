@@ -85,11 +85,18 @@ public class OrchestratorService : IOrchestratorService
         }
     }
 
-    public async Task<bool> RegisterAgentAsync(string id, string name, string type, string repositoryPath)
+    public async Task<bool> RegisterAgentAsync(string id, string name, string type, string repositoryPath, int maxConcurrentTasks = 1)
     {
         try
         {
-            var request = new { Id = id, Name = name, Type = type, RepositoryPath = repositoryPath };
+            var request = new
+            {
+                Id = id,
+                Name = name,
+                Type = type,
+                RepositoryPath = repositoryPath,
+                MaxConcurrentTasks = maxConcurrentTasks
+            };
             var json = JsonSerializer.Serialize(request, _jsonOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -99,6 +106,43 @@ public class OrchestratorService : IOrchestratorService
         catch (Exception ex)
         {
             Console.WriteLine($"Error registering agent: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteAgentAsync(string agentId, bool hardDelete = false)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"/agents/{agentId}?hardDelete={hardDelete}");
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting agent: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<bool> UpdateAgentStatusAsync(string agentId, string status, string? currentTask = null, string? statusMessage = null)
+    {
+        try
+        {
+            var request = new
+            {
+                Status = status,
+                CurrentTask = currentTask,
+                StatusMessage = statusMessage
+            };
+            var json = JsonSerializer.Serialize(request, _jsonOptions);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PutAsync($"/agents/{agentId}/status", content);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating agent status: {ex.Message}");
             return false;
         }
     }

@@ -14,7 +14,9 @@ public interface IOrchestratorService
     Task<OrchestratorState?> GetStateAsync();
     Task<List<AgentInfo>?> GetAgentsAsync();
     Task<bool> QueueTaskAsync(string command, string repositoryPath, TaskPriority priority = TaskPriority.Normal);
-    Task<bool> RegisterAgentAsync(string id, string name, string type, string repositoryPath);
+    Task<bool> RegisterAgentAsync(string id, string name, string type, string repositoryPath, int maxConcurrentTasks = 1);
+    Task<bool> DeleteAgentAsync(string agentId, bool hardDelete = false);
+    Task<bool> UpdateAgentStatusAsync(string agentId, string status, string? currentTask = null, string? statusMessage = null);
     Task<Dictionary<string, RepositoryInfo>?> GetRepositoriesAsync();
     Task<bool> RefreshAgentsAsync();
     Task<bool> PingAsync();

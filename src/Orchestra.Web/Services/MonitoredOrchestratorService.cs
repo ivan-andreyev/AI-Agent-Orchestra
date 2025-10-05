@@ -105,11 +105,11 @@ public class MonitoredOrchestratorService
     /// <summary>
     /// Register agent with performance monitoring
     /// </summary>
-    public async Task<bool> RegisterAgentAsync(string id, string name, string type, string repositoryPath)
+    public async Task<bool> RegisterAgentAsync(string id, string name, string type, string repositoryPath, int maxConcurrentTasks = 1)
     {
         var result = await _performanceService.MeasureApiResponseAsync("agents/register", async () =>
         {
-            await _orchestratorService.RegisterAgentAsync(id, name, type, repositoryPath);
+            await _orchestratorService.RegisterAgentAsync(id, name, type, repositoryPath, maxConcurrentTasks);
         });
 
         if (result.IsRegression)
@@ -117,7 +117,43 @@ public class MonitoredOrchestratorService
             _logger.LogWarning("Performance regression detected in RegisterAgentAsync: {Duration}ms", result.Duration);
         }
 
-        return await _orchestratorService.RegisterAgentAsync(id, name, type, repositoryPath);
+        return await _orchestratorService.RegisterAgentAsync(id, name, type, repositoryPath, maxConcurrentTasks);
+    }
+
+    /// <summary>
+    /// Delete agent with performance monitoring
+    /// </summary>
+    public async Task<bool> DeleteAgentAsync(string agentId, bool hardDelete = false)
+    {
+        var result = await _performanceService.MeasureApiResponseAsync("agents/delete", async () =>
+        {
+            await _orchestratorService.DeleteAgentAsync(agentId, hardDelete);
+        });
+
+        if (result.IsRegression)
+        {
+            _logger.LogWarning("Performance regression detected in DeleteAgentAsync: {Duration}ms", result.Duration);
+        }
+
+        return await _orchestratorService.DeleteAgentAsync(agentId, hardDelete);
+    }
+
+    /// <summary>
+    /// Update agent status with performance monitoring
+    /// </summary>
+    public async Task<bool> UpdateAgentStatusAsync(string agentId, string status, string? currentTask = null, string? statusMessage = null)
+    {
+        var result = await _performanceService.MeasureApiResponseAsync("agents/status", async () =>
+        {
+            await _orchestratorService.UpdateAgentStatusAsync(agentId, status, currentTask, statusMessage);
+        });
+
+        if (result.IsRegression)
+        {
+            _logger.LogWarning("Performance regression detected in UpdateAgentStatusAsync: {Duration}ms", result.Duration);
+        }
+
+        return await _orchestratorService.UpdateAgentStatusAsync(agentId, status, currentTask, statusMessage);
     }
 
     /// <summary>

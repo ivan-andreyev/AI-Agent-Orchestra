@@ -1,9 +1,42 @@
 @using Orchestra.Web.Models
+@using Orchestra.Web.Services
+@inject MonitoredOrchestratorService OrchestratorService
 @inherits AutoRefreshComponent
+
+<!-- Agent Registration Modal -->
+<AgentRegistrationModal @ref="_registrationModal" OnAgentRegistered="HandleAgentRegistered" />
+
+<!-- Delete Confirmation Dialog -->
+@if (_showDeleteConfirmation)
+{
+    <div class="modal-backdrop" @onclick="CancelDelete"></div>
+    <div class="modal-dialog delete-confirmation-dialog" @onclick:stopPropagation="true">
+        <div class="modal-header">
+            <h3>Confirm Agent Deletion</h3>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete agent <strong>@_deleteAgentName</strong>?</p>
+            <p class="warning-text">⚠️ This action will deactivate the agent. It can be re-registered later.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" @onclick="CancelDelete">
+                Cancel
+            </button>
+            <button class="btn btn-danger" @onclick="DeleteAgentConfirmed">
+                Delete Agent
+            </button>
+        </div>
+    </div>
+}
 
 <div class="agent-sidebar">
     <div class="sidebar-header">
-        <h3>Agents</h3>
+        <div class="header-title-row">
+            <h3>Agents</h3>
+            <button class="btn-register-agent" @onclick="ShowRegistrationModal" title="Register New Agent">
+                <span class="icon">+</span>
+            </button>
+        </div>
         <div class="agent-summary-stats" data-bs-theme="dark">
             <!-- Bootstrap Grid Phase 1 Implementation: Replace stats-row with Bootstrap row -->
             <div class="row g-2">
@@ -57,6 +90,23 @@
                         <div class="agent-name" title="@agent.Name">
                             @GetShortName(agent.Name)
                         </div>
+                        <div class="agent-actions" @onclick:stopPropagation="true">
+                            @if (agent.Status == AgentStatus.Idle || agent.Status == AgentStatus.Offline)
+                            {
+                                <button class="btn-agent-action btn-start" @onclick="() => StartAgent(agent.Id)" title="Start Agent">
+                                    ▶
+                                </button>
+                            }
+                            else if (agent.Status == AgentStatus.Working)
+                            {
+                                <button class="btn-agent-action btn-stop" @onclick="() => StopAgent(agent.Id)" title="Stop Agent">
+                                    ⏸
+                                </button>
+                            }
+                            <button class="btn-agent-action btn-delete" @onclick="() => ShowDeleteConfirmation(agent.Id, agent.Name)" title="Delete Agent">
+                                🗑
+                            </button>
+                        </div>
                         <div class="agent-status @GetStatusClass(agent.Status)">
                             @GetStatusIcon(agent.Status)
                         </div>
@@ -68,12 +118,26 @@
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Last Activity:</span>
-                            <span class="detail-value">@GetTimeAgo(agent.LastPing)</span>
+                            <span class="detail-value">
+                                @GetTimeAgo(agent.LastPing)
+                                <span class="detail-timestamp" title="@agent.LastPing.ToString("yyyy-MM-dd HH:mm:ss UTC")">
+                                    (@agent.LastPing.ToString("HH:mm:ss"))
+                                </span>
+                            </span>
                         </div>
                         <div class="detail-row">
                             <span class="detail-label">Repository:</span>
                             <span class="detail-value">@(agent.Repository ?? "N/A")</span>
                         </div>
+                        @if (agent.Status == AgentStatus.Error)
+                        {
+                            <div class="detail-row error-message-row">
+                                <span class="detail-label">Error:</span>
+                                <span class="detail-value error-text">
+                                    @(string.IsNullOrEmpty(agent.CurrentTask) ? "Unknown error" : agent.CurrentTask)
+                                </span>
+                            </div>
+                        }
                         @{
                             var metrics = GetAgentPerformanceMetrics(agent.Id);
                         }
@@ -130,6 +194,12 @@
     private string _statusFilter = "";
     private List<AgentInfo> _filteredAgents = new();
     private int _totalCount, _workingCount, _idleCount, _errorCount, _offlineCount;
+
+    // Modal references and state
+    private AgentRegistrationModal? _registrationModal;
+    private string? _deleteAgentId;
+    private string? _deleteAgentName;
+    private bool _showDeleteConfirmation = false;
 
     // Performance metrics for the entire agent system
     private DateTime _lastUpdateTime = DateTime.Now;
@@ -493,5 +563,126 @@
         public double AverageTaskTime { get; set; }
         public double SuccessRate { get; set; }
         public DateTime LastUpdated { get; set; }
+    }
+
+    /// <summary>
+    /// Показывает модальное окно регистрации агента
+    /// </summary>
+    private void ShowRegistrationModal()
+    {
+        _registrationModal?.Show(SelectedRepository);
+    }
+
+    /// <summary>
+    /// Обработчик успешной регистрации агента
+    /// </summary>
+    private async Task HandleAgentRegistered()
+    {
+        // Обновляем список агентов
+        await RefreshDataAsync();
+    }
+
+    /// <summary>
+    /// Запускает агента (обновляет статус на Idle)
+    /// </summary>
+    private async Task StartAgent(string agentId)
+    {
+        try
+        {
+            var success = await OrchestratorService.UpdateAgentStatusAsync(
+                agentId,
+                "Idle",
+                null,
+                "Agent started manually");
+
+            if (success)
+            {
+                await RefreshDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting agent: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Останавливает агента (обновляет статус на Offline)
+    /// </summary>
+    private async Task StopAgent(string agentId)
+    {
+        try
+        {
+            var success = await OrchestratorService.UpdateAgentStatusAsync(
+                agentId,
+                "Offline",
+                null,
+                "Agent stopped manually");
+
+            if (success)
+            {
+                await RefreshDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error stopping agent: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Показывает подтверждение удаления агента
+    /// </summary>
+    private void ShowDeleteConfirmation(string agentId, string agentName)
+    {
+        _deleteAgentId = agentId;
+        _deleteAgentName = agentName;
+        _showDeleteConfirmation = true;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Отменяет удаление агента
+    /// </summary>
+    private void CancelDelete()
+    {
+        _deleteAgentId = null;
+        _deleteAgentName = null;
+        _showDeleteConfirmation = false;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Подтверждает и выполняет удаление агента
+    /// </summary>
+    private async Task DeleteAgentConfirmed()
+    {
+        if (string.IsNullOrEmpty(_deleteAgentId))
+        {
+            return;
+        }
+
+        try
+        {
+            var success = await OrchestratorService.DeleteAgentAsync(_deleteAgentId, hardDelete: false);
+
+            if (success)
+            {
+                Console.WriteLine($"Agent {_deleteAgentId} deleted successfully");
+                await RefreshDataAsync();
+            }
+            else
+            {
+                Console.WriteLine($"Failed to delete agent {_deleteAgentId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting agent: {ex.Message}");
+        }
+        finally
+        {
+            CancelDelete();
+        }
     }
 }

@@ -100,3 +100,42 @@ public class AgentStatusChangedEvent : IEvent
         Timestamp = DateTime.UtcNow;
     }
 }
+
+/// <summary>
+/// Событие удаления агента из системы
+/// </summary>
+public class AgentDeletedEvent : IEvent
+{
+    /// <summary>
+    /// Идентификатор удалённого агента
+    /// </summary>
+    public string AgentId { get; }
+
+    /// <summary>
+    /// Удалённый агент (для логирования и аудита)
+    /// </summary>
+    public Agent Agent { get; }
+
+    /// <summary>
+    /// Был ли агент удалён жёстко (true) или деактивирован (false)
+    /// </summary>
+    public bool WasHardDeleted { get; }
+
+    /// <summary>
+    /// Время события
+    /// </summary>
+    public DateTime Timestamp { get; }
+
+    /// <summary>
+    /// Инициализирует новое событие удаления агента
+    /// </summary>
+    /// <param name="agent">Удалённый агент</param>
+    /// <param name="wasHardDeleted">Был ли агент удалён жёстко</param>
+    public AgentDeletedEvent(Agent agent, bool wasHardDeleted)
+    {
+        Agent = agent ?? throw new ArgumentNullException(nameof(agent));
+        AgentId = agent.Id;
+        WasHardDeleted = wasHardDeleted;
+        Timestamp = DateTime.UtcNow;
+    }
+}

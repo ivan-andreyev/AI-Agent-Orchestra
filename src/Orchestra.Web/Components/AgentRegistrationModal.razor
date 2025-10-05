@@ -1,0 +1,255 @@
+@using Orchestra.Web.Services
+@inject MonitoredOrchestratorService OrchestratorService
+@inject IJSRuntime JSRuntime
+
+<!-- Agent Registration Modal -->
+@if (_isVisible)
+{
+    <div class="modal-backdrop" @onclick="CloseModal"></div>
+    <div class="modal-dialog agent-registration-modal" @onclick:stopPropagation="true">
+        <div class="modal-header">
+            <h3>Register New Agent</h3>
+            <button class="close-button" @onclick="CloseModal">✕</button>
+        </div>
+
+        <div class="modal-body">
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <span class="alert-icon">⚠️</span>
+                    <span>@_errorMessage</span>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(_successMessage))
+            {
+                <div class="alert alert-success">
+                    <span class="alert-icon">✅</span>
+                    <span>@_successMessage</span>
+                </div>
+            }
+
+            <div class="form-group">
+                <label for="agentId">Agent ID *</label>
+                <input type="text"
+                       id="agentId"
+                       class="form-control @(_validationErrors.ContainsKey("Id") ? "is-invalid" : "")"
+                       @bind="_agentId"
+                       placeholder="unique-agent-id"
+                       disabled="@_isSubmitting" />
+                @if (_validationErrors.ContainsKey("Id"))
+                {
+                    <div class="invalid-feedback">@_validationErrors["Id"]</div>
+                }
+            </div>
+
+            <div class="form-group">
+                <label for="agentName">Agent Name *</label>
+                <input type="text"
+                       id="agentName"
+                       class="form-control @(_validationErrors.ContainsKey("Name") ? "is-invalid" : "")"
+                       @bind="_agentName"
+                       placeholder="My Claude Agent"
+                       disabled="@_isSubmitting" />
+                @if (_validationErrors.ContainsKey("Name"))
+                {
+                    <div class="invalid-feedback">@_validationErrors["Name"]</div>
+                }
+            </div>
+
+            <div class="form-group">
+                <label for="agentType">Agent Type *</label>
+                <select id="agentType"
+                        class="form-control @(_validationErrors.ContainsKey("Type") ? "is-invalid" : "")"
+                        @bind="_agentType"
+                        disabled="@_isSubmitting">
+                    <option value="">-- Select Type --</option>
+                    <option value="claude-code">Claude Code</option>
+                    <option value="github-copilot">GitHub Copilot</option>
+                    <option value="custom">Custom</option>
+                </select>
+                @if (_validationErrors.ContainsKey("Type"))
+                {
+                    <div class="invalid-feedback">@_validationErrors["Type"]</div>
+                }
+            </div>
+
+            <div class="form-group">
+                <label for="repositoryPath">Repository Path *</label>
+                <input type="text"
+                       id="repositoryPath"
+                       class="form-control @(_validationErrors.ContainsKey("RepositoryPath") ? "is-invalid" : "")"
+                       @bind="_repositoryPath"
+                       placeholder="C:\Projects\MyRepo"
+                       disabled="@_isSubmitting" />
+                @if (_validationErrors.ContainsKey("RepositoryPath"))
+                {
+                    <div class="invalid-feedback">@_validationErrors["RepositoryPath"]</div>
+                }
+                <small class="form-text">Full path to the repository directory</small>
+            </div>
+
+            <div class="form-group">
+                <label for="maxConcurrentTasks">Max Concurrent Tasks</label>
+                <input type="number"
+                       id="maxConcurrentTasks"
+                       class="form-control"
+                       @bind="_maxConcurrentTasks"
+                       min="1"
+                       max="10"
+                       disabled="@_isSubmitting" />
+                <small class="form-text">Number of tasks this agent can handle simultaneously (1-10)</small>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" @onclick="CloseModal" disabled="@_isSubmitting">
+                Cancel
+            </button>
+            <button class="btn btn-primary" @onclick="RegisterAgent" disabled="@_isSubmitting">
+                @if (_isSubmitting)
+                {
+                    <span class="spinner">⏳</span>
+                    <span>Registering...</span>
+                }
+                else
+                {
+                    <span>Register Agent</span>
+                }
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback OnAgentRegistered { get; set; }
+
+    private bool _isVisible = false;
+    private bool _isSubmitting = false;
+    private string _errorMessage = string.Empty;
+    private string _successMessage = string.Empty;
+
+    // Form fields
+    private string _agentId = string.Empty;
+    private string _agentName = string.Empty;
+    private string _agentType = string.Empty;
+    private string _repositoryPath = string.Empty;
+    private int _maxConcurrentTasks = 1;
+
+    private readonly Dictionary<string, string> _validationErrors = new();
+
+    /// <summary>
+    /// Открывает модальное окно регистрации агента
+    /// </summary>
+    public void Show(string? defaultRepositoryPath = null)
+    {
+        _isVisible = true;
+        _errorMessage = string.Empty;
+        _successMessage = string.Empty;
+        _validationErrors.Clear();
+
+        // Генерируем уникальный ID для агента
+        _agentId = $"agent-{Guid.NewGuid().ToString()[..8]}";
+        _agentName = string.Empty;
+        _agentType = string.Empty;
+        _repositoryPath = defaultRepositoryPath ?? string.Empty;
+        _maxConcurrentTasks = 1;
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Закрывает модальное окно
+    /// </summary>
+    private void CloseModal()
+    {
+        if (!_isSubmitting)
+        {
+            _isVisible = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Валидирует введённые данные
+    /// </summary>
+    private bool ValidateInput()
+    {
+        _validationErrors.Clear();
+
+        if (string.IsNullOrWhiteSpace(_agentId))
+        {
+            _validationErrors["Id"] = "Agent ID is required";
+        }
+
+        if (string.IsNullOrWhiteSpace(_agentName))
+        {
+            _validationErrors["Name"] = "Agent Name is required";
+        }
+
+        if (string.IsNullOrWhiteSpace(_agentType))
+        {
+            _validationErrors["Type"] = "Agent Type is required";
+        }
+
+        if (string.IsNullOrWhiteSpace(_repositoryPath))
+        {
+            _validationErrors["RepositoryPath"] = "Repository Path is required";
+        }
+
+        return _validationErrors.Count == 0;
+    }
+
+    /// <summary>
+    /// Регистрирует нового агента через API
+    /// </summary>
+    private async Task RegisterAgent()
+    {
+        _errorMessage = string.Empty;
+        _successMessage = string.Empty;
+
+        if (!ValidateInput())
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var success = await OrchestratorService.RegisterAgentAsync(
+                _agentId,
+                _agentName,
+                _agentType,
+                _repositoryPath,
+                _maxConcurrentTasks);
+
+            if (success)
+            {
+                _successMessage = $"Agent '{_agentName}' registered successfully!";
+                StateHasChanged();
+
+                // Уведомляем родительский компонент об успешной регистрации
+                await OnAgentRegistered.InvokeAsync();
+
+                // Закрываем модальное окно через 1.5 секунды
+                await Task.Delay(1500);
+                CloseModal();
+            }
+            else
+            {
+                _errorMessage = "Failed to register agent. Please check the logs for details.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error registering agent: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}
