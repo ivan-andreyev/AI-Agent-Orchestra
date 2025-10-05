@@ -203,7 +203,7 @@ public class HangfireOrchestrator
 
     public void RefreshAgents() => _legacyOrchestrator.RefreshAgents();
     public void TriggerTaskAssignment() => _legacyOrchestrator.TriggerTaskAssignment();
-    public List<Orchestra.Core.Models.AgentHistoryEntry> GetAgentHistory(string sessionId, int maxEntries = 50) => new List<Orchestra.Core.Models.AgentHistoryEntry>();
+    public List<Orchestra.Core.Models.AgentHistoryEntry> GetAgentHistory(string sessionId, int maxEntries = 50) => _legacyOrchestrator.GetAgentHistory(sessionId, maxEntries);
 
     /// <summary>
     /// Initializes Claude Code CLI agents with a warm-up command to avoid cold start delays.

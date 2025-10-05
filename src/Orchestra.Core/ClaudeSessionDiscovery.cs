@@ -93,6 +93,21 @@ public class ClaudeSessionDiscovery
                 var projectName = string.Join("-", parts.Skip(3));
                 var decodedPath = drivePrefix + directoryParts + "\\" + projectName;
 
+                // Claude Code encodes underscores as dashes, so try both variants
+                if (Directory.Exists(decodedPath))
+                {
+                    return decodedPath;
+                }
+
+                // Try replacing last dash with underscore (e.g., Elly2-2 -> Elly2_2)
+                var projectNameWithUnderscore = projectName.Replace("-", "_");
+                var decodedPathWithUnderscore = drivePrefix + directoryParts + "\\" + projectNameWithUnderscore;
+
+                if (Directory.Exists(decodedPathWithUnderscore))
+                {
+                    return decodedPathWithUnderscore;
+                }
+
                 return decodedPath;
             }
             else if (parts.Length >= 3)
@@ -263,7 +278,7 @@ public class ClaudeSessionDiscovery
         foreach (var group in groupedAgents)
         {
             var repositoryPath = group.Key;
-            var repositoryName = Path.GetFileName(repositoryPath);
+            var repositoryName = Path.GetFileName(repositoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             var repositoryAgents = group.ToList();
 
             var idleCount = repositoryAgents.Count(a => a.Status == AgentStatus.Idle);
