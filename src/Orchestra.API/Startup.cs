@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Orchestra.Core.HealthChecks;
 using MediatR;
 
@@ -214,6 +215,18 @@ public class Startup
         // Register chat and session services required by TaskExecutionJob
         services.AddScoped<IChatContextService, ChatContextService>();
         services.AddScoped<IConnectionSessionService, ConnectionSessionService>();
+
+        // Register Retry Policy for agent executors
+        services.AddSingleton<Orchestra.Core.Services.Retry.IRetryPolicy>(provider =>
+        {
+            var logger = provider.GetRequiredService<ILogger<Orchestra.Core.Services.Retry.ExponentialBackoffRetryPolicy>>();
+            var claudeConfig = provider.GetRequiredService<IOptions<Orchestra.Agents.ClaudeCode.ClaudeCodeConfiguration>>().Value;
+
+            return new Orchestra.Core.Services.Retry.ExponentialBackoffRetryPolicy(
+                logger,
+                maxAttempts: claudeConfig.RetryAttempts,
+                baseDelay: claudeConfig.RetryDelay);
+        });
 
         // Register Agent Executor - configurable agent implementation
         // Use ClaudeCodeExecutor for comprehensive Claude Code integration with retry logic
