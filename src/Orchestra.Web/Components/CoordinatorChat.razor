@@ -28,11 +28,28 @@
                     <span>🔄 Reconnect</span>
                 }
             </button>
+            <button class="btn btn-sm btn-outline-secondary progress-toggle" @onclick="ToggleProgressMessages" title="Toggle system messages visibility">
+                @if (_showProgressMessages)
+                {
+                    <span>🔇 Hide Progress</span>
+                }
+                else
+                {
+                    @if (HiddenProgressCount > 0)
+                    {
+                        <span>🔔 Show Progress (@HiddenProgressCount)</span>
+                    }
+                    else
+                    {
+                        <span>🔔 Show Progress</span>
+                    }
+                }
+            </button>
         }
     </div>
 
-    <div class="chat-messages" style="overflow-y: auto; scroll-behavior: smooth;">
-        @foreach (var message in _messages)
+    <div id="coordinator-chat-messages" class="chat-messages" style="overflow-y: auto; scroll-behavior: smooth;">
+        @foreach (var message in FilteredMessages)
         {
             <div class="message message-@message.Type">
                 <div class="message-timestamp">@message.Timestamp.ToString("HH:mm:ss")</div>
@@ -41,8 +58,16 @@
                     {
                         <span class="command-prompt">></span>
                     }
-                    @((MarkupString)FormatMessage(message.Message))
+                    @((MarkupString)FormatMessage(GetDisplayMessage(message)))
                 </div>
+                @if (message.IsLongMessage)
+                {
+                    <div class="message-expand">
+                        <button class="btn btn-sm btn-link" @onclick="() => ToggleMessageCollapse(message)">
+                            @(message.IsCollapsed ? "▼ Show more" : "▲ Show less")
+                        </button>
+                    </div>
+                }
             </div>
         }
         @if (_isProcessingCommand)
@@ -64,7 +89,7 @@
                    class="form-control"
                    placeholder="Enter coordinator command (type 'help' for commands)"
                    @bind="_currentCommand"
-                   @onkeypress="OnKeyPress"
+                   @onkeydown="OnKeyPress"
                    disabled="@(!IsConnected || _isProcessingCommand)" />
             <button class="btn btn-primary"
                     @onclick="SendCommandAsync"

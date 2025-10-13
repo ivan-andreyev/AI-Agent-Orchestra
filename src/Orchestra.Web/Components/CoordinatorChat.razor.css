@@ -1,0 +1,167 @@
+.coordinator-chat {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--bs-dark);
+    border-radius: var(--border-radius);
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.chat-header h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.connection-status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.connection-status.connected {
+    background-color: rgba(25, 135, 84, 0.2);
+    color: #198754;
+}
+
+.connection-status.connecting {
+    background-color: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.connection-status.disconnected {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+
+.progress-toggle {
+    margin-left: 8px;
+    font-size: 12px;
+    padding: 4px 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    transition: all 0.2s ease;
+}
+
+.progress-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 1);
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    min-height: 200px;
+    max-height: 500px;
+}
+
+.message {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* User commands - distinctive blue background */
+.message-command {
+    background-color: rgba(13, 110, 253, 0.15);
+    border-left: 3px solid #0d6efd;
+}
+
+.message-command .command-prompt {
+    color: #0d6efd;
+    font-weight: bold;
+    margin-right: 6px;
+}
+
+/* System/agent responses */
+.message-success {
+    background-color: rgba(25, 135, 84, 0.1);
+    border-left: 3px solid #198754;
+}
+
+.message-error {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left: 3px solid #dc3545;
+}
+
+.message-info {
+    background-color: rgba(13, 202, 240, 0.1);
+    border-left: 3px solid #0dcaf0;
+}
+
+.message-progress {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 3px solid #ffc107;
+}
+
+.message-processing {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 3px solid #ffc107;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.message-timestamp {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 4px;
+}
+
+.message-content {
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.message-expand {
+    margin-top: 4px;
+    text-align: right;
+}
+
+.message-expand button {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    padding: 2px 8px;
+    text-decoration: none;
+}
+
+.message-expand button:hover {
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+}
+
+.chat-input {
+    padding: 10px 15px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+.command-history {
+    margin-top: 5px;
+}

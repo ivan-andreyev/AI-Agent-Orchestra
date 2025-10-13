@@ -2,11 +2,14 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.JSInterop;
 
 namespace Orchestra.Web.Components;
 
 public partial class CoordinatorChat
 {
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = null!;
     private HubConnection? _hubConnection;
     private ElementReference commandInput;
     private readonly List<ChatMessage> _messages = new();
@@ -16,6 +19,51 @@ public partial class CoordinatorChat
     private string _connectionState = "Disconnected";
     private bool _isConnecting = false;
     private bool _isProcessingCommand = false;
+    private long _localSequence = 0;
+    private bool _showProgressMessages = false;
+
+    /// <summary>
+    /// Gets messages sorted by sequence and timestamp for consistent ordering
+    /// </summary>
+    private IEnumerable<ChatMessage> SortedMessages =>
+        _messages.OrderBy(m => m.Sequence).ThenBy(m => m.Timestamp);
+
+    /// <summary>
+    /// Gets filtered messages based on user preferences (hides progress messages by default)
+    /// </summary>
+    private IEnumerable<ChatMessage> FilteredMessages
+    {
+        get
+        {
+            var sorted = SortedMessages;
+            if (!_showProgressMessages)
+            {
+                return sorted.Where(m => m.Type != "progress");
+            }
+            return sorted;
+        }
+    }
+
+    /// <summary>
+    /// Gets count of hidden progress messages
+    /// </summary>
+    private int HiddenProgressCount =>
+        _showProgressMessages ? 0 : _messages.Count(m => m.Type == "progress");
+
+    /// <summary>
+    /// Toggles visibility of progress messages
+    /// </summary>
+    private void ToggleProgressMessages()
+    {
+        _showProgressMessages = !_showProgressMessages;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Repository path for coordinator commands
+    /// </summary>
+    [Parameter]
+    public string? SelectedRepositoryPath { get; set; }
 
     /// <summary>
     /// Indicates if the SignalR connection is established
@@ -73,9 +121,9 @@ public partial class CoordinatorChat
                     .Build();
 
                 // Handle incoming responses from coordinator
-                _hubConnection.On<CoordinatorResponse>("ReceiveResponse", (responseData) =>
+                _hubConnection.On<CoordinatorResponse>("ReceiveResponse", async (responseData) =>
                 {
-                    InvokeAsync(() =>
+                    await InvokeAsync(async () =>
                     {
                         try
                         {
@@ -92,11 +140,13 @@ public partial class CoordinatorChat
                                 {
                                     Message = responseData.Message ?? string.Empty,
                                     Type = responseData.Type ?? "info",
-                                    Timestamp = responseData.Timestamp.ToLocalTime()
+                                    Timestamp = responseData.Timestamp.ToLocalTime(),
+                                    Sequence = responseData.Sequence
                                 });
 
                                 _isProcessingCommand = false;
                                 StateHasChanged();
+                                await ScrollToBottomAsync();
                             }
                         }
                         catch (Exception ex)
@@ -108,9 +158,9 @@ public partial class CoordinatorChat
                 });
 
                 // Handle incoming chat history messages
-                _hubConnection.On<HistoryMessage>("ReceiveHistoryMessage", (historyData) =>
+                _hubConnection.On<HistoryMessage>("ReceiveHistoryMessage", async (historyData) =>
                 {
-                    InvokeAsync(() =>
+                    await InvokeAsync(async () =>
                     {
                         try
                         {
@@ -133,6 +183,7 @@ public partial class CoordinatorChat
                                 });
 
                                 StateHasChanged();
+                                await ScrollToBottomAsync();
                             }
                         }
                         catch (Exception ex)
@@ -292,21 +343,24 @@ public partial class CoordinatorChat
 
                 _historyIndex = -1;
 
-                // Add command to messages
+                // Add command to messages with local sequence
+                _localSequence = System.Threading.Interlocked.Increment(ref _localSequence);
                 _messages.Add(new ChatMessage
                 {
                     Message = command,
                     Type = "command",
-                    Timestamp = DateTime.Now
+                    Timestamp = DateTime.Now,
+                    Sequence = _localSequence
                 });
 
                 _isProcessingCommand = true;
                 StateHasChanged();
+                await ScrollToBottomAsync();
 
-                // Send to hub
-                await _hubConnection!.SendAsync("SendCommand", command);
+                // Send to hub with repository path
+                await _hubConnection!.SendAsync("SendCommand", command, SelectedRepositoryPath);
                 LoggingService.LogSignalREvent("CoordinatorChatHub", "SendCommand",
-                    _hubConnection.ConnectionId, new { Command = command });
+                    _hubConnection.ConnectionId, new { Command = command, RepositoryPath = SelectedRepositoryPath ?? "default" });
 
                 // Clear input
                 _currentCommand = string.Empty;
@@ -360,15 +414,18 @@ public partial class CoordinatorChat
     /// <summary>
     /// Adds a system message to the chat
     /// </summary>
-    private void AddSystemMessage(string message, string type = "info")
+    private async void AddSystemMessage(string message, string type = "info")
     {
+        _localSequence = System.Threading.Interlocked.Increment(ref _localSequence);
         _messages.Add(new ChatMessage
         {
             Message = message,
             Type = type,
-            Timestamp = DateTime.Now
+            Timestamp = DateTime.Now,
+            Sequence = _localSequence
         });
         StateHasChanged();
+        await ScrollToBottomAsync();
     }
 
     /// <summary>
@@ -450,6 +507,47 @@ public partial class CoordinatorChat
             .Replace("`", "<code>", StringComparison.OrdinalIgnoreCase)
             .Replace("`", "</code>", StringComparison.OrdinalIgnoreCase)
             .Replace("\n", "<br/>", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Scrolls chat to the last message
+    /// </summary>
+    private async Task ScrollToBottomAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("coordinatorChat.scrollToBottom", "#coordinator-chat-messages");
+        }
+        catch (Exception ex)
+        {
+            // Silently ignore JS interop errors (e.g., during pre-render)
+            Logger.LogDebug(ex, "CoordinatorChat: Failed to scroll to bottom");
+        }
+    }
+
+    /// <summary>
+    /// Toggles the collapsed state of a message
+    /// </summary>
+    private void ToggleMessageCollapse(ChatMessage message)
+    {
+        message.IsCollapsed = !message.IsCollapsed;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Gets the display text for a message, truncated if collapsed
+    /// </summary>
+    private string GetDisplayMessage(ChatMessage message)
+    {
+        if (!message.IsLongMessage || !message.IsCollapsed)
+        {
+            return message.Message;
+        }
+
+        // Show first 1000 characters when collapsed
+        return message.Message.Length > 1000
+            ? message.Message[..1000] + "..."
+            : message.Message;
     }
 
     /// <summary>
@@ -552,6 +650,9 @@ public partial class CoordinatorChat
         public string Type { get; set; } = "info";
         public DateTime Timestamp { get; set; } = DateTime.Now;
         public string? Author { get; set; }
+        public bool IsCollapsed { get; set; } = true;
+        public bool IsLongMessage => Message.Length > 1000;
+        public long Sequence { get; set; } = 0;
     }
 
     /// <summary>
@@ -566,6 +667,8 @@ public partial class CoordinatorChat
         [JsonPropertyName("timestamp")] public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
         [JsonPropertyName("taskId")] public string? TaskId { get; set; }
+
+        [JsonPropertyName("sequence")] public long Sequence { get; set; } = 0;
     }
 
     /// <summary>

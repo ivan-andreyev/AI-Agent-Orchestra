@@ -47,7 +47,8 @@ public class CoordinatorChatHub : Hub
     /// Handles commands sent to the coordinator
     /// </summary>
     /// <param name="command">The command to execute</param>
-    public async Task SendCommand(string command)
+    /// <param name="repositoryPath">Optional repository path for command execution. If null, uses default from IRepositoryPathService</param>
+    public async Task SendCommand(string command, string? repositoryPath = null)
     {
         try
         {
@@ -57,13 +58,13 @@ public class CoordinatorChatHub : Hub
                 return;
             }
 
-            _logger.LogInformation("Coordinator command received: {Command} from {ConnectionId}",
-                command, Context.ConnectionId);
+            _logger.LogInformation("Coordinator command received: {Command} from {ConnectionId}, Repository: {RepositoryPath}",
+                command, Context.ConnectionId, repositoryPath ?? "default");
 
             // Save user command to database
             await SaveUserMessage(command.Trim());
 
-            var response = await ProcessCommand(command.Trim());
+            var response = await ProcessCommand(command.Trim(), repositoryPath);
             await SendResponse(response.Message, response.Type);
         }
         catch (Exception ex)
@@ -76,7 +77,9 @@ public class CoordinatorChatHub : Hub
     /// <summary>
     /// Processes a coordinator command using Claude Code agent
     /// </summary>
-    private async Task<CommandResponse> ProcessCommand(string command)
+    /// <param name="command">Command to execute</param>
+    /// <param name="repositoryPath">Repository path for command execution. If null, uses default from IRepositoryPathService</param>
+    private async Task<CommandResponse> ProcessCommand(string command, string? repositoryPath = null)
     {
         try
         {
@@ -93,15 +96,22 @@ public class CoordinatorChatHub : Hub
             // For all other commands, delegate to Claude Code agent
             _logger.LogInformation("Delegating command to Claude Code agent: {Command}", command);
 
-            // Queue the command as a task for the Claude agent using Hangfire
-            // Get repository path using the repository path service
-            var repositoryPath = _repositoryPathService.GetRepositoryPath();
-            _logger.LogInformation("Using repository path: {RepositoryPath}", repositoryPath);
-            var jobId = await _hangfireOrchestrator.QueueTaskAsync(command, repositoryPath, TaskPriority.High, Context.ConnectionId);
+            // Use provided repository path or get default from repository path service
+            var targetRepositoryPath = !string.IsNullOrWhiteSpace(repositoryPath)
+                ? repositoryPath
+                : _repositoryPathService.GetRepositoryPath();
+
+            _logger.LogInformation("Using repository path: {RepositoryPath} (Source: {Source})",
+                targetRepositoryPath,
+                !string.IsNullOrWhiteSpace(repositoryPath) ? "UI selection" : "default service");
+
+            var jobId = await _hangfireOrchestrator.QueueTaskAsync(command, targetRepositoryPath, TaskPriority.High, Context.ConnectionId);
 
             _logger.LogInformation("Task queued via Hangfire - JobId: {JobId}", jobId);
 
+            var repositoryName = Path.GetFileName(targetRepositoryPath?.TrimEnd(Path.DirectorySeparatorChar) ?? "Unknown");
             return new CommandResponse($"🤖 **Command sent to Claude Code agent:**\n" +
+                                     $"Repository: {repositoryName}\n" +
                                      $"Command: {command}\n" +
                                      $"Status: Queued for processing via Hangfire\n" +
                                      $"Job ID: {jobId}\n\n" +

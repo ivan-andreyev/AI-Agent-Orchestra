@@ -30,6 +30,9 @@ public class TaskExecutionJob
     private readonly IChatContextService _chatContextService;
     private readonly IConnectionSessionService _sessionService;
     private readonly TaskRepository _taskRepository;
+    private readonly IMessageSequenceService _messageSequenceService;
+
+    private string? _connectionId;
 
     public TaskExecutionJob(
         SimpleOrchestrator orchestrator,
@@ -38,7 +41,8 @@ public class TaskExecutionJob
         IAgentExecutor agentExecutor,
         IChatContextService chatContextService,
         IConnectionSessionService sessionService,
-        TaskRepository taskRepository)
+        TaskRepository taskRepository,
+        IMessageSequenceService messageSequenceService)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -47,6 +51,7 @@ public class TaskExecutionJob
         _chatContextService = chatContextService ?? throw new ArgumentNullException(nameof(chatContextService));
         _sessionService = sessionService ?? throw new ArgumentNullException(nameof(sessionService));
         _taskRepository = taskRepository ?? throw new ArgumentNullException(nameof(taskRepository));
+        _messageSequenceService = messageSequenceService ?? throw new ArgumentNullException(nameof(messageSequenceService));
     }
 
     /// <summary>
@@ -74,8 +79,11 @@ public class TaskExecutionJob
         var stopwatch = Stopwatch.StartNew();
         var cancellationToken = context.CancellationToken;
 
-        _logger.LogInformation("Starting task execution - TaskId: {TaskId}, AgentId: {AgentId}, JobId: {JobId}, CorrelationId: {CorrelationId}",
-            taskId, agentId, jobId, correlationId);
+        // Store connectionId for progress updates
+        _connectionId = connectionId;
+
+        _logger.LogInformation("Starting task execution - TaskId: {TaskId}, AgentId: {AgentId}, JobId: {JobId}, CorrelationId: {CorrelationId}, ConnectionId: {ConnectionId}",
+            taskId, agentId, jobId, correlationId, connectionId ?? "none");
 
         try
         {
@@ -453,12 +461,15 @@ public class TaskExecutionJob
                 await SaveAgentMessageToDatabase(connectionId, message, messageType, taskId);
             }
 
+            var sequence = _messageSequenceService.GetNextSequence();
+
             var responseData = new
             {
                 Message = message,
                 Type = messageType,
                 Timestamp = DateTime.UtcNow,
-                TaskId = taskId
+                TaskId = taskId,
+                Sequence = sequence
             };
 
             // THEN: Send to user group if connectionId is provided (for cross-client synchronization), otherwise broadcast to all
@@ -564,10 +575,7 @@ public class TaskExecutionJob
 
         if (!string.IsNullOrEmpty(result.Output))
         {
-            var output = result.Output.Length > 500
-                ? result.Output[..500] + "... [TRUNCATED]"
-                : result.Output;
-            message += $"\n**Output:**\n```\n{output}\n```";
+            message += $"\n**Output:**\n```\n{result.Output}\n```";
         }
 
         if (!string.IsNullOrEmpty(result.ErrorMessage))
@@ -612,10 +620,72 @@ public class TaskExecutionJob
 
     private async Task UpdateJobProgress(string jobId, int percentage, string message)
     {
-        if (string.IsNullOrEmpty(jobId)) return;
+        if (string.IsNullOrEmpty(jobId))
+        {
+            return;
+        }
 
         // Log progress since Hangfire job parameter setting API is not available in this version
         _logger.LogInformation("Job {JobId} progress: {Percentage}% - {Message}", jobId, percentage, message);
+
+        // Send real-time progress update via SignalR if connectionId is available
+        if (!string.IsNullOrEmpty(_connectionId))
+        {
+            try
+            {
+                // Get session to determine user group for broadcasting
+                var session = await _sessionService.GetSessionAsync(_connectionId);
+
+                var progressUpdate = new
+                {
+                    JobId = jobId,
+                    Percentage = percentage,
+                    Message = message,
+                    Timestamp = DateTime.UtcNow,
+                    Type = "progress"
+                };
+
+                var sequence = _messageSequenceService.GetNextSequence();
+
+                if (session != null)
+                {
+                    // Send to all connections in user's group for cross-tab sync
+                    await _hubContext.Clients.Group($"user_{session.UserId}")
+                        .SendAsync("ReceiveResponse", new
+                        {
+                            Message = $"🔄 **Progress: {percentage}%** - {message}",
+                            Type = "progress",
+                            Timestamp = DateTime.UtcNow,
+                            JobId = jobId,
+                            Percentage = percentage,
+                            Sequence = sequence
+                        });
+                }
+                else
+                {
+                    // Fallback to specific connection
+                    await _hubContext.Clients.Client(_connectionId)
+                        .SendAsync("ReceiveResponse", new
+                        {
+                            Message = $"🔄 **Progress: {percentage}%** - {message}",
+                            Type = "progress",
+                            Timestamp = DateTime.UtcNow,
+                            JobId = jobId,
+                            Percentage = percentage,
+                            Sequence = sequence
+                        });
+                }
+
+                _logger.LogDebug("Progress update sent via SignalR - JobId: {JobId}, Percentage: {Percentage}, ConnectionId: {ConnectionId}",
+                    jobId, percentage, _connectionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send progress update via SignalR - JobId: {JobId}, ConnectionId: {ConnectionId}",
+                    jobId, _connectionId);
+                // Don't rethrow - SignalR failure shouldn't stop task execution
+            }
+        }
     }
 
     /// <summary>

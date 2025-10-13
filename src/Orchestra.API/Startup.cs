@@ -273,6 +273,9 @@ public class Startup
         // Register connection session service for thread-safe session management
         services.AddSingleton<IConnectionSessionService, ConnectionSessionService>();
 
+        // Register message sequence service for thread-safe message ordering in concurrent environment
+        services.AddSingleton<IMessageSequenceService, MessageSequenceService>();
+
         // Register repository path service for configuration management
         services.AddScoped<IRepositoryPathService, RepositoryPathService>();
 
