@@ -51,6 +51,12 @@
         }
 
         <div class="header-controls">
+            <!-- Phase 4.2.2: Mobile Menu Button -->
+            <button class="mobile-menu-button" @onclick="ToggleSidebar" aria-label="Toggle sidebar menu">
+                <span class="menu-icon">☰</span>
+                <span class="menu-text">Menu</span>
+            </button>
+
             <!-- CSS Framework Test Element (Task 3B.0.3-B) -->
             <div class="test-css-verification">CSS Framework compatibility verified</div>
             <div class="status-indicator @(_isConnected ? "connected" : "disconnected")">
@@ -71,7 +77,7 @@
         <div class="container-fluid" data-bs-theme="dark">
             <div class="row g-3" style="margin-top: var(--gap-size);">
                 <!-- Enhanced Sidebar per Design Specifications -->
-                <div class="col-md-3 enhanced-sidebar sidebar">
+                <div class="col-md-3 enhanced-sidebar sidebar @(_isSidebarOpen ? "open" : "")">
                     <!-- Repository Context Section -->
                     <div class="sidebar-section repository-context sidebar-compact">
                         <RepositorySelector Repositories="@_repositories"
@@ -109,6 +115,9 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Phase 4.2.2: Sidebar Overlay for Mobile -->
+                <div class="sidebar-overlay @(_isSidebarOpen ? "active" : "")" @onclick="CloseSidebar"></div>
 
                 <!-- Enhanced Main Content per Design Specifications -->
                 <div class="col-md-9 enhanced-main-content main-content">
@@ -151,6 +160,9 @@
     private Timer? _refreshTimer;
     private string _selectedRepository = "";
     private string _selectedAgentId = "";
+
+    // Phase 4.2.2: Mobile sidebar state
+    private bool _isSidebarOpen = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -245,6 +257,19 @@
         _selectedAgentId = agentId;
         StateHasChanged();
         return Task.CompletedTask;
+    }
+
+    // Phase 4.2.2: Mobile sidebar toggle methods
+    private void ToggleSidebar()
+    {
+        _isSidebarOpen = !_isSidebarOpen;
+        StateHasChanged();
+    }
+
+    private void CloseSidebar()
+    {
+        _isSidebarOpen = false;
+        StateHasChanged();
     }
 
     private List<AgentInfo>? GetSelectedRepositoryAgents()

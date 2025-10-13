@@ -1268,6 +1268,11 @@
     color: var(--status-error);
 }
 
+/* Phase 4.2.2: Mobile Menu Button - Hidden on desktop, shown in mobile media queries */
+.mobile-menu-button {
+    display: none; /* Hidden by default on desktop */
+}
+
 /* Quick Actions Styles */
 .quick-actions {
     background: var(--bg-secondary);
