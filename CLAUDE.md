@@ -175,3 +175,28 @@ When adding new features, always follow the Command + Handler + Event + Tests pa
 
 **Note**: All agents except pre-completion-validator are considered part of "армии ревьюеров" (army of reviewers).
 - В тестах не бывает "отдельных проблем", или "unrelated problems". Все проблемы - наши, насущные и критичные!
+
+## Work Planning & Task Management
+
+### Finding Active Work Plans
+**Always check the central plans index first**: `Docs/PLANS-INDEX.md`
+
+This is the single source of truth for:
+- All active work plans with current status
+- Completed plans archive
+- Plan relationships and dependencies
+- Current priorities and next steps
+
+### When Starting New Work
+1. Read `Docs/PLANS-INDEX.md` to find relevant active plan
+2. Check plan status and identify next uncompleted task
+3. Never create new plans without checking existing ones first
+4. Update PLANS-INDEX.md when plan status changes significantly
+
+### Plan Update Policy
+- Update plan status after completing each phase
+- Update PLANS-INDEX.md when:
+  - Plan phase completes
+  - Plan priority changes
+  - New blockers discovered
+  - Plan superseded or archived

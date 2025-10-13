@@ -46,7 +46,37 @@
 
 ---
 
-### 2. Agent Coordination System
+### 2. UI Fixes Work Plan (MAIN UI PLAN)
+**File**: `plans/UI-Fixes-WorkPlan-2024-09-18.md`
+**Goal**: Comprehensive UI/UX improvements with performance baseline
+**Estimate**: 18-26 hours total (16 hours completed)
+**Status**: 🔄 IN PROGRESS - Phase 6 execution needed
+
+**Completed Phases**:
+- ✅ Phase 0: Performance Baseline (1-2h) - COMPLETED 2025-01-18
+- ✅ Phase 1: Repository Selection Fix (2-3h) - COMPLETED 2025-09-18
+- ✅ Phase 2: Layout Reorganization (3-4h) - COMPLETED 2025-09-18
+- ✅ Phase 3.1: Statistics Redesign (2h) - COMPLETED 2025-09-18
+- ✅ Phase 5: Code Quality (2-3h) - COMPLETED 2025-01-18
+
+**Current Phase**:
+- ⚠️ Phase 3.2: Agent Detail Statistics - NOT STARTED (2-3h)
+- ⚠️ Phase 4: Task Processing Implementation - PLANNING ONLY (8-10h)
+- ⚠️ Phase 6.1: Bootstrap Integration - ✅ CODE COMPLETE (need docs update)
+- ⚠️ Phase 6.2: Cross-Browser Testing - ✅ FRAMEWORK READY (need manual testing 4-6h)
+
+**Next Steps**:
+1. Verify Phase 6.1/6.2 completion status (recent commits suggest done)
+2. Update plan with Phase 6 completion status
+3. Choose priority: Phase 3.2 (statistics) OR Phase 4 (task automation)
+
+**Related Plans**:
+- Comprehensive Fix Plan (2025-01-17) solved critical bugs in Phases 1-3
+- Phase 4 Bootstrap from Comprehensive Plan merged into UI-Fixes Phase 6
+
+---
+
+### 3. Agent Coordination System
 **File**: `plans/agent-coordination-system-plan.md`
 **Goal**: Unified Claude Code Agent Management + Coordinating Agent
 **Estimate**: 4-6 days
@@ -62,7 +92,7 @@
 
 ---
 
-### 3. Real Orchestration with Hangfire
+### 4. Real Orchestration with Hangfire
 **File**: `plans/Architecture/real-orchestration-hangfire-workplan.md`
 **Goal**: Transform in-memory task queuing into persistent Hangfire-based orchestration
 **Estimate**: 10-14 hours (Phase 1)
@@ -76,14 +106,14 @@
 
 ---
 
-### 4. Agent Chat Feature
+### 5. Agent Chat Feature
 **File**: `plans/Architecture/agent-chat-feature-workplan.md`
 **Goal**: Interactive chat interface for agents
 **Status**: ❓ Unknown
 
 ---
 
-### 5. SQLite Database Integration
+### 6. SQLite Database Integration
 **File**: `plans/Architecture/sqlite-database-integration-workplan.md`
 **Goal**: Integrate SQLite for data persistence
 **Status**: ❓ Unknown
@@ -113,7 +143,8 @@
 
 ### 2. UI Fixes Work Plan (2024-09-18)
 **File**: `plans/UI-Fixes-WorkPlan-2024-09-18.md`
-**Status**: Superseded by Comprehensive Fix Plan
+**Status**: ⚠️ MOVED TO ACTIVE PLANS - See Active Work Plans section above
+**Note**: Comprehensive Fix Plan (2025-01-17) resolved critical bugs within UI-Fixes phases, but did not replace the entire plan. UI-Fixes remains the main active UI improvement plan.
 
 ---
 
@@ -207,21 +238,31 @@ Docs/
    - ✅ 100% test success rate achieved
 
 ### Immediate Priorities (Next Steps)
-2. **Actions Block Refactoring - Phase 3**
+1. **UI Fixes Work Plan - Phase 6 Verification**
+   - Verify Phase 6.1 Bootstrap Integration completion
+   - Execute Phase 6.2 manual testing checklist (4-6 hours)
+   - Update plan documentation with final status
+
+2. **UI Fixes Work Plan - Phase 4 Implementation**
+   - Task Processing Implementation (8-10 hours) - CRITICAL
+   - Automatic task assignment to idle agents
+   - Tool visibility fixes across all screen sizes
+
+3. **Actions Block Refactoring - Phase 3**
    - Workflow Manager implementation (28-35 hours)
 
-3. **Actions Block Refactoring - Phase 4**
+4. **Actions Block Refactoring - Phase 4**
    - Testing, documentation, optimization (18-25 hours)
 
 ### Medium-term (Post-MVP)
-4. **Remove HangfireServer from Tests**
+5. **Remove HangfireServer from Tests**
    - Enable parallel test execution (8-12 hours)
    - 50% test performance improvement
 
 ### Future Considerations
-5. **Agent Coordination System** - Status unknown, needs assessment
-6. **Hangfire DI Refactoring** - Production code improvement
-7. **Multi-tenant Support** - Requires Hangfire DI refactoring first
+6. **Agent Coordination System** - Status unknown, needs assessment
+7. **Hangfire DI Refactoring** - Production code improvement
+8. **Multi-tenant Support** - Requires Hangfire DI refactoring first
 
 ---
 
@@ -246,7 +287,7 @@ Docs/
 
 ## 🔄 Plan Updates
 
-**Last Updated**: 2025-10-04
+**Last Updated**: 2025-10-14
 **Review Frequency**: Weekly for active plans, Monthly for future plans
 **Owner**: Development Team
 
@@ -284,6 +325,11 @@ Docs/
 4. Complete testing gaps (TaskTemplateService, BatchExecutor)
 
 ### Recent Changes
+- **2025-10-14**: Updated PLANS-INDEX.md and CLAUDE.md with work planning guidance ✅
+  - UI-Fixes-WorkPlan-2024-09-18.md moved from Completed to Active Plans
+  - Clarified relationship between UI-Fixes and Comprehensive Fix plans
+  - Added "Work Planning & Task Management" section to CLAUDE.md
+  - Updated immediate priorities with UI-Fixes Phase 6 verification and Phase 4 implementation
 - **2025-10-04**: Achieved 100% test pass rate (582/582 tests) ✅
 - **2025-10-04**: Completed Actions Block Phase 1&2 (53 tests passing) ✅
   - TaskTemplateService: 45/45 tests (was documented as 0% coverage)
