@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 4.4.3 - Load Testing Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        .input-group input,
+        .input-group select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #777;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .metric-unit {
+            font-size: 1rem;
+            color: #999;
+        }
+
+        .metric-card.success {
+            border-color: #28a745;
+        }
+
+        .metric-card.success .metric-value {
+            color: #28a745;
+        }
+
+        .metric-card.warning {
+            border-color: #ffc107;
+        }
+
+        .metric-card.warning .metric-value {
+            color: #ffc107;
+        }
+
+        .metric-card.danger {
+            border-color: #dc3545;
+        }
+
+        .metric-card.danger .metric-value {
+            color: #dc3545;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-left: 3px solid transparent;
+        }
+
+        .log-entry.info {
+            border-left-color: #3794ff;
+        }
+
+        .log-entry.success {
+            border-left-color: #22c55e;
+        }
+
+        .log-entry.warning {
+            border-left-color: #f59e0b;
+        }
+
+        .log-entry.error {
+            border-left-color: #ef4444;
+        }
+
+        .timestamp {
+            color: #888;
+            margin-right: 10px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-badge.idle {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .status-badge.running {
+            background: #3b82f6;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .status-badge.complete {
+            background: #22c55e;
+            color: white;
+        }
+
+        .status-badge.failed {
+            background: #ef4444;
+            color: white;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            margin-top: 20px;
+            height: 300px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+
+        .scenario-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .scenario-card {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .scenario-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .scenario-card.selected {
+            border-color: #667eea;
+            background: #f0f3ff;
+        }
+
+        .scenario-card h3 {
+            color: #667eea;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+
+        .scenario-card p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .threshold-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 6px;
+            background: #f5f5f5;
+        }
+
+        .threshold-indicator.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .threshold-indicator.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .export-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Phase 4.4.3 Load Testing Monitor</h1>
+            <p>AI Agent Orchestra - Performance Validation Suite</p>
+        </div>
+
+        <div class="content">
+            <!-- Configuration Section -->
+            <div class="section">
+                <h2>⚙️ Test Configuration</h2>
+
+                <div class="config-grid">
+                    <div class="input-group">
+                        <label for="apiUrl">API Base URL</label>
+                        <input type="text" id="apiUrl" value="http://localhost:5001" placeholder="http://localhost:5001">
+                    </div>
+                    <div class="input-group">
+                        <label for="taskCount">Task Count</label>
+                        <input type="number" id="taskCount" value="15" min="1" max="100">
+                    </div>
+                    <div class="input-group">
+                        <label for="agentCount">Agent Count</label>
+                        <input type="number" id="agentCount" value="7" min="1" max="20">
+                    </div>
+                    <div class="input-group">
+                        <label for="userCount">Concurrent Users</label>
+                        <input type="number" id="userCount" value="4" min="1" max="10">
+                    </div>
+                    <div class="input-group">
+                        <label for="duration">Test Duration (seconds)</label>
+                        <input type="number" id="duration" value="300" min="10" max="3600">
+                    </div>
+                </div>
+
+                <h3>Select Scenario</h3>
+                <div class="scenario-selector">
+                    <div class="scenario-card selected" data-scenario="HighTaskVolume">
+                        <h3>High Task Volume</h3>
+                        <p>Queue 10-20 tasks simultaneously</p>
+                    </div>
+                    <div class="scenario-card" data-scenario="ConcurrentAgents">
+                        <h3>Concurrent Agents</h3>
+                        <p>5-10 agents working in parallel</p>
+                    </div>
+                    <div class="scenario-card" data-scenario="UIStress">
+                        <h3>UI Stress Test</h3>
+                        <p>Multiple users accessing UI</p>
+                    </div>
+                    <div class="scenario-card" data-scenario="Combined">
+                        <h3>Combined Load</h3>
+                        <p>All scenarios together</p>
+                    </div>
+                </div>
+
+                <div>
+                    <button class="btn btn-primary" id="startBtn" onclick="startLoadTest()">Start Load Test</button>
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopLoadTest()" disabled>Stop Test</button>
+                    <button class="btn btn-secondary" onclick="clearLogs()">Clear Logs</button>
+                    <span id="testStatus" class="status-badge idle">Idle</span>
+                </div>
+
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar" style="width: 0%">0%</div>
+                </div>
+            </div>
+
+            <!-- Real-time Metrics Section -->
+            <div class="section">
+                <h2>📊 Real-time Performance Metrics</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card" id="metric-tasks">
+                        <div class="metric-label">Tasks Processed</div>
+                        <div class="metric-value" id="tasksProcessed">0</div>
+                    </div>
+                    <div class="metric-card" id="metric-throughput">
+                        <div class="metric-label">Throughput</div>
+                        <div class="metric-value" id="throughput">0</div>
+                        <div class="metric-unit">tasks/min</div>
+                    </div>
+                    <div class="metric-card" id="metric-response">
+                        <div class="metric-label">Avg Response Time</div>
+                        <div class="metric-value" id="avgResponse">0</div>
+                        <div class="metric-unit">ms</div>
+                    </div>
+                    <div class="metric-card" id="metric-errors">
+                        <div class="metric-label">Error Count</div>
+                        <div class="metric-value" id="errorCount">0</div>
+                    </div>
+                    <div class="metric-card" id="metric-memory">
+                        <div class="metric-label">Memory Usage</div>
+                        <div class="metric-value" id="memoryUsage">-</div>
+                        <div class="metric-unit">MB</div>
+                    </div>
+                    <div class="metric-card" id="metric-agents">
+                        <div class="metric-label">Active Agents</div>
+                        <div class="metric-value" id="activeAgents">0</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;">Performance Thresholds</h3>
+                <div id="thresholds">
+                    <div class="threshold-indicator" id="threshold-assignment">
+                        <span>Task Assignment Time</span>
+                        <span>< 2000ms ⏱️</span>
+                    </div>
+                    <div class="threshold-indicator" id="threshold-ui">
+                        <span>UI Update Latency</span>
+                        <span>< 1000ms ⚡</span>
+                    </div>
+                    <div class="threshold-indicator" id="threshold-memory">
+                        <span>Memory Increase</span>
+                        <span>< 10% 📈</span>
+                    </div>
+                    <div class="threshold-indicator" id="threshold-throughput">
+                        <span>Task Throughput</span>
+                        <span>> 5 tasks/min 🚀</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Logs Section -->
+            <div class="section">
+                <h2>📝 Test Execution Logs</h2>
+                <div class="log-container" id="logContainer">
+                    <div class="log-entry info">
+                        <span class="timestamp">[00:00:00]</span>
+                        <span>System ready. Configure test parameters and click "Start Load Test"</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Export Section -->
+            <div class="section export-section">
+                <h2>💾 Export Test Results</h2>
+                <p>After test completion, export results in JSON format for documentation.</p>
+                <button class="btn btn-secondary" onclick="exportResults()">Export as JSON</button>
+                <button class="btn btn-secondary" onclick="exportReport()">Generate HTML Report</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let testState = {
+            running: false,
+            scenario: 'HighTaskVolume',
+            startTime: null,
+            tasksProcessed: 0,
+            errors: 0,
+            responseTimes: [],
+            testResults: {},
+            intervalId: null
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupScenarioSelector();
+            logMessage('info', 'Load Testing Monitor initialized successfully');
+        });
+
+        function setupScenarioSelector() {
+            document.querySelectorAll('.scenario-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    testState.scenario = card.dataset.scenario;
+                    logMessage('info', `Scenario selected: ${testState.scenario}`);
+                });
+            });
+        }
+
+        async function startLoadTest() {
+            const apiUrl = document.getElementById('apiUrl').value;
+
+            // Validate API availability
+            try {
+                logMessage('info', 'Checking API availability...');
+                const response = await fetch(`${apiUrl}/api/health`, { method: 'GET', timeout: 5000 });
+                if (!response.ok) throw new Error('API not responding');
+                logMessage('success', 'API is available and responding');
+            } catch (error) {
+                logMessage('error', `API not available at ${apiUrl}. Please start Orchestra.API.`);
+                return;
+            }
+
+            // Start test
+            testState.running = true;
+            testState.startTime = new Date();
+            testState.tasksProcessed = 0;
+            testState.errors = 0;
+            testState.responseTimes = [];
+
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('testStatus').className = 'status-badge running';
+            document.getElementById('testStatus').textContent = 'Running';
+
+            logMessage('success', `Starting ${testState.scenario} load test...`);
+
+            // Execute scenario
+            switch (testState.scenario) {
+                case 'HighTaskVolume':
+                    await runHighTaskVolume();
+                    break;
+                case 'ConcurrentAgents':
+                    await runConcurrentAgents();
+                    break;
+                case 'UIStress':
+                    await runUIStress();
+                    break;
+                case 'Combined':
+                    await runCombinedLoad();
+                    break;
+            }
+        }
+
+        function stopLoadTest() {
+            testState.running = false;
+            if (testState.intervalId) {
+                clearInterval(testState.intervalId);
+                testState.intervalId = null;
+            }
+
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('testStatus').className = 'status-badge idle';
+            document.getElementById('testStatus').textContent = 'Stopped';
+
+            logMessage('warning', 'Load test stopped by user');
+        }
+
+        async function runHighTaskVolume() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const taskCount = parseInt(document.getElementById('taskCount').value);
+
+            logMessage('info', `Queuing ${taskCount} tasks rapidly...`);
+
+            const tasks = [];
+            for (let i = 1; i <= taskCount; i++) {
+                const task = {
+                    description: `Load Test Task #${i} - ${new Date().toLocaleTimeString()}`,
+                    priority: ['Low', 'Normal', 'High'][Math.floor(Math.random() * 3)],
+                    repositoryPath: 'C:\\LoadTest'
+                };
+
+                const startTime = performance.now();
+                try {
+                    const response = await fetch(`${apiUrl}/api/orchestrator/queue`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(task)
+                    });
+
+                    const endTime = performance.now();
+                    const duration = endTime - startTime;
+                    testState.responseTimes.push(duration);
+
+                    if (response.ok) {
+                        testState.tasksProcessed++;
+                        tasks.push(await response.json());
+                        logMessage('success', `Task #${i} queued successfully (${Math.round(duration)}ms)`);
+                    } else {
+                        testState.errors++;
+                        logMessage('error', `Failed to queue task #${i}: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    testState.errors++;
+                    logMessage('error', `Error queuing task #${i}: ${error.message}`);
+                }
+
+                updateMetrics();
+                updateProgress(i, taskCount);
+
+                // Small delay to spread load
+                await new Promise(resolve => setTimeout(resolve, 5000 / taskCount));
+            }
+
+            finishTest();
+        }
+
+        async function runConcurrentAgents() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const agentCount = parseInt(document.getElementById('agentCount').value);
+
+            logMessage('info', `Simulating ${agentCount} concurrent agents...`);
+
+            // Create tasks for agents
+            const taskCount = agentCount * 3;
+            for (let i = 1; i <= taskCount; i++) {
+                const task = {
+                    description: `Agent Task #${i}`,
+                    priority: 'Normal',
+                    repositoryPath: 'C:\\AgentTest'
+                };
+
+                try {
+                    await fetch(`${apiUrl}/api/orchestrator/queue`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(task)
+                    });
+                } catch (error) {
+                    logMessage('error', `Error creating task: ${error.message}`);
+                }
+            }
+
+            // Simulate agent polling
+            const agentPromises = [];
+            for (let i = 1; i <= agentCount; i++) {
+                agentPromises.push(simulateAgent(apiUrl, i));
+            }
+
+            await Promise.all(agentPromises);
+            finishTest();
+        }
+
+        async function simulateAgent(apiUrl, agentId) {
+            logMessage('info', `Agent ${agentId} starting...`);
+
+            for (let poll = 1; poll <= 3; poll++) {
+                const startTime = performance.now();
+                try {
+                    const response = await fetch(`${apiUrl}/api/orchestrator/next-task?agentId=LoadTestAgent_${agentId}`, {
+                        method: 'GET'
+                    });
+
+                    const endTime = performance.now();
+                    const duration = endTime - startTime;
+                    testState.responseTimes.push(duration);
+
+                    if (response.ok) {
+                        testState.tasksProcessed++;
+                        logMessage('success', `Agent ${agentId} received task (${Math.round(duration)}ms)`);
+                    }
+                } catch (error) {
+                    testState.errors++;
+                    logMessage('error', `Agent ${agentId} error: ${error.message}`);
+                }
+
+                updateMetrics();
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            logMessage('info', `Agent ${agentId} completed`);
+        }
+
+        async function runUIStress() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const userCount = parseInt(document.getElementById('userCount').value);
+            const tasksPerUser = 5;
+
+            logMessage('info', `Simulating ${userCount} concurrent users (${tasksPerUser} tasks each)...`);
+
+            const userPromises = [];
+            for (let user = 1; user <= userCount; user++) {
+                userPromises.push(simulateUser(apiUrl, user, tasksPerUser));
+            }
+
+            await Promise.all(userPromises);
+            finishTest();
+        }
+
+        async function simulateUser(apiUrl, userId, taskCount) {
+            logMessage('info', `User ${userId} starting session...`);
+
+            for (let i = 1; i <= taskCount; i++) {
+                const task = {
+                    description: `User ${userId} Task ${i}`,
+                    priority: 'Normal',
+                    repositoryPath: 'C:\\UserTest'
+                };
+
+                const startTime = performance.now();
+                try {
+                    const response = await fetch(`${apiUrl}/api/orchestrator/queue`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(task)
+                    });
+
+                    const endTime = performance.now();
+                    const duration = endTime - startTime;
+                    testState.responseTimes.push(duration);
+
+                    if (response.ok) {
+                        testState.tasksProcessed++;
+                    } else {
+                        testState.errors++;
+                    }
+                } catch (error) {
+                    testState.errors++;
+                }
+
+                updateMetrics();
+
+                // User think time
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 400 + 100));
+            }
+
+            logMessage('success', `User ${userId} session completed`);
+        }
+
+        async function runCombinedLoad() {
+            const duration = parseInt(document.getElementById('duration').value);
+            const apiUrl = document.getElementById('apiUrl').value;
+
+            logMessage('info', `Running combined load test for ${duration} seconds...`);
+
+            const endTime = Date.now() + (duration * 1000);
+            let cycle = 0;
+
+            testState.intervalId = setInterval(() => {
+                const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+                updateProgress((duration - remaining), duration);
+
+                if (remaining === 0) {
+                    clearInterval(testState.intervalId);
+                    finishTest();
+                }
+            }, 1000);
+
+            while (Date.now() < endTime && testState.running) {
+                cycle++;
+
+                // Create batch of tasks
+                const batchSize = Math.floor(Math.random() * 4) + 2;
+                for (let i = 0; i < batchSize; i++) {
+                    const task = {
+                        description: `Combined Load Cycle ${cycle} Task ${i}`,
+                        priority: ['Low', 'Normal', 'High'][Math.floor(Math.random() * 3)],
+                        repositoryPath: 'C:\\CombinedTest'
+                    };
+
+                    const startTime = performance.now();
+                    try {
+                        const response = await fetch(`${apiUrl}/api/orchestrator/queue`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(task)
+                        });
+
+                        const endTime = performance.now();
+                        testState.responseTimes.push(endTime - startTime);
+
+                        if (response.ok) {
+                            testState.tasksProcessed++;
+                        } else {
+                            testState.errors++;
+                        }
+                    } catch (error) {
+                        testState.errors++;
+                    }
+                }
+
+                updateMetrics();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+
+        function updateMetrics() {
+            document.getElementById('tasksProcessed').textContent = testState.tasksProcessed;
+            document.getElementById('errorCount').textContent = testState.errors;
+
+            if (testState.responseTimes.length > 0) {
+                const avg = testState.responseTimes.reduce((a, b) => a + b, 0) / testState.responseTimes.length;
+                document.getElementById('avgResponse').textContent = Math.round(avg);
+
+                // Update threshold indicators
+                const assignmentThreshold = document.getElementById('threshold-assignment');
+                if (avg < 2000) {
+                    assignmentThreshold.className = 'threshold-indicator pass';
+                } else {
+                    assignmentThreshold.className = 'threshold-indicator fail';
+                }
+            }
+
+            if (testState.startTime) {
+                const elapsed = (Date.now() - testState.startTime) / 1000 / 60; // minutes
+                const throughput = elapsed > 0 ? testState.tasksProcessed / elapsed : 0;
+                document.getElementById('throughput').textContent = throughput.toFixed(2);
+
+                // Update throughput threshold
+                const throughputThreshold = document.getElementById('threshold-throughput');
+                if (throughput >= 5) {
+                    throughputThreshold.className = 'threshold-indicator pass';
+                } else if (throughput > 0) {
+                    throughputThreshold.className = 'threshold-indicator fail';
+                }
+            }
+
+            // Update metric card colors
+            updateMetricCardStatus('metric-errors', testState.errors === 0 ? 'success' : testState.errors < 5 ? 'warning' : 'danger');
+            updateMetricCardStatus('metric-response', testState.responseTimes.length > 0 &&
+                (testState.responseTimes.reduce((a, b) => a + b, 0) / testState.responseTimes.length) < 2000 ? 'success' : 'warning');
+        }
+
+        function updateMetricCardStatus(cardId, status) {
+            const card = document.getElementById(cardId);
+            card.className = `metric-card ${status}`;
+        }
+
+        function updateProgress(current, total) {
+            const percent = Math.round((current / total) * 100);
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = `${percent}%`;
+            progressBar.textContent = `${percent}%`;
+        }
+
+        function finishTest() {
+            testState.running = false;
+            if (testState.intervalId) {
+                clearInterval(testState.intervalId);
+            }
+
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('testStatus').className = 'status-badge complete';
+            document.getElementById('testStatus').textContent = 'Complete';
+
+            const duration = testState.startTime ? (Date.now() - testState.startTime) / 1000 : 0;
+            const avgResponse = testState.responseTimes.length > 0
+                ? testState.responseTimes.reduce((a, b) => a + b, 0) / testState.responseTimes.length
+                : 0;
+
+            logMessage('success', `Test completed in ${duration.toFixed(2)}s`);
+            logMessage('info', `Tasks processed: ${testState.tasksProcessed}, Errors: ${testState.errors}`);
+            logMessage('info', `Average response time: ${Math.round(avgResponse)}ms`);
+
+            testState.testResults = {
+                scenario: testState.scenario,
+                duration: duration,
+                tasksProcessed: testState.tasksProcessed,
+                errors: testState.errors,
+                averageResponseTime: avgResponse,
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        function logMessage(type, message) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="timestamp">[${timestamp}]</span><span>${message}</span>`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLogs() {
+            const logContainer = document.getElementById('logContainer');
+            logContainer.innerHTML = '<div class="log-entry info"><span class="timestamp">[00:00:00]</span><span>Logs cleared</span></div>';
+        }
+
+        function exportResults() {
+            const json = JSON.stringify(testState.testResults, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `load-test-results-${Date.now()}.json`;
+            a.click();
+            logMessage('success', 'Results exported as JSON');
+        }
+
+        function exportReport() {
+            logMessage('info', 'HTML report generation - Feature coming soon');
+        }
+    </script>
+</body>
+</html>
