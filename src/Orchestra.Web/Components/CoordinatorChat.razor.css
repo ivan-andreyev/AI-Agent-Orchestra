@@ -10,69 +10,69 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 15px;
-    background-color: rgba(255, 255, 255, 0.05);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: var(--spacing-2) var(--spacing-3);
+    background-color: var(--bg-overlay-light);
+    border-bottom: 1px solid var(--bg-overlay-medium);
     border-radius: var(--border-radius) var(--border-radius) 0 0;
 }
 
 .chat-header h4 {
     margin: 0;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
 }
 
 .connection-status {
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
+    padding: var(--spacing-1) var(--spacing-sm);
+    border-radius: var(--border-radius-xl);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
 }
 
 .connection-status.connected {
-    background-color: rgba(25, 135, 84, 0.2);
-    color: #198754;
+    background-color: var(--message-success-bg);
+    color: var(--success-color);
 }
 
 .connection-status.connecting {
-    background-color: rgba(255, 193, 7, 0.2);
-    color: #ffc107;
+    background-color: var(--message-warning-bg);
+    color: var(--warning-color);
 }
 
 .connection-status.disconnected {
-    background-color: rgba(220, 53, 69, 0.2);
-    color: #dc3545;
+    background-color: var(--message-error-bg);
+    color: var(--danger-color);
 }
 
 .progress-toggle {
-    margin-left: 8px;
-    font-size: 12px;
-    padding: 4px 10px;
-    background-color: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
-    transition: all 0.2s ease;
+    margin-left: var(--spacing-2);
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-1) var(--spacing-2);
+    background-color: var(--bg-overlay-light);
+    border: 1px solid var(--bg-overlay-medium);
+    color: rgba(255, 255, 255, var(--opacity-80));
+    transition: var(--transition-colors);
 }
 
 .progress-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 1);
+    background-color: var(--bg-overlay-medium);
+    border-color: var(--bg-overlay-strong);
+    color: white;
 }
 
 .chat-messages {
     flex: 1;
-    padding: 15px;
+    padding: var(--spacing-3);
     overflow-y: auto;
     min-height: 200px;
     max-height: 500px;
 }
 
 .message {
-    margin-bottom: 12px;
-    padding: 8px 12px;
-    border-radius: 6px;
-    animation: fadeIn 0.3s ease-in;
+    margin-bottom: var(--spacing-sm);
+    padding: var(--spacing-2) var(--spacing-sm);
+    border-radius: var(--border-radius-md);
+    animation: fadeIn var(--transition-base) ease-in;
 }
 
 @keyframes fadeIn {
@@ -88,80 +88,80 @@
 
 /* User commands - distinctive blue background */
 .message-command {
-    background-color: rgba(13, 110, 253, 0.15);
-    border-left: 3px solid #0d6efd;
+    background-color: var(--message-user-bg);
+    border-left: 3px solid var(--message-user-border);
 }
 
 .message-command .command-prompt {
-    color: #0d6efd;
-    font-weight: bold;
-    margin-right: 6px;
+    color: var(--primary-color);
+    font-weight: var(--font-weight-bold);
+    margin-right: var(--spacing-1);
 }
 
 /* System/agent responses */
 .message-success {
-    background-color: rgba(25, 135, 84, 0.1);
-    border-left: 3px solid #198754;
+    background-color: var(--message-success-bg);
+    border-left: 3px solid var(--message-success-border);
 }
 
 .message-error {
-    background-color: rgba(220, 53, 69, 0.1);
-    border-left: 3px solid #dc3545;
+    background-color: var(--message-error-bg);
+    border-left: 3px solid var(--message-error-border);
 }
 
 .message-info {
-    background-color: rgba(13, 202, 240, 0.1);
-    border-left: 3px solid #0dcaf0;
+    background-color: var(--message-info-bg);
+    border-left: 3px solid var(--message-info-border);
 }
 
 .message-progress {
-    background-color: rgba(255, 193, 7, 0.1);
-    border-left: 3px solid #ffc107;
+    background-color: var(--message-warning-bg);
+    border-left: 3px solid var(--message-warning-border);
 }
 
 .message-processing {
-    background-color: rgba(255, 193, 7, 0.1);
-    border-left: 3px solid #ffc107;
+    background-color: var(--message-warning-bg);
+    border-left: 3px solid var(--message-warning-border);
     font-style: italic;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, var(--opacity-70));
 }
 
 .message-timestamp {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.5);
-    margin-bottom: 4px;
+    font-size: var(--font-size-xs);
+    color: rgba(255, 255, 255, var(--opacity-50));
+    margin-bottom: var(--spacing-1);
 }
 
 .message-content {
-    color: rgba(255, 255, 255, 0.9);
-    line-height: 1.4;
+    color: rgba(255, 255, 255, var(--opacity-90));
+    line-height: var(--line-height-base);
     word-wrap: break-word;
 }
 
 .message-expand {
-    margin-top: 4px;
+    margin-top: var(--spacing-1);
     text-align: right;
 }
 
 .message-expand button {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 11px;
-    padding: 2px 8px;
+    color: rgba(255, 255, 255, var(--opacity-60));
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-1) var(--spacing-2);
     text-decoration: none;
 }
 
 .message-expand button:hover {
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, var(--opacity-90));
     text-decoration: none;
 }
 
 .chat-input {
-    padding: 10px 15px;
-    background-color: rgba(255, 255, 255, 0.05);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: var(--spacing-2) var(--spacing-3);
+    background-color: var(--bg-overlay-light);
+    border-top: 1px solid var(--bg-overlay-medium);
     border-radius: 0 0 var(--border-radius) var(--border-radius);
 }
 
 .command-history {
-    margin-top: 5px;
+    margin-top: var(--spacing-1);
 }
