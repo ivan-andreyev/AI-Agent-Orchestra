@@ -2,6 +2,7 @@ using Orchestra.Core.Models;
 using Orchestra.Core.Services;
 using Orchestra.Core.Data.Entities;
 using Orchestra.Core.Abstractions;
+using Microsoft.Extensions.Logging;
 using TaskStatus = Orchestra.Core.Models.TaskStatus;
 using TaskPriority = Orchestra.Core.Models.TaskPriority;
 
@@ -15,11 +16,13 @@ public class SimpleOrchestrator : IDisposable
     private readonly object _lock = new();
     private readonly IClaudeCodeCoreService? _claudeCodeService;
     private readonly IAgentStateStore _agentStateStore;
+    private readonly ILogger<SimpleOrchestrator>? _logger;
 
-    public SimpleOrchestrator(IAgentStateStore agentStateStore, IClaudeCodeCoreService? claudeCodeService = null, string stateFilePath = "orchestrator-state.json")
+    public SimpleOrchestrator(IAgentStateStore agentStateStore, IClaudeCodeCoreService? claudeCodeService = null, string stateFilePath = "orchestrator-state.json", ILogger<SimpleOrchestrator>? logger = null)
     {
         _agentStateStore = agentStateStore ?? throw new ArgumentNullException(nameof(agentStateStore));
         _claudeCodeService = claudeCodeService;
+        _logger = logger;
 
         // Generate unique file path for tests to avoid conflicts
         if (stateFilePath == "orchestrator-state.json" && IsRunningInTest())
@@ -93,10 +96,16 @@ public class SimpleOrchestrator : IDisposable
             _taskQueue.Enqueue(task);
             SaveState();
 
-            // Phase 4.3.1: Automatic assignment trigger for tasks created without immediate agent
             if (string.IsNullOrEmpty(agentId))
             {
+                _logger?.LogInformation("Task {TaskId} created with status {Status} - no agent available, will attempt assignment",
+                    task.Id, taskStatus);
                 TriggerTaskAssignment();
+            }
+            else
+            {
+                _logger?.LogInformation("Task {TaskId} created with status {Status} and assigned to agent {AgentId}",
+                    task.Id, taskStatus, agentId);
             }
         }
     }
@@ -233,6 +242,12 @@ public class SimpleOrchestrator : IDisposable
     {
         lock (_lock)
         {
+            var pendingTasksCount = _taskQueue.Count(t => t.Status == TaskStatus.Pending);
+            if (pendingTasksCount > 0)
+            {
+                _logger?.LogDebug("Triggering task assignment for {PendingTasksCount} pending tasks", pendingTasksCount);
+            }
+
             AssignUnassignedTasks();
             SaveState();
         }
@@ -273,6 +288,9 @@ public class SimpleOrchestrator : IDisposable
                     StartedAt = DateTime.Now
                 };
                 tasksToUpdate.Add((task, assignedTask));
+
+                _logger?.LogInformation("Task {TaskId} status transition: {OldStatus} → {NewStatus}, assigned to agent {AgentId}",
+                    task.Id, task.Status, TaskStatus.Assigned, availableAgent.Id);
             }
         }
 
@@ -298,6 +316,12 @@ public class SimpleOrchestrator : IDisposable
             {
                 _taskQueue.Enqueue(task);
             }
+
+            _logger?.LogInformation("Successfully assigned {AssignedCount} tasks to available agents", tasksToUpdate.Count);
+        }
+        else if (pendingTasks.Any())
+        {
+            _logger?.LogDebug("No available agents found for {PendingCount} pending tasks", pendingTasks.Count);
         }
     }
 
@@ -310,6 +334,7 @@ public class SimpleOrchestrator : IDisposable
         {
             var tasksToUpdate = new List<TaskRequest>();
             var newQueue = new Queue<TaskRequest>();
+            var statusChanged = false;
 
             while (_taskQueue.Count > 0)
             {
@@ -319,6 +344,8 @@ public class SimpleOrchestrator : IDisposable
                     // Validate status transition
                     if (!IsValidStatusTransition(task.Status, newStatus))
                     {
+                        _logger?.LogWarning("Invalid task status transition attempted: {TaskId} from {OldStatus} to {NewStatus}",
+                            taskId, task.Status, newStatus);
                         // Invalid transition - re-enqueue original task
                         newQueue.Enqueue(task);
                         continue;
@@ -332,6 +359,10 @@ public class SimpleOrchestrator : IDisposable
                         Result = result ?? task.Result
                     };
                     newQueue.Enqueue(updatedTask);
+                    statusChanged = true;
+
+                    _logger?.LogInformation("Task {TaskId} status transition: {OldStatus} → {NewStatus}",
+                        taskId, task.Status, newStatus);
                 }
                 else
                 {
@@ -346,6 +377,11 @@ public class SimpleOrchestrator : IDisposable
             }
 
             SaveState();
+
+            if (!statusChanged)
+            {
+                _logger?.LogWarning("Attempted to update status for non-existent task: {TaskId}", taskId);
+            }
         }
     }
 

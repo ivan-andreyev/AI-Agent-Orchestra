@@ -167,7 +167,8 @@ public class Startup
         {
             var agentStateStore = provider.GetRequiredService<Orchestra.Core.Abstractions.IAgentStateStore>();
             var claudeCodeService = provider.GetService<Orchestra.Core.Services.IClaudeCodeCoreService>();
-            return new SimpleOrchestrator(agentStateStore, claudeCodeService, "orchestrator-state.json");
+            var logger = provider.GetRequiredService<ILogger<SimpleOrchestrator>>();
+            return new SimpleOrchestrator(agentStateStore, claudeCodeService, "orchestrator-state.json", logger);
         });
         services.AddSingleton<AgentConfiguration>(provider =>
             AgentConfiguration.LoadFromFile("agent-config.json"));

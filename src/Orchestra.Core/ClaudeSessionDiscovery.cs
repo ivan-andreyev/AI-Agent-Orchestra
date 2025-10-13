@@ -204,12 +204,9 @@ public class ClaudeSessionDiscovery
     {
         var timeSinceLastUpdate = DateTime.Now - lastWriteTime;
 
-        // For discovered Claude Code sessions, we should assume they're available for work
-        // unless they're actively working or extremely old (more than 24 hours)
-        if (timeSinceLastUpdate > TimeSpan.FromHours(24))
-        {
-            return AgentStatus.Offline;
-        }
+        // For discovered Claude Code sessions, assume they're available for work (Idle)
+        // If they're actively working (recent activity within 2 minutes), mark as Busy
+        // We no longer mark sessions as Offline based on age - if discovered, they're available
 
         try
         {
@@ -229,8 +226,8 @@ public class ClaudeSessionDiscovery
             // Ignore file read errors
         }
 
-        // Default to Idle for available Claude Code sessions
-        // This ensures discovered agents are available for task assignment
+        // Default to Idle for all discovered Claude Code sessions
+        // This ensures discovered agents are available for task assignment immediately
         return AgentStatus.Idle;
     }
 
