@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 4.4.2: Tool Visibility Testing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            background: #0d1117;
+            color: #f0f6fc;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #58a6ff;
+            border-bottom: 2px solid #30363d;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        h2 {
+            color: #3fb950;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        h3 {
+            color: #58a6ff;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .viewport-info {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .viewport-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .viewport-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .viewport-label {
+            font-weight: bold;
+            color: #8b949e;
+        }
+
+        .viewport-value {
+            color: #3fb950;
+        }
+
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .button:hover {
+            background: #2ea043;
+            transform: translateY(-1px);
+        }
+
+        .button-secondary {
+            background: #58a6ff;
+        }
+
+        .button-secondary:hover {
+            background: #4493e0;
+        }
+
+        .button-warning {
+            background: #d29922;
+        }
+
+        .button-warning:hover {
+            background: #bb8009;
+        }
+
+        .test-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .test-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin: 8px 0;
+            background: #21262d;
+            border-radius: 6px;
+            border-left: 4px solid #30363d;
+            transition: all 0.2s ease;
+        }
+
+        .checklist-item:hover {
+            background: #2d333b;
+            border-left-color: #58a6ff;
+        }
+
+        .checklist-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+            cursor: pointer;
+            accent-color: #3fb950;
+        }
+
+        .checklist-item input[type="checkbox"]:checked ~ .checklist-label {
+            color: #8b949e;
+            text-decoration: line-through;
+        }
+
+        .checklist-item.checked {
+            border-left-color: #3fb950;
+        }
+
+        .checklist-label {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .progress-bar-container {
+            background: #21262d;
+            height: 30px;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #238636, #3fb950);
+            height: 100%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pass {
+            background: #238636;
+            color: white;
+        }
+
+        .status-pending {
+            background: #d29922;
+            color: white;
+        }
+
+        .status-fail {
+            background: #f85149;
+            color: white;
+        }
+
+        .iframe-container {
+            border: 2px solid #30363d;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+            background: #21262d;
+        }
+
+        iframe {
+            width: 100%;
+            height: 800px;
+            border: none;
+            background: white;
+        }
+
+        .browser-matrix {
+            overflow-x: auto;
+        }
+
+        .browser-matrix table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #21262d;
+        }
+
+        .browser-matrix th,
+        .browser-matrix td {
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #30363d;
+        }
+
+        .browser-matrix th {
+            background: #161b22;
+            font-weight: 600;
+            color: #58a6ff;
+        }
+
+        .browser-matrix td input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #3fb950;
+        }
+
+        .summary-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            font-weight: 600;
+            color: #8b949e;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 6px;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-info {
+            background: rgba(88, 166, 255, 0.15);
+            border-left: 4px solid #58a6ff;
+            color: #58a6ff;
+        }
+
+        .alert-success {
+            background: rgba(63, 185, 80, 0.15);
+            border-left: 4px solid #3fb950;
+            color: #3fb950;
+        }
+
+        .alert-warning {
+            background: rgba(210, 153, 34, 0.15);
+            border-left: 4px solid #d29922;
+            color: #d29922;
+        }
+
+        @media (max-width: 768px) {
+            .test-controls {
+                flex-direction: column;
+            }
+
+            .button {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .test-section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Phase 4.4.2: Tool Visibility Cross-Platform Testing</h1>
+
+        <div class="alert alert-info">
+            <span style="font-size: 24px;">ℹ️</span>
+            <div>
+                <strong>Testing Framework</strong><br>
+                This tool validates QuickActions component (OrchestrationControlPanel → QuickActionsSection) visibility and functionality across all target devices, browsers, and screen sizes.
+            </div>
+        </div>
+
+        <div class="viewport-info">
+            <div class="viewport-info-row">
+                <span class="viewport-label">Current Viewport:</span>
+                <span class="viewport-value" id="viewport-size">Calculating...</span>
+            </div>
+            <div class="viewport-info-row">
+                <span class="viewport-label">Device Type:</span>
+                <span class="viewport-value" id="device-type">Unknown</span>
+            </div>
+            <div class="viewport-info-row">
+                <span class="viewport-label">Browser:</span>
+                <span class="viewport-value" id="browser-name">Unknown</span>
+            </div>
+            <div class="viewport-info-row">
+                <span class="viewport-label">User Agent:</span>
+                <span class="viewport-value" id="user-agent" style="font-size: 11px; word-break: break-all;">Unknown</span>
+            </div>
+        </div>
+
+        <div class="test-controls">
+            <button class="button button-secondary" onclick="loadOrchestra()">🚀 Load Orchestra.Web</button>
+            <button class="button button-secondary" onclick="setViewport(1920, 1080)">🖥️ Desktop (1920x1080)</button>
+            <button class="button button-secondary" onclick="setViewport(768, 1024)">📱 Tablet (768x1024)</button>
+            <button class="button button-secondary" onclick="setViewport(375, 667)">📱 Mobile (375x667)</button>
+            <button class="button button-warning" onclick="openDevTools()">🔧 Open DevTools</button>
+            <button class="button" onclick="calculateResults()">📊 Calculate Results</button>
+            <button class="button" onclick="exportResults()">💾 Export Results</button>
+        </div>
+
+        <div id="iframe-wrapper" class="iframe-container" style="display: none;">
+            <iframe id="orchestra-iframe" src="about:blank"></iframe>
+        </div>
+
+        <h2>📋 Testing Checklist</h2>
+
+        <!-- Scenario 1: Desktop -->
+        <div class="test-section">
+            <div class="test-section-header">
+                <h3>Scenario 1: Desktop Full Visibility (>1200px)</h3>
+                <div>
+                    <span id="desktop-badge" class="status-badge status-pending">Pending</span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="desktop-progress" style="width: 0%">0%</div>
+            </div>
+            <ul class="checklist">
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-1" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">Sidebar visible on left (col-md-3, ~25% width)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-2" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">OrchestrationControlPanel card displayed</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-3" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">Quick Actions tab visible and accessible</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-4" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">Development dropdown functional (4 menu items)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-5" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">Analysis dropdown functional (3 menu items)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-6" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">Documentation dropdown functional (3 menu items)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-7" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">Custom Task input functional</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-8" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">Priority dropdown functional (4 options)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-9" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">Queue Task button functional</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="desktop-10" onchange="updateProgress('desktop', 10)">
+                    <span class="checklist-label">Task queued successfully (verify in TaskQueue component)</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Scenario 2: Tablet -->
+        <div class="test-section">
+            <div class="test-section-header">
+                <h3>Scenario 2: Tablet Responsive Design (768-1199px)</h3>
+                <div>
+                    <span id="tablet-badge" class="status-badge status-pending">Pending</span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="tablet-progress" style="width: 0%">0%</div>
+            </div>
+            <ul class="checklist">
+                <li class="checklist-item">
+                    <input type="checkbox" id="tablet-1" onchange="updateProgress('tablet', 7)">
+                    <span class="checklist-label">Sidebar still visible (Bootstrap col-md-3 applies at ≥768px)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="tablet-2" onchange="updateProgress('tablet', 7)">
+                    <span class="checklist-label">OrchestrationControlPanel accessible</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="tablet-3" onchange="updateProgress('tablet', 7)">
+                    <span class="checklist-label">Quick Actions tab functional</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="tablet-4" onchange="updateProgress('tablet', 7)">
+                    <span class="checklist-label">All dropdowns functional (touch simulation)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="tablet-5" onchange="updateProgress('tablet', 7)">
+                    <span class="checklist-label">Custom task input responsive</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="tablet-6" onchange="updateProgress('tablet', 7)">
+                    <span class="checklist-label">No horizontal scrolling</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="tablet-7" onchange="updateProgress('tablet', 7)">
+                    <span class="checklist-label">No layout breaking at 768px breakpoint</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Scenario 3: Mobile -->
+        <div class="test-section">
+            <div class="test-section-header">
+                <h3>Scenario 3: Mobile Sidebar Toggle (<768px)</h3>
+                <div>
+                    <span id="mobile-badge" class="status-badge status-pending">Pending</span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="mobile-progress" style="width: 0%">0%</div>
+            </div>
+            <ul class="checklist">
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-1" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">Mobile menu button visible in header (☰ Menu)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-2" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">Sidebar hidden by default</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-3" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">Mobile menu button opens sidebar</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-4" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">Sidebar slides in smoothly (CSS transition)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-5" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">Sidebar overlay appears (semi-transparent background)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-6" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">OrchestrationControlPanel visible in mobile sidebar</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-7" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">Quick Actions tab accessible</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-8" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">All dropdowns functional on mobile (tap interaction)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-9" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">Custom task input works with mobile keyboard</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="mobile-10" onchange="updateProgress('mobile', 10)">
+                    <span class="checklist-label">Sidebar closes when tapping overlay</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Scenario 4: Functionality -->
+        <div class="test-section">
+            <div class="test-section-header">
+                <h3>Scenario 4: Functionality Deep Dive</h3>
+                <div>
+                    <span id="func-badge" class="status-badge status-pending">Pending</span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="func-progress" style="width: 0%">0%</div>
+            </div>
+            <ul class="checklist">
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-1" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Development dropdown: 4 menu items visible and functional</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-2" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Analysis dropdown: 3 menu items visible and functional</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-3" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Documentation dropdown: 3 menu items visible and functional</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-4" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Custom task accepts any text input</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-5" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Priority dropdown shows 4 options (Normal/High/Critical/Low)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-6" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Queue Task button disabled when command empty</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-7" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Success alert displays correctly (green background, ✅)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-8" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Error alert displays correctly (red background, ❌)</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-9" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Alerts auto-dismiss after 5 seconds</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-10" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">Close buttons functional on alerts</span>
+                </li>
+                <li class="checklist-item">
+                    <input type="checkbox" id="func-11" onchange="updateProgress('func', 11)">
+                    <span class="checklist-label">TaskQueue component reflects all queued tasks</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Browser Compatibility Matrix -->
+        <h2>🌐 Cross-Browser Compatibility Matrix</h2>
+        <div class="test-section browser-matrix">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Browser</th>
+                        <th>Desktop (>1200px)</th>
+                        <th>Tablet (768-1199px)</th>
+                        <th>Mobile (<768px)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Chrome 120+</strong></td>
+                        <td><input type="checkbox" id="chrome-desktop" onchange="updateBrowserProgress()"></td>
+                        <td><input type="checkbox" id="chrome-tablet" onchange="updateBrowserProgress()"></td>
+                        <td><input type="checkbox" id="chrome-mobile" onchange="updateBrowserProgress()"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Firefox 121+</strong></td>
+                        <td><input type="checkbox" id="firefox-desktop" onchange="updateBrowserProgress()"></td>
+                        <td><input type="checkbox" id="firefox-tablet" onchange="updateBrowserProgress()"></td>
+                        <td><input type="checkbox" id="firefox-mobile" onchange="updateBrowserProgress()"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Edge 120+</strong></td>
+                        <td><input type="checkbox" id="edge-desktop" onchange="updateBrowserProgress()"></td>
+                        <td><input type="checkbox" id="edge-tablet" onchange="updateBrowserProgress()"></td>
+                        <td><input type="checkbox" id="edge-mobile" onchange="updateBrowserProgress()"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Safari 17+ (macOS/iOS)</strong></td>
+                        <td><input type="checkbox" id="safari-desktop" onchange="updateBrowserProgress()"></td>
+                        <td><input type="checkbox" id="safari-tablet" onchange="updateBrowserProgress()"></td>
+                        <td><input type="checkbox" id="safari-mobile" onchange="updateBrowserProgress()"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Test Results Summary -->
+        <h2>📊 Test Results Summary</h2>
+        <div class="summary-card">
+            <div class="summary-row">
+                <span class="summary-label">Desktop Tests (10 items):</span>
+                <span id="desktop-summary" class="status-badge status-pending">0%</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Tablet Tests (7 items):</span>
+                <span id="tablet-summary" class="status-badge status-pending">0%</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Mobile Tests (10 items):</span>
+                <span id="mobile-summary" class="status-badge status-pending">0%</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Functionality Tests (11 items):</span>
+                <span id="func-summary" class="status-badge status-pending">0%</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Browser Compatibility (12 tests):</span>
+                <span id="browser-summary" class="status-badge status-pending">0%</span>
+            </div>
+        </div>
+
+        <div id="completion-alert" class="alert alert-success" style="display: none;">
+            <span style="font-size: 24px;">✅</span>
+            <div>
+                <strong>All Tests Complete!</strong><br>
+                Phase 4.4.2 testing is 100% complete. Export results and update work plan status.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update viewport info
+        function updateViewportInfo() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            document.getElementById('viewport-size').textContent = `${width}x${height}`;
+
+            let deviceType = 'Unknown';
+            if (width >= 1200) {
+                deviceType = 'Desktop (>1200px)';
+            } else if (width >= 768) {
+                deviceType = 'Tablet (768-1199px)';
+            } else {
+                deviceType = 'Mobile (<768px)';
+            }
+            document.getElementById('device-type').textContent = deviceType;
+
+            // Detect browser
+            const ua = navigator.userAgent;
+            let browserName = 'Unknown';
+            if (ua.indexOf('Firefox') > -1) {
+                browserName = 'Firefox';
+            } else if (ua.indexOf('Edg') > -1) {
+                browserName = 'Edge';
+            } else if (ua.indexOf('Chrome') > -1) {
+                browserName = 'Chrome';
+            } else if (ua.indexOf('Safari') > -1) {
+                browserName = 'Safari';
+            }
+            document.getElementById('browser-name').textContent = browserName;
+            document.getElementById('user-agent').textContent = ua;
+        }
+
+        // Load Orchestra.Web in iframe
+        function loadOrchestra() {
+            const iframe = document.getElementById('orchestra-iframe');
+            iframe.src = 'http://localhost:5000';
+            document.getElementById('iframe-wrapper').style.display = 'block';
+        }
+
+        // Set viewport size
+        function setViewport(width, height) {
+            window.resizeTo(width, height);
+            updateViewportInfo();
+        }
+
+        // Open DevTools
+        function openDevTools() {
+            alert('Press F12 to open DevTools.\n\nFor responsive testing:\n- Press Ctrl+Shift+M to toggle Device Toolbar\n- Select device or enter custom dimensions\n- Inspect .orchestration-control-section for CSS validation');
+        }
+
+        // Update progress for a section
+        function updateProgress(section, totalCount) {
+            let checked = 0;
+            for (let i = 1; i <= totalCount; i++) {
+                const checkbox = document.getElementById(`${section}-${i}`);
+                if (checkbox && checkbox.checked) {
+                    checked++;
+                    checkbox.parentElement.classList.add('checked');
+                } else if (checkbox) {
+                    checkbox.parentElement.classList.remove('checked');
+                }
+            }
+
+            const percentage = Math.round((checked / totalCount) * 100);
+            const progressBar = document.getElementById(`${section}-progress`);
+            const badge = document.getElementById(`${section}-badge`);
+
+            progressBar.style.width = percentage + '%';
+            progressBar.textContent = percentage + '%';
+
+            if (percentage === 100) {
+                badge.textContent = 'Pass';
+                badge.className = 'status-badge status-pass';
+            } else if (percentage > 0) {
+                badge.textContent = percentage + '% Complete';
+                badge.className = 'status-badge status-pending';
+            } else {
+                badge.textContent = 'Pending';
+                badge.className = 'status-badge status-pending';
+            }
+
+            updateSummary();
+        }
+
+        // Update browser compatibility progress
+        function updateBrowserProgress() {
+            const browsers = ['chrome', 'firefox', 'edge', 'safari'];
+            const viewports = ['desktop', 'tablet', 'mobile'];
+            let checked = 0;
+            let total = 0;
+
+            browsers.forEach(browser => {
+                viewports.forEach(viewport => {
+                    total++;
+                    const checkbox = document.getElementById(`${browser}-${viewport}`);
+                    if (checkbox && checkbox.checked) {
+                        checked++;
+                    }
+                });
+            });
+
+            const percentage = Math.round((checked / total) * 100);
+            const badge = document.getElementById('browser-summary');
+
+            if (percentage === 100) {
+                badge.textContent = 'Pass (100%)';
+                badge.className = 'status-badge status-pass';
+            } else if (percentage > 0) {
+                badge.textContent = percentage + '%';
+                badge.className = 'status-badge status-pending';
+            } else {
+                badge.textContent = '0%';
+                badge.className = 'status-badge status-pending';
+            }
+
+            updateSummary();
+        }
+
+        // Update summary
+        function updateSummary() {
+            const sections = [
+                { name: 'desktop', count: 10 },
+                { name: 'tablet', count: 7 },
+                { name: 'mobile', count: 10 },
+                { name: 'func', count: 11 }
+            ];
+
+            sections.forEach(section => {
+                let checked = 0;
+                for (let i = 1; i <= section.count; i++) {
+                    const checkbox = document.getElementById(`${section.name}-${i}`);
+                    if (checkbox && checkbox.checked) {
+                        checked++;
+                    }
+                }
+
+                const percentage = Math.round((checked / section.count) * 100);
+                const badge = document.getElementById(`${section.name}-summary`);
+
+                if (percentage === 100) {
+                    badge.textContent = 'Pass (100%)';
+                    badge.className = 'status-badge status-pass';
+                } else if (percentage > 0) {
+                    badge.textContent = percentage + '%';
+                    badge.className = 'status-badge status-pending';
+                } else {
+                    badge.textContent = '0%';
+                    badge.className = 'status-badge status-pending';
+                }
+            });
+
+            // Check if all tests complete
+            const allComplete = sections.every(section => {
+                let checked = 0;
+                for (let i = 1; i <= section.count; i++) {
+                    const checkbox = document.getElementById(`${section.name}-${i}`);
+                    if (checkbox && checkbox.checked) {
+                        checked++;
+                    }
+                }
+                return checked === section.count;
+            });
+
+            // Check browser tests
+            const browsers = ['chrome', 'firefox', 'edge', 'safari'];
+            const viewports = ['desktop', 'tablet', 'mobile'];
+            const browserComplete = browsers.every(browser =>
+                viewports.every(viewport => {
+                    const checkbox = document.getElementById(`${browser}-${viewport}`);
+                    return checkbox && checkbox.checked;
+                })
+            );
+
+            if (allComplete && browserComplete) {
+                document.getElementById('completion-alert').style.display = 'flex';
+            } else {
+                document.getElementById('completion-alert').style.display = 'none';
+            }
+        }
+
+        // Calculate results
+        function calculateResults() {
+            // Trigger progress update for all sections
+            updateProgress('desktop', 10);
+            updateProgress('tablet', 7);
+            updateProgress('mobile', 10);
+            updateProgress('func', 11);
+            updateBrowserProgress();
+
+            alert('Test results calculated! Check the Test Results Summary section.');
+        }
+
+        // Export results
+        function exportResults() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                viewport: {
+                    size: document.getElementById('viewport-size').textContent,
+                    deviceType: document.getElementById('device-type').textContent
+                },
+                browser: {
+                    name: document.getElementById('browser-name').textContent,
+                    userAgent: navigator.userAgent
+                },
+                tests: {
+                    desktop: {},
+                    tablet: {},
+                    mobile: {},
+                    functionality: {},
+                    browsers: {}
+                }
+            };
+
+            // Collect desktop tests
+            for (let i = 1; i <= 10; i++) {
+                const checkbox = document.getElementById(`desktop-${i}`);
+                results.tests.desktop[`test${i}`] = checkbox ? checkbox.checked : false;
+            }
+
+            // Collect tablet tests
+            for (let i = 1; i <= 7; i++) {
+                const checkbox = document.getElementById(`tablet-${i}`);
+                results.tests.tablet[`test${i}`] = checkbox ? checkbox.checked : false;
+            }
+
+            // Collect mobile tests
+            for (let i = 1; i <= 10; i++) {
+                const checkbox = document.getElementById(`mobile-${i}`);
+                results.tests.mobile[`test${i}`] = checkbox ? checkbox.checked : false;
+            }
+
+            // Collect functionality tests
+            for (let i = 1; i <= 11; i++) {
+                const checkbox = document.getElementById(`func-${i}`);
+                results.tests.functionality[`test${i}`] = checkbox ? checkbox.checked : false;
+            }
+
+            // Collect browser tests
+            const browsers = ['chrome', 'firefox', 'edge', 'safari'];
+            const viewports = ['desktop', 'tablet', 'mobile'];
+            browsers.forEach(browser => {
+                results.tests.browsers[browser] = {};
+                viewports.forEach(viewport => {
+                    const checkbox = document.getElementById(`${browser}-${viewport}`);
+                    results.tests.browsers[browser][viewport] = checkbox ? checkbox.checked : false;
+                });
+            });
+
+            const json = JSON.stringify(results, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `phase-4.4.2-test-results-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            alert('Test results exported successfully!');
+        }
+
+        // Initialize
+        updateViewportInfo();
+        window.addEventListener('resize', updateViewportInfo);
+
+        // Auto-calculate on page load
+        setTimeout(() => {
+            updateProgress('desktop', 10);
+            updateProgress('tablet', 7);
+            updateProgress('mobile', 10);
+            updateProgress('func', 11);
+            updateBrowserProgress();
+        }, 500);
+    </script>
+</body>
+</html>
