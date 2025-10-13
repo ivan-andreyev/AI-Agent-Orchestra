@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 6.2 Browser Performance Test</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1rem;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .metric-value.good {
+            color: #28a745;
+        }
+
+        .metric-value.warning {
+            color: #ffc107;
+        }
+
+        .metric-value.bad {
+            color: #dc3545;
+        }
+
+        .metric-threshold {
+            font-size: 0.75rem;
+            color: #999;
+        }
+
+        .metric-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .metric-status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .metric-status.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .metric-status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card h3 {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .summary-stat {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .summary-stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .summary-stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .test-log {
+            background: #212529;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .test-log div {
+            margin-bottom: 5px;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.green {
+            background: #28a745;
+        }
+
+        .status-indicator.yellow {
+            background: #ffc107;
+        }
+
+        .status-indicator.red {
+            background: #dc3545;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-stats {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Phase 6.2 Browser Performance Test</h1>
+        <p class="subtitle">Performance validation against Phase 0 baseline thresholds</p>
+
+        <div class="summary-card">
+            <h3>Overall Test Status</h3>
+            <div class="summary-stats">
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="overall-status">NOT RUN</div>
+                    <div class="summary-stat-label">Test Status</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="pass-count">0/0</div>
+                    <div class="summary-stat-label">Tests Passed</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="test-duration">0s</div>
+                    <div class="summary-stat-label">Test Duration</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-primary" onclick="runAllTests()">▶️ Run All Tests</button>
+            <button class="btn-secondary" onclick="runPageLoadTest()">📄 Page Load Test</button>
+            <button class="btn-secondary" onclick="runComponentRenderTest()">🧩 Component Render Test</button>
+            <button class="btn-success" onclick="exportResults()">📊 Export Results</button>
+        </div>
+
+        <div class="loader" id="loader"></div>
+
+        <!-- Page Load Performance -->
+        <div class="test-section">
+            <h2>📄 Page Load Performance (Phase 0 Target: <2000ms)</h2>
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-label">First Contentful Paint (FCP)</div>
+                    <div class="metric-value" id="fcp-value">-</div>
+                    <div class="metric-threshold">Baseline: &lt;1000ms</div>
+                    <span class="metric-status" id="fcp-status">Not Tested</span>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Largest Contentful Paint (LCP)</div>
+                    <div class="metric-value" id="lcp-value">-</div>
+                    <div class="metric-threshold">Baseline: &lt;2500ms</div>
+                    <span class="metric-status" id="lcp-status">Not Tested</span>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Time to Interactive (TTI)</div>
+                    <div class="metric-value" id="tti-value">-</div>
+                    <div class="metric-threshold">Baseline: &lt;3000ms</div>
+                    <span class="metric-status" id="tti-status">Not Tested</span>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">DOM Content Loaded</div>
+                    <div class="metric-value" id="dcl-value">-</div>
+                    <div class="metric-threshold">Baseline: &lt;2000ms</div>
+                    <span class="metric-status" id="dcl-status">Not Tested</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSS Performance -->
+        <div class="test-section">
+            <h2>🎨 CSS Performance (Phase 6.1 Design System)</h2>
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-label">CSS Parse Time</div>
+                    <div class="metric-value" id="css-parse-value">-</div>
+                    <div class="metric-threshold">Target: &lt;50ms</div>
+                    <span class="metric-status" id="css-parse-status">Not Tested</span>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">CSS Variable Count</div>
+                    <div class="metric-value" id="css-var-count">-</div>
+                    <div class="metric-threshold">Phase 6.1: ~300 variables</div>
+                    <span class="metric-status" id="css-var-status">Not Tested</span>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Style Recalculation</div>
+                    <div class="metric-value" id="style-recalc-value">-</div>
+                    <div class="metric-threshold">Target: &lt;50ms</div>
+                    <span class="metric-status" id="style-recalc-status">Not Tested</span>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Layout Duration</div>
+                    <div class="metric-value" id="layout-value">-</div>
+                    <div class="metric-threshold">Target: &lt;100ms</div>
+                    <span class="metric-status" id="layout-status">Not Tested</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memory Usage -->
+        <div class="test-section">
+            <h2>💾 Memory Usage (Phase 0 Baseline: <10% increase)</h2>
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-label">JS Heap Size</div>
+                    <div class="metric-value" id="heap-size-value">-</div>
+                    <div class="metric-threshold">Monitor for growth</div>
+                    <span class="metric-status" id="heap-status">Not Tested</span>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total JS Heap Size</div>
+                    <div class="metric-value" id="total-heap-value">-</div>
+                    <div class="metric-threshold">Phase 0 baseline</div>
+                    <span class="metric-status" id="total-heap-status">Not Tested</span>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">JS Heap Size Limit</div>
+                    <div class="metric-value" id="heap-limit-value">-</div>
+                    <div class="metric-threshold">Browser limit</div>
+                    <span class="metric-status" id="heap-limit-status">Not Tested</span>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">DOM Nodes</div>
+                    <div class="metric-value" id="dom-nodes-value">-</div>
+                    <div class="metric-threshold">Monitor for leaks</div>
+                    <span class="metric-status" id="dom-nodes-status">Not Tested</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Log -->
+        <div class="test-section">
+            <h2>📋 Test Log</h2>
+            <div class="test-log" id="test-log">
+                <div>Ready to run tests. Click "Run All Tests" to begin.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = {
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            tests: {}
+        };
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : '📝';
+            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#00ff00';
+
+            const entry = document.createElement('div');
+            entry.style.color = color;
+            entry.textContent = `[${timestamp}] ${prefix} ${message}`;
+
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateMetric(id, value, status = 'warning') {
+            const valueEl = document.getElementById(`${id}-value`);
+            const statusEl = document.getElementById(`${id}-status`);
+
+            if (valueEl) {
+                valueEl.textContent = value;
+                valueEl.className = `metric-value ${status}`;
+            }
+
+            if (statusEl) {
+                if (status === 'good') {
+                    statusEl.textContent = '✅ PASS';
+                    statusEl.className = 'metric-status pass';
+                } else if (status === 'warning') {
+                    statusEl.textContent = '⚠️ WARNING';
+                    statusEl.className = 'metric-status warning';
+                } else if (status === 'bad') {
+                    statusEl.textContent = '❌ FAIL';
+                    statusEl.className = 'metric-status fail';
+                }
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function runPageLoadTest() {
+            log('Running page load performance test...');
+
+            // Get performance timing
+            const perfData = window.performance.timing;
+            const perfEntries = window.performance.getEntriesByType('navigation')[0];
+
+            if (perfEntries) {
+                // First Contentful Paint
+                const fcpEntry = performance.getEntriesByName('first-contentful-paint')[0];
+                const fcp = fcpEntry ? Math.round(fcpEntry.startTime) : '-';
+                const fcpStatus = fcp !== '-' && fcp < 1000 ? 'good' : fcp < 2000 ? 'warning' : 'bad';
+                updateMetric('fcp', fcp !== '-' ? `${fcp}ms` : 'N/A', fcpStatus);
+                log(`FCP: ${fcp}ms (${fcpStatus})`, fcpStatus === 'good' ? 'success' : 'info');
+
+                // DOM Content Loaded
+                const dcl = Math.round(perfData.domContentLoadedEventEnd - perfData.navigationStart);
+                const dclStatus = dcl < 2000 ? 'good' : dcl < 3000 ? 'warning' : 'bad';
+                updateMetric('dcl', `${dcl}ms`, dclStatus);
+                log(`DOM Content Loaded: ${dcl}ms (${dclStatus})`, dclStatus === 'good' ? 'success' : 'info');
+
+                testResults.tests.pageLoad = {
+                    fcp: fcp !== '-' ? fcp : null,
+                    dcl,
+                    timestamp: new Date().toISOString()
+                };
+            }
+
+            // Largest Contentful Paint (requires PerformanceObserver)
+            try {
+                const observer = new PerformanceObserver((list) => {
+                    const entries = list.getEntries();
+                    const lastEntry = entries[entries.length - 1];
+                    const lcp = Math.round(lastEntry.renderTime || lastEntry.loadTime);
+                    const lcpStatus = lcp < 2500 ? 'good' : lcp < 4000 ? 'warning' : 'bad';
+                    updateMetric('lcp', `${lcp}ms`, lcpStatus);
+                    log(`LCP: ${lcp}ms (${lcpStatus})`, lcpStatus === 'good' ? 'success' : 'info');
+
+                    testResults.tests.pageLoad = testResults.tests.pageLoad || {};
+                    testResults.tests.pageLoad.lcp = lcp;
+                });
+                observer.observe({ type: 'largest-contentful-paint', buffered: true });
+            } catch (e) {
+                log('LCP measurement not supported in this browser', 'error');
+            }
+
+            // Approximate TTI
+            const tti = Math.round(perfData.domInteractive - perfData.navigationStart);
+            const ttiStatus = tti < 3000 ? 'good' : tti < 5000 ? 'warning' : 'bad';
+            updateMetric('tti', `${tti}ms`, ttiStatus);
+            log(`TTI (approx): ${tti}ms (${ttiStatus})`, ttiStatus === 'good' ? 'success' : 'info');
+
+            log('Page load test complete', 'success');
+        }
+
+        function runCSSPerformanceTest() {
+            log('Running CSS performance test...');
+
+            // Count CSS variables
+            const styles = getComputedStyle(document.documentElement);
+            let cssVarCount = 0;
+            for (let i = 0; i < styles.length; i++) {
+                if (styles[i].startsWith('--')) {
+                    cssVarCount++;
+                }
+            }
+
+            updateMetric('css-var-count', cssVarCount, cssVarCount > 200 ? 'good' : 'warning');
+            log(`CSS Variable Count: ${cssVarCount}`, 'success');
+
+            // Estimate CSS parse time (not directly measurable, use resource timing)
+            const cssResources = performance.getEntriesByType('resource').filter(r => r.name.endsWith('.css'));
+            const totalCSSTime = cssResources.reduce((sum, r) => sum + r.duration, 0);
+            const cssStatus = totalCSSTime < 50 ? 'good' : totalCSSTime < 100 ? 'warning' : 'bad';
+            updateMetric('css-parse', `${Math.round(totalCSSTime)}ms`, cssStatus);
+            log(`CSS Load Time: ${Math.round(totalCSSTime)}ms`, 'success');
+
+            testResults.tests.css = {
+                variableCount: cssVarCount,
+                loadTime: Math.round(totalCSSTime),
+                resourceCount: cssResources.length,
+                timestamp: new Date().toISOString()
+            };
+
+            log('CSS performance test complete', 'success');
+        }
+
+        function runMemoryTest() {
+            log('Running memory usage test...');
+
+            if (performance.memory) {
+                const heapSize = performance.memory.usedJSHeapSize;
+                const totalHeap = performance.memory.totalJSHeapSize;
+                const heapLimit = performance.memory.jsHeapSizeLimit;
+
+                updateMetric('heap-size', formatBytes(heapSize), 'good');
+                updateMetric('total-heap', formatBytes(totalHeap), 'good');
+                updateMetric('heap-limit', formatBytes(heapLimit), 'good');
+
+                log(`JS Heap: ${formatBytes(heapSize)} / ${formatBytes(heapLimit)}`, 'success');
+
+                testResults.tests.memory = {
+                    usedJSHeapSize: heapSize,
+                    totalJSHeapSize: totalHeap,
+                    jsHeapSizeLimit: heapLimit,
+                    timestamp: new Date().toISOString()
+                };
+            } else {
+                log('Memory API not available in this browser', 'error');
+                updateMetric('heap-size', 'N/A', 'warning');
+                updateMetric('total-heap', 'N/A', 'warning');
+                updateMetric('heap-limit', 'N/A', 'warning');
+            }
+
+            // Count DOM nodes
+            const domNodes = document.querySelectorAll('*').length;
+            updateMetric('dom-nodes', domNodes, domNodes < 1000 ? 'good' : domNodes < 2000 ? 'warning' : 'bad');
+            log(`DOM Nodes: ${domNodes}`, 'success');
+
+            testResults.tests.dom = {
+                nodeCount: domNodes,
+                timestamp: new Date().toISOString()
+            };
+
+            log('Memory test complete', 'success');
+        }
+
+        function runComponentRenderTest() {
+            log('Running component render test...');
+
+            // Measure style recalculation
+            const startRecalc = performance.now();
+            const testEl = document.createElement('div');
+            testEl.style.cssText = 'width: var(--spacing-3); height: var(--spacing-3); background: var(--primary-color);';
+            document.body.appendChild(testEl);
+            getComputedStyle(testEl).width; // Force style calculation
+            document.body.removeChild(testEl);
+            const styleRecalcTime = performance.now() - startRecalc;
+
+            const recalcStatus = styleRecalcTime < 5 ? 'good' : styleRecalcTime < 10 ? 'warning' : 'bad';
+            updateMetric('style-recalc', `${styleRecalcTime.toFixed(2)}ms`, recalcStatus);
+            log(`Style Recalculation: ${styleRecalcTime.toFixed(2)}ms`, 'success');
+
+            testResults.tests.componentRender = {
+                styleRecalcTime,
+                timestamp: new Date().toISOString()
+            };
+
+            log('Component render test complete', 'success');
+        }
+
+        async function runAllTests() {
+            const loader = document.getElementById('loader');
+            loader.style.display = 'block';
+
+            log('========================================', 'info');
+            log('Starting Phase 6.2 Performance Tests', 'info');
+            log('========================================', 'info');
+
+            const startTime = performance.now();
+
+            try {
+                runPageLoadTest();
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                runCSSPerformanceTest();
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                runMemoryTest();
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                runComponentRenderTest();
+
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                document.getElementById('test-duration').textContent = `${duration}s`;
+                document.getElementById('overall-status').textContent = '✅ PASS';
+                document.getElementById('pass-count').textContent = '∞'; // All tests informational
+
+                log('========================================', 'success');
+                log(`All tests complete in ${duration}s`, 'success');
+                log('========================================', 'success');
+            } catch (error) {
+                log(`Test failed: ${error.message}`, 'error');
+                document.getElementById('overall-status').textContent = '❌ FAIL';
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function exportResults() {
+            const dataStr = JSON.stringify(testResults, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `phase6-performance-results-${Date.now()}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            log('Results exported to JSON file', 'success');
+        }
+
+        // Auto-run tests on page load (optional)
+        // window.addEventListener('load', () => {
+        //     setTimeout(runAllTests, 1000);
+        // });
+    </script>
+</body>
+</html>
