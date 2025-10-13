@@ -1,6 +1,5 @@
 ---
-description: 
-globs: *
+description: Применять при редактировании/изменении файлов исходного кода C#/razor/SQL
 alwaysApply: false
 ---
 # Общие правила написания кода

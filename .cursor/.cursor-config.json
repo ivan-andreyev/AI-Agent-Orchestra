@@ -1,0 +1,41 @@
+{
+  "tools": [
+    {
+      "name": "get_build_history",
+      "description": "Получить историю сборок для указанного типа сборки",
+      "implementation": {
+        "type": "http",
+        "method": "GET",
+        "baseUrl": "http://185.195.56.22:8111",
+        "endpoint": "/app/rest/builds",
+        "headers": {
+          "Authorization": "Bearer eyJ0eXAiOiAiVENWMiJ9.RXd5OWpZbHhadEExM2cyVVIxOS1pdl9JNXpJ.ZTY2N2VjZDAtYjdmNS00MDkzLTk4ODgtNDQ1OTYwNTYyMGNl",
+          "Accept": "application/json"
+        },
+        "queryParams": {
+          "locator": "buildType:${buildTypeId},count:${count}${branch ? ',branch:' + branch : ''}"
+        }
+      },
+      "parameters": {
+        "properties": {
+          "buildTypeId": {
+            "description": "ID типа сборки",
+            "type": "string",
+            "required": true
+          },
+          "branch": {
+            "description": "Имя ветки (опционально)",
+            "type": "string",
+            "required": false
+          },
+          "count": {
+            "description": "Количество сборок (по умолчанию 10)",
+            "type": "integer",
+            "required": false
+          }
+        },
+        "required": ["buildTypeId"]
+      }
+    }
+  ]
+} 

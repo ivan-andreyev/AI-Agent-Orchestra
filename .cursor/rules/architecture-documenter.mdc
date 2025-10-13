@@ -108,7 +108,7 @@ graph LR
 **Test Coverage**: XX%
 
 ### Actual Interface
-**File**: [Game.Framework/Services/ComponentService.cs:12-35](../src/...)
+**File**: [File.Framework/Services/ComponentService.cs:12-35](../src/...)
 ```csharp
 public interface IComponentService  // Line 12
 {
@@ -182,13 +182,13 @@ public interface IComponentService  // Line 12
 ```mermaid
 graph TB
     subgraph "Presentation Layer"
-        UI[Unity UI]
+        UI[UI]
         API[REST API]
     end
     
     subgraph "Business Layer"
-        FRAMEWORK[Game Framework]
-        SERVICES[Game Services]
+        FRAMEWORK[File Framework]
+        SERVICES[File Services]
     end
     
     subgraph "Data Layer"

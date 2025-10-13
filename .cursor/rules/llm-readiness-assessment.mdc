@@ -54,7 +54,7 @@ Get-ChildItem "Docs/PLAN" -Recurse -Filter "*.md" | ForEach-Object {
 
 ### 2️⃣ **File:Line Reference Coverage** (25% для существующего)
 - **Критерий**: ≥4 конкретные ссылки на файл
-- **Формат**: `Game.Framework/Domain/Component.cs:lines X-Y`
+- **Формат**: `Framework/Domain/Component.cs:lines X-Y`
 - **Целевое значение**: 90%+ файлов
 
 ```powershell
