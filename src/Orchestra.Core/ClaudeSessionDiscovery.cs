@@ -304,50 +304,38 @@ public class ClaudeSessionDiscovery
     {
         var history = new List<AgentHistoryEntry>();
 
-        Console.WriteLine($"GetAgentHistory called with sessionId: {sessionId}, maxEntries: {maxEntries}");
-
         if (string.IsNullOrEmpty(sessionId))
         {
-            Console.WriteLine("SessionId is null or empty, returning empty history");
             return history;
         }
 
         // Find the JSONL file for this session by searching recursively
         string? sessionFilePath = null;
 
-        Console.WriteLine($"Searching for session file in: {_claudeProjectsPath}");
-
         try
         {
             var sessionFiles = Directory.GetFiles(_claudeProjectsPath, $"{sessionId}.jsonl", SearchOption.AllDirectories);
-            Console.WriteLine($"Found {sessionFiles.Length} session files matching pattern {sessionId}.jsonl");
 
             if (sessionFiles.Length > 0)
             {
                 sessionFilePath = sessionFiles[0];
-                Console.WriteLine($"Using session file: {sessionFilePath}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error searching for session file: {ex.Message}");
             return history;
         }
 
         if (sessionFilePath == null)
         {
-            Console.WriteLine("No session file found, returning empty history");
             return history;
         }
 
         try
         {
-            Console.WriteLine($"Attempting to read last {maxEntries * 2} lines from file");
             var lastLines = ReadLastLines(sessionFilePath, maxEntries * 2); // Get more lines to filter properly
-            Console.WriteLine($"Read {lastLines.Count} lines from file");
 
             var processedLines = lastLines.TakeLast(maxEntries);
-            Console.WriteLine($"Processing {processedLines.Count()} lines");
 
             foreach (var line in processedLines)
             {

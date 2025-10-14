@@ -17,6 +17,8 @@ public class SimpleOrchestrator : IDisposable
     private readonly IClaudeCodeCoreService? _claudeCodeService;
     private readonly IAgentStateStore _agentStateStore;
     private readonly ILogger<SimpleOrchestrator>? _logger;
+    private readonly System.Threading.Timer? _assignmentTimer;
+    private readonly TimeSpan _assignmentInterval;
 
     public SimpleOrchestrator(IAgentStateStore agentStateStore, IClaudeCodeCoreService? claudeCodeService = null, string stateFilePath = "orchestrator-state.json", ILogger<SimpleOrchestrator>? logger = null)
     {
