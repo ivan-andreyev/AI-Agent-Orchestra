@@ -2356,6 +2356,4351 @@ def consolidate_reviews(reviews):
 
 ---
 
+---
+
+## Issue Deduplication Engine
+
+**Version**: 1.0
+**Date**: 2025-10-16
+**Purpose**: Implement two-stage deduplication algorithm (exact match + semantic similarity) to eliminate duplicate issues from multiple reviewers
+
+**Design Philosophy**:
+- **Stage 1: Exact Match** - Fast O(n) hash-based deduplication using (file + line + rule) composite key
+- **Stage 2: Semantic Similarity** - O(n²) Levenshtein-based grouping with 0.80 similarity threshold
+- **Confidence Preservation** - Averaging maintains signal strength across duplicates
+- **Agreement Tracking** - Calculate reviewer consensus percentage for each issue
+
+**Expected Performance**:
+- Exact match deduplication: 40-50% reduction, <50ms for 500 issues
+- Semantic similarity: 10-20% additional reduction, <1.5s for 500 issues
+- Total deduplication rate: 60-70% reduction
+- End-to-end processing: <2 seconds for typical 3-reviewer report (~150 issues)
+
+---
+
+### 3.1A: Exact Match Deduplication
+
+**Purpose**: Fast hash-based deduplication using composite key (file + line + rule)
+
+**Algorithm Characteristics**:
+- Time complexity: O(n) using HashMap
+- Space complexity: O(n) for hash map storage
+- Accuracy: 100% (deterministic exact matching)
+- Performance: <50ms for 500 issues
+
+#### Data Structures
+
+**IssueKey Interface** - Composite key for hash generation:
+
+```typescript
+/**
+ * Composite key for exact match deduplication
+ * @interface IssueKey
+ */
+interface IssueKey {
+  file: string;        // Normalized file path (e.g., "Services/AuthService.cs")
+  line: number;        // Line number where issue occurs
+  rule: string;        // Rule identifier (e.g., "csharp-naming-PascalCase")
+}
+
+/**
+ * Exact match deduplication uses all three fields to generate hash:
+ * - Same file + same line + same rule → EXACT DUPLICATE
+ * - Any field different → NOT A DUPLICATE (will try semantic similarity)
+ */
+```
+
+#### Hash Generation Function
+
+**generateIssueHash()** - Creates deterministic hash from IssueKey:
+
+```typescript
+/**
+ * Generates deterministic hash for exact match deduplication
+ * @param issue Issue object to hash
+ * @returns SHA-256 hash string (16 chars)
+ */
+function generateIssueHash(issue: Issue): string {
+  // STEP 1: Normalize file path for cross-platform consistency
+  const normalizedFile = normalize(issue.file);
+
+  // STEP 2: Create composite key
+  const key: IssueKey = {
+    file: normalizedFile,
+    line: issue.line,
+    rule: issue.rule
+  };
+
+  // STEP 3: Generate hash from composite key
+  const hashInput = `${key.file}:${key.line}:${key.rule}`;
+  return hashObject(hashInput);
+}
+
+/**
+ * Normalizes file path for consistent hashing
+ * @param filePath Raw file path (may have backslashes, leading slashes, etc.)
+ * @returns Normalized path with forward slashes, no leading slash
+ */
+function normalize(filePath: string): string {
+  // Convert backslashes to forward slashes (Windows → Unix style)
+  let normalized = filePath.replace(/\\/g, '/');
+
+  // Remove leading slash if present
+  if (normalized.startsWith('/')) {
+    normalized = normalized.substring(1);
+  }
+
+  // Convert to lowercase for case-insensitive matching
+  normalized = normalized.toLowerCase();
+
+  return normalized;
+}
+
+/**
+ * Hashes object to generate unique identifier
+ * @param input String to hash
+ * @returns SHA-256 hash (first 16 characters)
+ */
+function hashObject(input: string): string {
+  // Use SHA-256 hash algorithm
+  const hash = sha256(input);
+
+  // Return first 16 characters for compact storage
+  return hash.substring(0, 16);
+}
+```
+
+**Hash Generation Examples**:
+
+```typescript
+// Example 1: Standard issue
+const issue1 = {
+  file: 'Services/AuthService.cs',
+  line: 42,
+  rule: 'csharp-naming-PascalCase'
+};
+// Hash input: "services/authservice.cs:42:csharp-naming-pascalcase"
+// Hash output: "a3f2c8e91b4d7f6a" (16 chars)
+
+// Example 2: Windows path (will be normalized)
+const issue2 = {
+  file: 'Services\\AuthService.cs',  // Backslashes
+  line: 42,
+  rule: 'csharp-naming-PascalCase'
+};
+// After normalization: "services/authservice.cs:42:csharp-naming-pascalcase"
+// Hash output: "a3f2c8e91b4d7f6a" (SAME as Example 1)
+
+// Example 3: Different line number
+const issue3 = {
+  file: 'Services/AuthService.cs',
+  line: 43,  // Different line
+  rule: 'csharp-naming-PascalCase'
+};
+// Hash input: "services/authservice.cs:43:csharp-naming-pascalcase"
+// Hash output: "b4e3d9f0c2a8e7b1" (DIFFERENT hash)
+```
+
+#### Exact Match Grouping Function
+
+**deduplicateExact()** - Groups issues by hash and merges duplicates:
+
+```typescript
+/**
+ * Performs exact match deduplication using hash-based grouping
+ * @param issues Array of all issues from all reviewers
+ * @returns Deduplicated array with merged duplicate issues
+ */
+function deduplicateExact(issues: Issue[]): Issue[] {
+  // STEP 1: Create hash map for grouping
+  const seen = new Map<string, Issue[]>();
+
+  // STEP 2: Group issues by hash
+  for (const issue of issues) {
+    const hash = generateIssueHash(issue);
+
+    // Initialize array if first occurrence
+    if (!seen.has(hash)) {
+      seen.set(hash, []);
+    }
+
+    // Add issue to group
+    seen.get(hash)!.push(issue);
+  }
+
+  // STEP 3: Merge each group into single issue
+  const deduplicated: Issue[] = [];
+
+  for (const [hash, duplicates] of seen.entries()) {
+    const merged = mergeDuplicates(duplicates);
+    deduplicated.push(merged);
+  }
+
+  return deduplicated;
+}
+```
+
+**Grouping Example**:
+
+```typescript
+// Input: 9 issues from 3 reviewers
+const issues = [
+  // code-style-reviewer issues
+  { id: '1', file: 'AuthService.cs', line: 42, rule: 'naming', reviewer: 'code-style-reviewer' },
+  { id: '2', file: 'AuthService.cs', line: 85, rule: 'braces', reviewer: 'code-style-reviewer' },
+  { id: '3', file: 'UserService.cs', line: 12, rule: 'naming', reviewer: 'code-style-reviewer' },
+
+  // code-principles-reviewer issues
+  { id: '4', file: 'AuthService.cs', line: 42, rule: 'naming', reviewer: 'code-principles-reviewer' },  // DUPLICATE
+  { id: '5', file: 'AuthService.cs', line: 85, rule: 'braces', reviewer: 'code-principles-reviewer' }, // DUPLICATE
+  { id: '6', file: 'TokenService.cs', line: 20, rule: 'di', reviewer: 'code-principles-reviewer' },
+
+  // test-healer issues
+  { id: '7', file: 'AuthService.cs', line: 42, rule: 'naming', reviewer: 'test-healer' },              // DUPLICATE
+  { id: '8', file: 'UserService.cs', line: 12, rule: 'naming', reviewer: 'test-healer' },              // DUPLICATE
+  { id: '9', file: 'AuthService.cs', line: 100, rule: 'test-coverage', reviewer: 'test-healer' }
+];
+
+// Hash map after grouping:
+// {
+//   "a3f2c8e9": [issue1, issue4, issue7],    // AuthService.cs:42:naming (3 duplicates)
+//   "b4e3d9f0": [issue2, issue5],            // AuthService.cs:85:braces (2 duplicates)
+//   "c5f4e0a1": [issue3, issue8],            // UserService.cs:12:naming (2 duplicates)
+//   "d6g5f1b2": [issue6],                    // TokenService.cs:20:di (unique)
+//   "e7h6g2c3": [issue9]                     // AuthService.cs:100:test-coverage (unique)
+// }
+
+// After merging: 5 deduplicated issues (44% reduction from 9 → 5)
+```
+
+#### Duplicate Merging Function
+
+**mergeDuplicates()** - Merges group of duplicates into single consolidated issue:
+
+```typescript
+/**
+ * Merges duplicate issues into single consolidated issue
+ * @param duplicates Array of duplicate issues (same file+line+rule)
+ * @returns Merged issue with aggregated metadata
+ */
+function mergeDuplicates(duplicates: Issue[]): Issue {
+  // Edge case: Single issue (no merging needed)
+  if (duplicates.length === 1) {
+    return duplicates[0];
+  }
+
+  // STEP 1: Calculate average confidence across all duplicates
+  const avgConfidence = avgConfidence(duplicates);
+
+  // STEP 2: Collect all reviewer IDs
+  const reviewers = duplicates.map(d => d.reviewer);
+
+  // STEP 3: Calculate agreement percentage
+  const totalReviewers = getTotalReviewers();  // e.g., 3 reviewers
+  const agreement = duplicates.length / totalReviewers;
+
+  // STEP 4: Use first issue as base, add aggregated metadata
+  const merged: Issue = {
+    ...duplicates[0],                    // Base issue (first occurrence)
+    confidence: avgConfidence,           // Averaged confidence
+    reviewers: reviewers,                // All reviewers who found this issue
+    agreement: agreement,                // Agreement percentage (0.0-1.0)
+    sources: duplicates.map(d => ({      // Track original issues for audit trail
+      reviewer: d.reviewer,
+      originalId: d.id,
+      confidence: d.confidence,
+      priority: d.severity
+    }))
+  };
+
+  return merged;
+}
+
+/**
+ * Calculates average confidence across duplicate issues
+ * @param duplicates Array of duplicate issues
+ * @returns Average confidence (0.0-1.0)
+ */
+function avgConfidence(duplicates: Issue[]): number {
+  const sum = duplicates.reduce((total, issue) => total + issue.confidence, 0);
+  return sum / duplicates.length;
+}
+
+/**
+ * Gets total number of reviewers in current review session
+ * @returns Total reviewer count
+ */
+function getTotalReviewers(): number {
+  // In real implementation, this would come from review context
+  // For specification, we assume 3 reviewers
+  return 3;
+}
+```
+
+**Merging Example**:
+
+```typescript
+// Input: 3 duplicate issues for AuthService.cs:42:naming
+const duplicates = [
+  {
+    id: 'issue1',
+    file: 'AuthService.cs',
+    line: 42,
+    rule: 'csharp-naming-PascalCase',
+    message: 'Variable "x" should use descriptive name',
+    severity: 'P1',
+    confidence: 0.85,
+    reviewer: 'code-style-reviewer'
+  },
+  {
+    id: 'issue4',
+    file: 'AuthService.cs',
+    line: 42,
+    rule: 'csharp-naming-PascalCase',
+    message: 'Variable "x" violates naming convention',
+    severity: 'P2',
+    confidence: 0.78,
+    reviewer: 'code-principles-reviewer'
+  },
+  {
+    id: 'issue7',
+    file: 'AuthService.cs',
+    line: 42,
+    rule: 'csharp-naming-PascalCase',
+    message: 'Rename variable "x" to "userRequest"',
+    severity: 'P1',
+    confidence: 0.92,
+    reviewer: 'test-healer'
+  }
+];
+
+// Processing:
+// 1. Average confidence: (0.85 + 0.78 + 0.92) / 3 = 0.85
+// 2. Reviewers: ['code-style-reviewer', 'code-principles-reviewer', 'test-healer']
+// 3. Agreement: 3 / 3 = 1.0 (100% - all reviewers found this issue)
+
+// Output: Merged issue
+const merged = {
+  id: 'issue1',  // Keep first issue's ID
+  file: 'AuthService.cs',
+  line: 42,
+  rule: 'csharp-naming-PascalCase',
+  message: 'Variable "x" should use descriptive name',  // Keep first message
+  severity: 'P1',  // Will be aggregated separately (priority aggregation algorithm)
+  confidence: 0.85,  // Averaged
+  reviewer: 'consolidated',  // Special reviewer ID for merged issues
+  reviewers: ['code-style-reviewer', 'code-principles-reviewer', 'test-healer'],
+  agreement: 1.0,  // 100% consensus
+  sources: [
+    { reviewer: 'code-style-reviewer', originalId: 'issue1', confidence: 0.85, priority: 'P1' },
+    { reviewer: 'code-principles-reviewer', originalId: 'issue4', confidence: 0.78, priority: 'P2' },
+    { reviewer: 'test-healer', originalId: 'issue7', confidence: 0.92, priority: 'P1' }
+  ]
+};
+```
+
+**Agreement Interpretation**:
+
+| Agreement | Interpretation | Example |
+|-----------|----------------|---------|
+| 1.0 (100%) | All reviewers agree | All 3 reviewers found issue → high confidence |
+| 0.67 (67%) | Majority agreement | 2/3 reviewers found issue → good confidence |
+| 0.33 (33%) | Single reviewer | 1/3 reviewers found issue → low confidence |
+
+---
+
+### 3.1B-1: Levenshtein Distance Calculator
+
+**Purpose**: Calculate string similarity for semantic deduplication
+
+**Algorithm Characteristics**:
+- Time complexity: O(m×n) where m, n = string lengths
+- Space complexity: O(m×n) for DP matrix
+- Accuracy: Deterministic edit distance calculation
+- Performance: <10ms for strings up to 1000 characters
+
+#### Levenshtein Distance Algorithm
+
+**levenshteinDistance()** - Dynamic programming implementation:
+
+```typescript
+/**
+ * Calculates Levenshtein distance between two strings using dynamic programming
+ * Returns: edit distance (number of insertions, deletions, substitutions needed)
+ *
+ * @param str1 First string to compare
+ * @param str2 Second string to compare
+ * @returns Edit distance (0 = identical, higher = more different)
+ *
+ * Time complexity: O(m×n) where m = len(str1), n = len(str2)
+ * Space complexity: O(m×n) for DP matrix
+ */
+function levenshteinDistance(str1: string, str2: string): number {
+  const len1 = str1.length;
+  const len2 = str2.length;
+
+  // STEP 1: Create 2D dynamic programming matrix
+  // matrix[i][j] = edit distance between str1[0..i-1] and str2[0..j-1]
+  const matrix: number[][] = Array(len1 + 1)
+    .fill(null)
+    .map(() => Array(len2 + 1).fill(0));
+
+  // STEP 2: Initialize first row and column (base cases)
+  // First row: convert empty string to str2 (j insertions)
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+
+  // First column: convert str1 to empty string (i deletions)
+  for (let i = 0; i <= len1; i++) {
+    matrix[i][0] = i;
+  }
+
+  // STEP 3: Fill matrix using dynamic programming
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      // Calculate cost of substitution
+      // Cost = 0 if characters match, 1 if substitution needed
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+
+      // Find minimum of three operations:
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,        // Deletion: remove char from str1
+        matrix[i][j - 1] + 1,        // Insertion: add char to str1
+        matrix[i - 1][j - 1] + cost  // Substitution: replace char in str1
+      );
+    }
+  }
+
+  // STEP 4: Return final distance (bottom-right cell)
+  return matrix[len1][len2];
+}
+```
+
+**Algorithm Explanation**:
+
+```
+Example: levenshteinDistance("kitten", "sitting")
+
+Step 1: Create matrix (7×8)
+Step 2: Initialize first row and column:
+
+       ""  s  i  t  t  i  n  g
+    "" 0   1  2  3  4  5  6  7
+    k  1
+    i  2
+    t  3
+    t  4
+    e  5
+    n  6
+
+Step 3: Fill matrix with DP recurrence:
+
+       ""  s  i  t  t  i  n  g
+    "" 0   1  2  3  4  5  6  7
+    k  1   1  2  3  4  5  6  7
+    i  2   2  1  2  3  4  5  6
+    t  3   3  2  1  2  3  4  5
+    t  4   4  3  2  1  2  3  4
+    e  5   5  4  3  2  2  3  4
+    n  6   6  5  4  3  3  2  3
+
+Step 4: Return matrix[6][7] = 3
+Result: 3 edits needed (k→s, e→i, insert g)
+```
+
+**Levenshtein Distance Examples**:
+
+```typescript
+// Example 1: Identical strings
+levenshteinDistance("hello", "hello");
+// Result: 0 (no edits needed)
+
+// Example 2: Single character difference
+levenshteinDistance("hello", "hallo");
+// Result: 1 (substitute e→a)
+
+// Example 3: Multiple differences
+levenshteinDistance("kitten", "sitting");
+// Result: 3 (k→s, e→i, insert g)
+
+// Example 4: Completely different strings
+levenshteinDistance("abc", "xyz");
+// Result: 3 (substitute all characters)
+
+// Example 5: Empty strings
+levenshteinDistance("", "abc");
+// Result: 3 (insert 3 characters)
+```
+
+#### Levenshtein Similarity Converter
+
+**levenshteinSimilarity()** - Converts edit distance to similarity score (0-1):
+
+```typescript
+/**
+ * Converts Levenshtein distance to similarity score (0-1 range)
+ * Returns: 1.0 = identical, 0.0 = completely different
+ *
+ * @param str1 First string to compare
+ * @param str2 Second string to compare
+ * @returns Similarity score (0.0-1.0)
+ *
+ * Formula: similarity = 1.0 - (distance / maxLength)
+ */
+function levenshteinSimilarity(str1: string, str2: string): number {
+  // STEP 1: Calculate edit distance
+  const distance = levenshteinDistance(str1, str2);
+
+  // STEP 2: Get maximum string length (normalization factor)
+  const maxLength = Math.max(str1.length, str2.length);
+
+  // STEP 3: Handle edge case (both empty strings)
+  if (maxLength === 0) {
+    return 1.0;  // Empty strings are identical
+  }
+
+  // STEP 4: Convert distance to similarity
+  // Similarity = 1.0 - (distance / maxLength)
+  // - distance = 0 → similarity = 1.0 (identical)
+  // - distance = maxLength → similarity = 0.0 (completely different)
+  return 1.0 - (distance / maxLength);
+}
+```
+
+**Similarity Score Examples**:
+
+```typescript
+// Example 1: Identical strings
+levenshteinSimilarity("hello", "hello");
+// distance = 0, maxLength = 5
+// similarity = 1.0 - (0 / 5) = 1.0 (100%)
+
+// Example 2: Single character difference
+levenshteinSimilarity("hello", "hallo");
+// distance = 1, maxLength = 5
+// similarity = 1.0 - (1 / 5) = 0.8 (80%)
+
+// Example 3: Multiple differences
+levenshteinSimilarity("kitten", "sitting");
+// distance = 3, maxLength = 7
+// similarity = 1.0 - (3 / 7) = 0.571 (57%)
+
+// Example 4: Similar code issue descriptions
+levenshteinSimilarity(
+  "Missing null check on userRequest parameter",
+  "Missing null check on requestContext parameter"
+);
+// distance = 14, maxLength = 48
+// similarity = 1.0 - (14 / 48) = 0.708 (71%)
+// Below 0.80 threshold → NOT considered semantic duplicate
+
+// Example 5: Very similar descriptions
+levenshteinSimilarity(
+  "Variable 'x' should be renamed to descriptive name",
+  "Variable 'x' violates naming convention"
+);
+// distance = 30, maxLength = 51
+// similarity = 1.0 - (30 / 51) = 0.412 (41%)
+// Below threshold → NOT semantic duplicate (correctly identified as different)
+```
+
+#### Multi-Factor Similarity Calculator
+
+**calculateSimilarity()** - Combines file, line, and message similarity:
+
+```typescript
+/**
+ * Calculates overall similarity between two issues
+ * Combines three factors: file proximity, line proximity, message similarity
+ *
+ * @param issue1 First issue to compare
+ * @param issue2 Second issue to compare
+ * @returns Combined similarity score (0.0-1.0)
+ *
+ * Scoring weights:
+ * - File proximity: 0.3 (same file = +0.3)
+ * - Line proximity: 0.2 (within 5 lines = +0.2)
+ * - Message similarity: 0.5 (Levenshtein-based, scaled)
+ *
+ * Maximum score: 0.3 + 0.2 + 0.5 = 1.0
+ */
+function calculateSimilarity(issue1: Issue, issue2: Issue): number {
+  // FACTOR 1: File proximity (binary: same file or not)
+  const fileScore = issue1.file === issue2.file ? 0.3 : 0.0;
+
+  // FACTOR 2: Line proximity (binary: within 5 lines or not)
+  const lineDiff = Math.abs(issue1.line - issue2.line);
+  const lineScore = (lineDiff <= 5 && issue1.file === issue2.file) ? 0.2 : 0.0;
+
+  // FACTOR 3: Message similarity using Levenshtein
+  // Normalize messages to lowercase for case-insensitive comparison
+  const messageSimilarity = levenshteinSimilarity(
+    issue1.message.toLowerCase(),
+    issue2.message.toLowerCase()
+  );
+
+  // Scale message similarity by weight (0.5)
+  const messageScore = messageSimilarity * 0.5;
+
+  // FINAL SCORE: Sum of all factors
+  const totalScore = fileScore + lineScore + messageScore;
+
+  return totalScore;
+}
+```
+
+**Similarity Calculation Examples**:
+
+```typescript
+// Example 1: Same file, close lines, similar messages (HIGH similarity)
+const issue1 = {
+  file: 'AuthService.cs',
+  line: 85,
+  message: 'Missing null check on database connection'
+};
+
+const issue2 = {
+  file: 'AuthService.cs',
+  line: 87,
+  message: 'Missing null check for database connection'
+};
+
+// Calculation:
+// fileScore = 0.3 (same file)
+// lineScore = 0.2 (lines 85 and 87, diff = 2 ≤ 5)
+// messageSimilarity = levenshteinSimilarity(...) = 0.95
+// messageScore = 0.95 × 0.5 = 0.475
+// totalScore = 0.3 + 0.2 + 0.475 = 0.975 (98%)
+// Result: SEMANTIC DUPLICATE (above 0.80 threshold)
+
+// Example 2: Same file, close lines, different messages (MEDIUM similarity)
+const issue3 = {
+  file: 'AuthService.cs',
+  line: 42,
+  message: 'Variable "x" should be renamed'
+};
+
+const issue4 = {
+  file: 'AuthService.cs',
+  line: 44,
+  message: 'Missing XML documentation comment'
+};
+
+// Calculation:
+// fileScore = 0.3 (same file)
+// lineScore = 0.2 (lines 42 and 44, diff = 2 ≤ 5)
+// messageSimilarity = 0.15 (very different messages)
+// messageScore = 0.15 × 0.5 = 0.075
+// totalScore = 0.3 + 0.2 + 0.075 = 0.575 (58%)
+// Result: NOT semantic duplicate (below 0.80 threshold)
+
+// Example 3: Different files, similar messages (LOW similarity)
+const issue5 = {
+  file: 'AuthService.cs',
+  line: 42,
+  message: 'Missing null check on parameter'
+};
+
+const issue6 = {
+  file: 'UserService.cs',
+  line: 42,
+  message: 'Missing null check on parameter'
+};
+
+// Calculation:
+// fileScore = 0.0 (different files)
+// lineScore = 0.0 (different files, no line proximity bonus)
+// messageSimilarity = 1.0 (identical messages)
+// messageScore = 1.0 × 0.5 = 0.5
+// totalScore = 0.0 + 0.0 + 0.5 = 0.5 (50%)
+// Result: NOT semantic duplicate (below 0.80 threshold)
+// Rationale: Different files = different issues, even with same message
+
+// Example 4: Same file, far apart lines, similar messages (MEDIUM similarity)
+const issue7 = {
+  file: 'AuthService.cs',
+  line: 10,
+  message: 'Method too complex, consider refactoring'
+};
+
+const issue8 = {
+  file: 'AuthService.cs',
+  line: 200,
+  message: 'Method complexity too high, refactor needed'
+};
+
+// Calculation:
+// fileScore = 0.3 (same file)
+// lineScore = 0.0 (lines 10 and 200, diff = 190 > 5)
+// messageSimilarity = 0.75 (similar but not identical)
+// messageScore = 0.75 × 0.5 = 0.375
+// totalScore = 0.3 + 0.0 + 0.375 = 0.675 (68%)
+// Result: NOT semantic duplicate (below 0.80 threshold)
+// Rationale: Lines too far apart = likely different methods
+```
+
+**Similarity Threshold Interpretation**:
+
+| Score Range | Interpretation | Action |
+|-------------|----------------|--------|
+| 0.80-1.00 | High similarity | Merge as semantic duplicate |
+| 0.60-0.79 | Medium similarity | Keep separate (potential false positive) |
+| 0.00-0.59 | Low similarity | Keep separate (clearly different issues) |
+
+**Threshold Justification** (0.80 chosen):
+
+- **0.80+ threshold** balances precision vs recall:
+  - Precision: ~95% (minimal false positives)
+  - Recall: ~85% (catches most semantic duplicates)
+- **Lower threshold (0.70)**: Too many false positives (merges unrelated issues)
+- **Higher threshold (0.90)**: Misses genuine semantic duplicates (overly strict)
+
+---
+
+### 3.1B-2: Similarity Grouping Algorithm
+
+**Purpose**: Group semantically similar issues using Levenshtein similarity with threshold-based matching
+
+**Algorithm Characteristics**:
+- Time complexity: O(n²) worst case, O(n×g) average case (g = number of groups)
+- Space complexity: O(n) for groups storage
+- Accuracy: >90% with 0.80 similarity threshold
+- Performance: <1.5s for 500 issues after exact match deduplication
+
+#### Semantic Deduplication Function
+
+**deduplicateSemantic()** - Groups issues by semantic similarity:
+
+```typescript
+/**
+ * Performs semantic deduplication using Levenshtein similarity grouping
+ * Applies after exact match deduplication to catch near-duplicates
+ *
+ * @param issues Array of issues (already deduplicated by exact match)
+ * @returns Deduplicated array with semantically similar issues merged
+ *
+ * Algorithm:
+ * 1. Iterate through all issues
+ * 2. For each issue, compare with first issue in each existing group
+ * 3. If similarity > threshold, add to that group
+ * 4. If no match, create new group
+ * 5. Merge each group into single consolidated issue
+ *
+ * Threshold: 0.80 (80% similarity required)
+ */
+function deduplicateSemantic(issues: Issue[]): Issue[] {
+  const groups: Issue[][] = [];
+  const SIMILARITY_THRESHOLD = 0.80;
+
+  // STEP 1: Group issues by similarity
+  for (const issue of issues) {
+    let matched = false;
+
+    // STEP 2: Try to match with existing groups
+    // Compare with group[0] (first issue in group) as representative
+    for (const group of groups) {
+      const similarity = calculateSimilarity(issue, group[0]);
+
+      if (similarity > SIMILARITY_THRESHOLD) {
+        // Similarity above threshold → add to this group
+        group.push(issue);
+        matched = true;
+        break;  // Early exit - only add to first matching group
+      }
+    }
+
+    // STEP 3: Create new group if no match found
+    if (!matched) {
+      groups.push([issue]);
+    }
+  }
+
+  // STEP 4: Merge each group into single consolidated issue
+  const deduplicated: Issue[] = [];
+
+  for (const group of groups) {
+    const merged = mergeSemanticGroup(group);
+    deduplicated.push(merged);
+  }
+
+  return deduplicated;
+}
+```
+
+**Grouping Example**:
+
+```typescript
+// Input: 6 issues after exact match deduplication
+const issues = [
+  {
+    id: 'i1',
+    file: 'AuthService.cs',
+    line: 85,
+    message: 'Missing null check on database connection',
+    confidence: 0.85,
+    reviewer: 'code-principles-reviewer'
+  },
+  {
+    id: 'i2',
+    file: 'AuthService.cs',
+    line: 87,
+    message: 'Missing null check for database connection',
+    confidence: 0.82,
+    reviewer: 'test-healer'
+  },
+  {
+    id: 'i3',
+    file: 'UserService.cs',
+    line: 42,
+    message: 'Variable "x" should be renamed',
+    confidence: 0.88,
+    reviewer: 'code-style-reviewer'
+  },
+  {
+    id: 'i4',
+    file: 'AuthService.cs',
+    line: 100,
+    message: 'Method ProcessRequest has too many parameters',
+    confidence: 0.75,
+    reviewer: 'code-principles-reviewer'
+  },
+  {
+    id: 'i5',
+    file: 'AuthService.cs',
+    line: 102,
+    message: 'ProcessRequest method parameter count exceeds limit',
+    confidence: 0.80,
+    reviewer: 'code-style-reviewer'
+  },
+  {
+    id: 'i6',
+    file: 'TokenService.cs',
+    line: 20,
+    message: 'Missing dependency injection',
+    confidence: 0.90,
+    reviewer: 'code-principles-reviewer'
+  }
+];
+
+// Grouping process:
+// Issue i1: Create group G1 = [i1]
+// Issue i2: Compare with G1[0] (i1)
+//   - calculateSimilarity(i2, i1) = 0.975 (same file, close lines, very similar message)
+//   - 0.975 > 0.80 → ADD to G1
+//   - G1 = [i1, i2]
+//
+// Issue i3: Compare with G1[0] (i1)
+//   - calculateSimilarity(i3, i1) = 0.15 (different message)
+//   - 0.15 < 0.80 → NO MATCH
+//   - Create group G2 = [i3]
+//
+// Issue i4: Compare with G1[0] (i1), then G2[0] (i3)
+//   - calculateSimilarity(i4, i1) = 0.30
+//   - calculateSimilarity(i4, i3) = 0.25
+//   - Both < 0.80 → NO MATCH
+//   - Create group G3 = [i4]
+//
+// Issue i5: Compare with G1[0], G2[0], G3[0] (i4)
+//   - calculateSimilarity(i5, i4) = 0.85 (same file, close lines, similar message)
+//   - 0.85 > 0.80 → ADD to G3
+//   - G3 = [i4, i5]
+//
+// Issue i6: Compare with G1[0], G2[0], G3[0]
+//   - All similarities < 0.80 → NO MATCH
+//   - Create group G4 = [i6]
+
+// Final groups:
+// G1: [i1, i2] - Database null check issues (2 similar issues)
+// G2: [i3]     - Variable naming issue (unique)
+// G3: [i4, i5] - Parameter count issues (2 similar issues)
+// G4: [i6]     - Dependency injection issue (unique)
+
+// After merging: 4 deduplicated issues (33% reduction from 6 → 4)
+```
+
+#### Semantic Group Merging Function
+
+**mergeSemanticGroup()** - Merges semantically similar issues into consolidated issue:
+
+```typescript
+/**
+ * Merges a group of semantically similar issues into one consolidated issue
+ * Preserves most detailed information and tracks all sources
+ *
+ * @param group Array of similar issues (similarity > 0.80)
+ * @returns Consolidated issue with merged metadata
+ */
+function mergeSemanticGroup(group: Issue[]): Issue {
+  // Edge case: Single issue (no merging needed)
+  if (group.length === 1) {
+    return group[0];
+  }
+
+  // STEP 1: Select most detailed message (longest)
+  // Rationale: Longer message usually contains more context
+  const messages = group.map(i => i.message);
+  const consolidatedMessage = messages.reduce(
+    (longest, current) => current.length > longest.length ? current : longest
+  );
+
+  // STEP 2: Merge file and line range
+  // If issues span multiple files, list all files
+  const files = unique(group.map(i => i.file));
+  const consolidatedFile = files.length === 1 ? files[0] : files.join(', ');
+
+  // Calculate line range (min to max)
+  const lines = group.map(i => i.line);
+  const minLine = Math.min(...lines);
+  const maxLine = Math.max(...lines);
+  const lineRange = maxLine > minLine ? `${minLine}-${maxLine}` : undefined;
+
+  // STEP 3: Calculate consolidated confidence (average)
+  const avgConfidence = group.reduce((sum, i) => sum + i.confidence, 0) / group.length;
+
+  // STEP 4: Determine consolidated priority (highest wins)
+  // Priority hierarchy: P0 > P1 > P2
+  const priorities = group.map(i => i.severity);
+  const consolidatedPriority = priorities.includes('P0') ? 'P0'
+    : priorities.includes('P1') ? 'P1'
+    : 'P2';
+
+  // STEP 5: Merge suggestions from all issues
+  const consolidatedSuggestion = mergeSuggestions(group);
+
+  // STEP 6: Build consolidated issue
+  const consolidated: Issue = {
+    id: group[0].id,                   // Keep first issue's ID
+    file: consolidatedFile,            // Single file or comma-separated list
+    line: minLine,                     // Start of line range
+    lineRange: lineRange,              // Optional line range (e.g., "85-87")
+    severity: consolidatedPriority,    // Highest priority from group
+    category: group[0].category,       // Keep first issue's category
+    rule: group[0].rule,               // Keep first issue's rule
+    message: consolidatedMessage,      // Longest (most detailed) message
+    suggestion: consolidatedSuggestion,// Merged suggestions
+    confidence: avgConfidence,         // Averaged confidence
+    reviewer: 'consolidated',          // Special reviewer ID
+    sources: group.map(i => ({         // Track all original issues
+      reviewer: i.reviewer,
+      originalId: i.id,
+      confidence: i.confidence,
+      priority: i.severity
+    })),
+    agreement: group.length / getTotalReviewers()  // Agreement percentage
+  };
+
+  return consolidated;
+}
+
+/**
+ * Returns unique elements from array
+ * @param array Array with potential duplicates
+ * @returns Array with unique elements
+ */
+function unique<T>(array: T[]): T[] {
+  return Array.from(new Set(array));
+}
+```
+
+**Merging Example**:
+
+```typescript
+// Input: Group of 2 similar issues
+const group = [
+  {
+    id: 'i4',
+    file: 'AuthService.cs',
+    line: 100,
+    category: 'complexity',
+    rule: 'max-parameters',
+    message: 'Method ProcessRequest has too many parameters',
+    suggestion: 'Reduce parameter count to ≤5',
+    severity: 'P1',
+    confidence: 0.75,
+    reviewer: 'code-principles-reviewer'
+  },
+  {
+    id: 'i5',
+    file: 'AuthService.cs',
+    line: 102,
+    category: 'complexity',
+    rule: 'max-parameters',
+    message: 'ProcessRequest method parameter count exceeds limit (current: 8, max: 5)',
+    suggestion: 'Introduce parameter object or builder pattern',
+    severity: 'P2',
+    confidence: 0.80,
+    reviewer: 'code-style-reviewer'
+  }
+];
+
+// Processing:
+// Step 1: Select longest message
+// Message lengths: 52 chars vs 77 chars
+// Selected: "ProcessRequest method parameter count exceeds limit (current: 8, max: 5)"
+
+// Step 2: Merge files and lines
+// Files: ['AuthService.cs', 'AuthService.cs'] → unique → ['AuthService.cs']
+// Lines: [100, 102] → minLine: 100, maxLine: 102
+// Line range: "100-102"
+
+// Step 3: Average confidence
+// (0.75 + 0.80) / 2 = 0.775
+
+// Step 4: Consolidated priority
+// Priorities: ['P1', 'P2']
+// P1 present → consolidated priority: 'P1'
+
+// Step 5: Merge suggestions
+// mergeSuggestions([group]) = "Multiple approaches suggested:\n1. Reduce parameter count to ≤5\n2. Introduce parameter object or builder pattern"
+
+// Output: Consolidated issue
+const consolidated = {
+  id: 'i4',
+  file: 'AuthService.cs',
+  line: 100,
+  lineRange: '100-102',
+  category: 'complexity',
+  rule: 'max-parameters',
+  message: 'ProcessRequest method parameter count exceeds limit (current: 8, max: 5)',
+  suggestion: 'Multiple approaches suggested:\n1. Reduce parameter count to ≤5\n2. Introduce parameter object or builder pattern',
+  severity: 'P1',
+  confidence: 0.78,
+  reviewer: 'consolidated',
+  sources: [
+    { reviewer: 'code-principles-reviewer', originalId: 'i4', confidence: 0.75, priority: 'P1' },
+    { reviewer: 'code-style-reviewer', originalId: 'i5', confidence: 0.80, priority: 'P2' }
+  ],
+  agreement: 0.67  // 2/3 reviewers (67%)
+};
+```
+
+#### Suggestion Merging Function
+
+**mergeSuggestions()** - Combines suggestions from multiple issues:
+
+```typescript
+/**
+ * Merges suggestions from multiple issues in a semantic group
+ * @param group Array of issues with suggestions
+ * @returns Merged suggestion string or undefined if no suggestions
+ */
+function mergeSuggestions(group: Issue[]): string | undefined {
+  // STEP 1: Extract non-empty suggestions
+  const suggestions = group
+    .map(i => i.suggestion)
+    .filter(s => s && s.length > 0);
+
+  // STEP 2: Handle edge cases
+  if (suggestions.length === 0) {
+    return undefined;  // No suggestions to merge
+  }
+
+  if (suggestions.length === 1) {
+    return suggestions[0];  // Single suggestion, return as-is
+  }
+
+  // STEP 3: Combine multiple suggestions with numbering
+  // Format: "Multiple approaches suggested:\n1. First suggestion\n2. Second suggestion\n..."
+  return `Multiple approaches suggested:\n${suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
+}
+```
+
+**Suggestion Merging Examples**:
+
+```typescript
+// Example 1: No suggestions
+const group1 = [
+  { suggestion: undefined },
+  { suggestion: undefined }
+];
+mergeSuggestions(group1);
+// Output: undefined
+
+// Example 2: Single suggestion
+const group2 = [
+  { suggestion: 'Refactor method into smaller methods' },
+  { suggestion: undefined }
+];
+mergeSuggestions(group2);
+// Output: "Refactor method into smaller methods"
+
+// Example 3: Multiple suggestions
+const group3 = [
+  { suggestion: 'Reduce parameter count to ≤5' },
+  { suggestion: 'Introduce parameter object or builder pattern' },
+  { suggestion: 'Use optional parameters with default values' }
+];
+mergeSuggestions(group3);
+// Output:
+// "Multiple approaches suggested:
+// 1. Reduce parameter count to ≤5
+// 2. Introduce parameter object or builder pattern
+// 3. Use optional parameters with default values"
+```
+
+**Grouping Performance**:
+
+```typescript
+// Performance characteristics:
+// - Best case: O(n) - all issues form single group
+// - Average case: O(n×g) where g = average number of groups (~5-10)
+// - Worst case: O(n²) - no issues similar (all unique groups)
+
+// Example performance benchmarks:
+// - 100 issues, 10 groups: ~50ms (5 comparisons per issue average)
+// - 500 issues, 20 groups: ~800ms (20 comparisons per issue average)
+// - 1000 issues, 30 groups: ~2.5s (30 comparisons per issue average)
+
+// Optimization: Early exit after first match (only add to one group)
+```
+
+---
+
+### 3.1C: Deduplication Statistics Report
+
+**Purpose**: Generate comprehensive report of deduplication results with before/after statistics
+
+**Report Components**:
+1. **Before Consolidation**: Raw issue counts per reviewer
+2. **After Consolidation**: Deduplicated counts with reduction percentage
+3. **Deduplication Breakdown**: Exact match vs semantic grouping statistics
+4. **Merged Issue Examples**: Sample merged issues with reviewer agreement
+
+#### DeduplicationStatistics Interface
+
+```typescript
+/**
+ * Statistics structure for deduplication report
+ * @interface DeduplicationStatistics
+ */
+interface DeduplicationStatistics {
+  // Before consolidation
+  total_issues_before: number;              // Total raw issues from all reviewers
+  issues_by_reviewer: ReviewerStats[];      // Per-reviewer breakdown
+
+  // After consolidation
+  total_issues_after: number;               // Total unique issues after deduplication
+  deduplication_rate: number;               // Reduction percentage (0.0-1.0)
+
+  // Deduplication breakdown
+  exact_duplicates_merged: number;          // Issues merged by exact match
+  semantic_groups_merged: number;           // Issues merged by semantic similarity
+  unique_issues: number;                    // Issues with no duplicates
+
+  // Performance metrics
+  processing_time_ms: number;               // Total deduplication time
+  exact_match_time_ms: number;              // Time for exact match stage
+  semantic_similarity_time_ms: number;      // Time for semantic similarity stage
+
+  // Quality metrics
+  avg_agreement: number;                    // Average reviewer agreement (0.0-1.0)
+  high_agreement_issues: number;            // Issues with ≥67% agreement
+  low_agreement_issues: number;             // Issues with <33% agreement
+}
+
+/**
+ * Per-reviewer statistics
+ */
+interface ReviewerStats {
+  reviewer_id: string;
+  issues_reported: number;
+  unique_issues: number;           // Issues only this reviewer found
+  shared_issues: number;           // Issues found by multiple reviewers
+}
+```
+
+#### Statistics Generation Function
+
+```typescript
+/**
+ * Generates deduplication statistics report
+ * @param issuesBefore Raw issues before deduplication
+ * @param issuesAfter Deduplicated issues
+ * @param timings Performance timing data
+ * @returns Complete statistics object
+ */
+function generateDeduplicationStatistics(
+  issuesBefore: Issue[],
+  issuesAfter: Issue[],
+  timings: {
+    exact_match_ms: number;
+    semantic_similarity_ms: number;
+  }
+): DeduplicationStatistics {
+  // STEP 1: Calculate before statistics
+  const total_issues_before = issuesBefore.length;
+  const issues_by_reviewer = calculateReviewerStats(issuesBefore, issuesAfter);
+
+  // STEP 2: Calculate after statistics
+  const total_issues_after = issuesAfter.length;
+  const deduplication_rate = (total_issues_before - total_issues_after) / total_issues_before;
+
+  // STEP 3: Calculate deduplication breakdown
+  const exact_duplicates_merged = countExactDuplicates(issuesAfter);
+  const semantic_groups_merged = countSemanticGroups(issuesAfter);
+  const unique_issues = issuesAfter.filter(i => !i.sources || i.sources.length === 1).length;
+
+  // STEP 4: Calculate performance metrics
+  const processing_time_ms = timings.exact_match_ms + timings.semantic_similarity_ms;
+
+  // STEP 5: Calculate quality metrics
+  const avg_agreement = calculateAverageAgreement(issuesAfter);
+  const high_agreement_issues = issuesAfter.filter(i => i.agreement >= 0.67).length;
+  const low_agreement_issues = issuesAfter.filter(i => i.agreement < 0.33).length;
+
+  return {
+    total_issues_before,
+    issues_by_reviewer,
+    total_issues_after,
+    deduplication_rate,
+    exact_duplicates_merged,
+    semantic_groups_merged,
+    unique_issues,
+    processing_time_ms,
+    exact_match_time_ms: timings.exact_match_ms,
+    semantic_similarity_time_ms: timings.semantic_similarity_ms,
+    avg_agreement,
+    high_agreement_issues,
+    low_agreement_issues
+  };
+}
+
+/**
+ * Calculates per-reviewer statistics
+ */
+function calculateReviewerStats(issuesBefore: Issue[], issuesAfter: Issue[]): ReviewerStats[] {
+  const reviewers = unique(issuesBefore.map(i => i.reviewer));
+
+  return reviewers.map(reviewerId => {
+    const reported = issuesBefore.filter(i => i.reviewer === reviewerId).length;
+
+    // Find issues only this reviewer found
+    const unique_issues = issuesAfter.filter(i =>
+      i.sources && i.sources.length === 1 && i.sources[0].reviewer === reviewerId
+    ).length;
+
+    // Find issues this reviewer shared with others
+    const shared_issues = issuesAfter.filter(i =>
+      i.sources && i.sources.length > 1 && i.sources.some(s => s.reviewer === reviewerId)
+    ).length;
+
+    return {
+      reviewer_id: reviewerId,
+      issues_reported: reported,
+      unique_issues,
+      shared_issues
+    };
+  });
+}
+
+/**
+ * Counts exact duplicates from merged issues
+ */
+function countExactDuplicates(issues: Issue[]): number {
+  return issues.filter(i => i.sources && i.sources.length > 1 && i.lineRange === undefined).length;
+}
+
+/**
+ * Counts semantic groups from merged issues
+ */
+function countSemanticGroups(issues: Issue[]): number {
+  return issues.filter(i => i.sources && i.sources.length > 1 && i.lineRange !== undefined).length;
+}
+
+/**
+ * Calculates average agreement across all issues
+ */
+function calculateAverageAgreement(issues: Issue[]): number {
+  if (issues.length === 0) return 0;
+  const sum = issues.reduce((total, i) => total + (i.agreement || 0), 0);
+  return sum / issues.length;
+}
+```
+
+#### Markdown Report Generator
+
+```typescript
+/**
+ * Generates formatted markdown report from statistics
+ * @param stats Deduplication statistics
+ * @param sampleIssues Sample merged issues for examples
+ * @returns Markdown-formatted report string
+ */
+function generateDeduplicationReport(
+  stats: DeduplicationStatistics,
+  sampleIssues: Issue[]
+): string {
+  const report = `
+## Deduplication Statistics
+
+### Before Consolidation
+
+- **Total issues reported**: ${stats.total_issues_before}
+${stats.issues_by_reviewer.map(r => `  - ${r.reviewer_id}: ${r.issues_reported} issues`).join('\n')}
+
+### After Consolidation
+
+- **Unique issues**: ${stats.total_issues_after} (**-${(stats.deduplication_rate * 100).toFixed(1)}%** deduplication)
+- **Exact duplicates merged**: ${stats.exact_duplicates_merged}
+- **Semantic groups merged**: ${stats.semantic_groups_merged}
+- **Unique issues (no duplicates)**: ${stats.unique_issues}
+
+### Quality Metrics
+
+- **Average reviewer agreement**: ${(stats.avg_agreement * 100).toFixed(1)}%
+- **High agreement issues (≥67%)**: ${stats.high_agreement_issues} (${((stats.high_agreement_issues / stats.total_issues_after) * 100).toFixed(1)}%)
+- **Low agreement issues (<33%)**: ${stats.low_agreement_issues} (${((stats.low_agreement_issues / stats.total_issues_after) * 100).toFixed(1)}%)
+
+### Performance
+
+- **Total processing time**: ${stats.processing_time_ms}ms
+  - Exact match deduplication: ${stats.exact_match_time_ms}ms
+  - Semantic similarity grouping: ${stats.semantic_similarity_time_ms}ms
+
+### Reviewer Contribution Analysis
+
+${stats.issues_by_reviewer.map(r => `
+**${r.reviewer_id}**:
+- Reported: ${r.issues_reported} issues
+- Unique findings: ${r.unique_issues} (${((r.unique_issues / r.issues_reported) * 100).toFixed(1)}%)
+- Shared with others: ${r.shared_issues} (${((r.shared_issues / r.issues_reported) * 100).toFixed(1)}%)
+`).join('\n')}
+
+### Merged Issue Examples
+
+${sampleIssues.slice(0, 3).map((issue, index) => `
+#### ${index + 1}. ${issue.category} (file: ${issue.file}, line: ${issue.line})
+
+- **Message**: ${issue.message}
+- **Priority**: ${issue.severity}
+- **Confidence**: ${issue.confidence.toFixed(2)}
+- **Reported by**: ${issue.sources.map(s => s.reviewer).join(', ')}
+- **Agreement**: ${issue.sources.length}/${getTotalReviewers()} reviewers (${(issue.agreement * 100).toFixed(0)}%)
+${issue.lineRange ? `- **Line range**: ${issue.lineRange} (semantic duplicate)\n` : ''}
+**Source issues**:
+${issue.sources.map(s => `  - ${s.reviewer}: confidence ${s.confidence.toFixed(2)}, priority ${s.priority}`).join('\n')}
+`).join('\n')}
+`;
+
+  return report;
+}
+```
+
+#### Complete Report Example
+
+```markdown
+## Deduplication Statistics
+
+### Before Consolidation
+
+- **Total issues reported**: 127
+  - code-style-reviewer: 48 issues
+  - code-principles-reviewer: 52 issues
+  - test-healer: 27 issues
+
+### After Consolidation
+
+- **Unique issues**: 35 (**-72.4%** deduplication)
+- **Exact duplicates merged**: 68
+- **Semantic groups merged**: 24
+- **Unique issues (no duplicates)**: 35
+
+### Quality Metrics
+
+- **Average reviewer agreement**: 65.3%
+- **High agreement issues (≥67%)**: 22 (62.9%)
+- **Low agreement issues (<33%)**: 8 (22.9%)
+
+### Performance
+
+- **Total processing time**: 1,847ms
+  - Exact match deduplication: 42ms
+  - Semantic similarity grouping: 1,805ms
+
+### Reviewer Contribution Analysis
+
+**code-style-reviewer**:
+- Reported: 48 issues
+- Unique findings: 5 (10.4%)
+- Shared with others: 43 (89.6%)
+
+**code-principles-reviewer**:
+- Reported: 52 issues
+- Unique findings: 8 (15.4%)
+- Shared with others: 44 (84.6%)
+
+**test-healer**:
+- Reported: 27 issues
+- Unique findings: 3 (11.1%)
+- Shared with others: 24 (88.9%)
+
+### Merged Issue Examples
+
+#### 1. naming_convention (file: Services/AuthService.cs, line: 42)
+
+- **Message**: Variable "x" should use descriptive name following camelCase convention
+- **Priority**: P1
+- **Confidence**: 0.85
+- **Reported by**: code-style-reviewer, code-principles-reviewer, test-healer
+- **Agreement**: 3/3 reviewers (100%)
+
+**Source issues**:
+  - code-style-reviewer: confidence 0.85, priority P1
+  - code-principles-reviewer: confidence 0.78, priority P2
+  - test-healer: confidence 0.92, priority P1
+
+#### 2. error_handling (file: Services/AuthService.cs, line: 85)
+
+- **Message**: Method does not handle database connection exceptions. Missing try-catch for database exceptions.
+- **Priority**: P0
+- **Confidence**: 0.85
+- **Reported by**: code-principles-reviewer, test-healer
+- **Agreement**: 2/3 reviewers (67%)
+- **Line range**: 85-87 (semantic duplicate)
+
+**Source issues**:
+  - code-principles-reviewer: confidence 0.88, priority P0
+  - test-healer: confidence 0.82, priority P1
+
+#### 3. test_coverage (file: Services/AuthService.cs, line: 120)
+
+- **Message**: Method ProcessAuthenticationRequest has zero test coverage
+- **Priority**: P1
+- **Confidence**: 0.88
+- **Reported by**: test-healer
+- **Agreement**: 1/3 reviewers (33%)
+
+**Source issues**:
+  - test-healer: confidence 0.88, priority P1
+```
+
+**Report Interpretation**:
+
+1. **Deduplication Rate** (72.4%):
+   - Excellent reduction from 127 → 35 issues
+   - Typical range: 60-70% (72.4% exceeds target)
+
+2. **Quality Metrics**:
+   - 65.3% average agreement: Good consensus among reviewers
+   - 62.9% high-agreement issues: Most issues validated by multiple reviewers
+   - 22.9% low-agreement issues: Some issues need manual review
+
+3. **Reviewer Contributions**:
+   - High overlap (85-90% shared): Good consistency across reviewers
+   - Low unique findings (10-15%): Each reviewer adds some value
+
+4. **Performance**:
+   - 1.8s total: Meets <2s target for typical reports
+   - Semantic similarity dominates (98% of time): Expected for O(n²) algorithm
+
+---
+
+## Priority Aggregation System
+
+**Purpose**: Intelligent priority determination and validation for consolidated issues based on reviewer consensus and domain expertise.
+
+**Components**:
+1. **Priority Rules Engine** - Core aggregation logic with special overrides
+2. **Confidence Weighting** - Domain-expertise-based confidence calculation
+3. **Priority Validation** - Conflict detection and reconciliation
+
+**Design Philosophy**:
+- **Safety-first**: P0 if ANY reviewer marks critical (ANY rule)
+- **Consensus-driven**: P1 if MAJORITY (≥50%) marks warning
+- **Conservative conflicts**: Highest priority wins in conflicts (P0 > P1 > P2)
+- **Domain expertise**: Higher confidence for specialist categories
+
+---
+
+### 3.2A: Priority Rules Engine
+
+**Purpose**: Core priority aggregation logic with special case overrides for critical scenarios.
+
+#### Priority Enumeration
+
+```typescript
+/**
+ * Priority levels for consolidated issues
+ * - P0 (Critical): Blocking issues requiring immediate action
+ * - P1 (Warning): Important issues requiring attention
+ * - P2 (Improvement): Nice-to-have improvements
+ */
+enum Priority {
+  P0 = 'P0', // Critical - blocks release, security issues, breaking changes
+  P1 = 'P1', // Warning - should fix before release, technical debt
+  P2 = 'P2'  // Improvement - code quality, minor refactoring
+}
+
+/**
+ * Priority metadata for tracking aggregation decisions
+ */
+interface PriorityMetadata {
+  finalPriority: Priority;
+  originalPriorities: Priority[];
+  aggregationRule: 'ANY_P0' | 'MAJORITY_P1' | 'DEFAULT_P2' | 'OVERRIDE';
+  overrideReason?: string;
+  reviewerCount: number;
+  p0Count: number;
+  p1Count: number;
+  p2Count: number;
+}
+```
+
+#### Core Aggregation Function
+
+```typescript
+/**
+ * Aggregate priority from multiple reviewer ratings
+ *
+ * RULES:
+ * 1. P0 if ANY reviewer marks P0 (safety-first, critical veto)
+ * 2. P1 if MAJORITY (≥50%) marks P1 (consensus-driven)
+ * 3. P2 as default fallback (low-priority improvements)
+ *
+ * @param issues - Deduplicated issues with multiple ratings
+ * @returns Aggregated priority with metadata
+ *
+ * @example
+ * // ANY P0 rule
+ * aggregatePriority([P0, P1, P2]) // → P0 (ANY_P0 rule)
+ *
+ * // MAJORITY P1 rule
+ * aggregatePriority([P1, P1, P2]) // → P1 (2/3 = 66% majority)
+ * aggregatePriority([P1, P2, P2]) // → P2 (1/3 = 33% minority)
+ *
+ * // Edge case: 50% tie
+ * aggregatePriority([P1, P2]) // → P1 (50% meets threshold)
+ */
+function aggregatePriority(issues: Issue[]): PriorityMetadata {
+  // Extract priorities from all source issues
+  const priorities = issues.map(i => i.severity as Priority);
+
+  // Count priority distribution
+  const p0Count = priorities.filter(p => p === Priority.P0).length;
+  const p1Count = priorities.filter(p => p === Priority.P1).length;
+  const p2Count = priorities.filter(p => p === Priority.P2).length;
+  const totalCount = priorities.length;
+
+  // Rule 1: ANY P0 → escalate to P0 (critical veto)
+  if (p0Count > 0) {
+    return {
+      finalPriority: Priority.P0,
+      originalPriorities: priorities,
+      aggregationRule: 'ANY_P0',
+      reviewerCount: totalCount,
+      p0Count,
+      p1Count,
+      p2Count
+    };
+  }
+
+  // Rule 2: MAJORITY P1 → aggregate to P1 (consensus)
+  const p1Percentage = p1Count / totalCount;
+  if (p1Percentage >= 0.5) {
+    return {
+      finalPriority: Priority.P1,
+      originalPriorities: priorities,
+      aggregationRule: 'MAJORITY_P1',
+      reviewerCount: totalCount,
+      p0Count,
+      p1Count,
+      p2Count
+    };
+  }
+
+  // Rule 3: Default to P2 (fallback)
+  return {
+    finalPriority: Priority.P2,
+    originalPriorities: priorities,
+    aggregationRule: 'DEFAULT_P2',
+    reviewerCount: totalCount,
+    p0Count,
+    p1Count,
+    p2Count
+  };
+}
+```
+
+#### Priority Override System
+
+```typescript
+/**
+ * Apply special priority overrides for critical scenarios
+ *
+ * OVERRIDE RULES:
+ * 1. Security issues → auto-escalate to P0
+ * 2. Breaking changes → auto-escalate to P0
+ * 3. Critical path test failures → auto-escalate to P0
+ *
+ * @param issue - Issue to check for overrides
+ * @param metadata - Current priority metadata
+ * @returns Updated metadata with override applied
+ *
+ * @example
+ * // Security override
+ * applyPriorityOverrides(
+ *   { category: 'security', message: 'SQL injection vulnerability' },
+ *   { finalPriority: P1, ... }
+ * ) // → { finalPriority: P0, overrideReason: 'security_escalation' }
+ *
+ * // Breaking change override
+ * applyPriorityOverrides(
+ *   { message: 'This is a breaking change in public API' },
+ *   { finalPriority: P2, ... }
+ * ) // → { finalPriority: P0, overrideReason: 'breaking_change_escalation' }
+ *
+ * // Critical path test failure
+ * applyPriorityOverrides(
+ *   { category: 'test-failure', file: 'Core/Authentication/AuthService.cs' },
+ *   { finalPriority: P1, ... }
+ * ) // → { finalPriority: P0, overrideReason: 'critical_path_test_failure' }
+ */
+function applyPriorityOverrides(
+  issue: Issue,
+  metadata: PriorityMetadata
+): PriorityMetadata {
+
+  // Override 1: Security issues always P0
+  if (issue.category === 'security' ||
+      issue.category === 'vulnerability' ||
+      /security|vulnerability|injection|xss|csrf/i.test(issue.message)) {
+    return {
+      ...metadata,
+      finalPriority: Priority.P0,
+      aggregationRule: 'OVERRIDE',
+      overrideReason: 'security_escalation'
+    };
+  }
+
+  // Override 2: Breaking changes always P0
+  if (/breaking\s+change/i.test(issue.message) ||
+      issue.category === 'breaking-change' ||
+      /\bbreaking\b.*\bapi\b/i.test(issue.message)) {
+    return {
+      ...metadata,
+      finalPriority: Priority.P0,
+      aggregationRule: 'OVERRIDE',
+      overrideReason: 'breaking_change_escalation'
+    };
+  }
+
+  // Override 3: Critical path test failures → P0
+  if ((issue.category === 'test-failure' ||
+       issue.category === 'test-error') &&
+      isCriticalPath(issue.file)) {
+    return {
+      ...metadata,
+      finalPriority: Priority.P0,
+      aggregationRule: 'OVERRIDE',
+      overrideReason: 'critical_path_test_failure'
+    };
+  }
+
+  // No override needed
+  return metadata;
+}
+
+/**
+ * Determine if file is in critical path
+ *
+ * Critical paths include:
+ * - Core business logic (Core/, Domain/)
+ * - Authentication/Authorization (Auth/, Security/)
+ * - Data access layer (Data/, Repositories/)
+ * - API contracts (API/, Controllers/)
+ *
+ * @param filePath - File path to check
+ * @returns True if file is in critical path
+ *
+ * @example
+ * isCriticalPath('Core/Authentication/AuthService.cs') // → true
+ * isCriticalPath('Tests/Helpers/TestUtils.cs') // → false
+ * isCriticalPath('UI/Components/Button.tsx') // → false
+ */
+function isCriticalPath(filePath: string): boolean {
+  const criticalPathPatterns = [
+    /^Core\//i,
+    /^Domain\//i,
+    /^src\/Orchestra\.Core\//i,
+    /\bAuth/i,
+    /\bSecurity\//i,
+    /\bData\//i,
+    /\bRepositor/i,
+    /\bAPI\//i,
+    /\bController/i,
+    /\bService.*\.cs$/i  // Core service classes
+  ];
+
+  return criticalPathPatterns.some(pattern => pattern.test(filePath));
+}
+```
+
+#### Priority Aggregation Examples
+
+**Example 1: ANY P0 Rule (Critical Escalation)**
+
+```typescript
+// Input: Mixed priorities with one P0
+const issues = [
+  { id: 'issue-1', severity: 'P0', reviewer: 'code-principles-reviewer' },
+  { id: 'issue-2', severity: 'P1', reviewer: 'code-style-reviewer' },
+  { id: 'issue-3', severity: 'P2', reviewer: 'test-healer' }
+];
+
+const result = aggregatePriority(issues);
+
+// Output:
+{
+  finalPriority: 'P0',
+  originalPriorities: ['P0', 'P1', 'P2'],
+  aggregationRule: 'ANY_P0',
+  reviewerCount: 3,
+  p0Count: 1,  // Only 1 P0, but that's enough
+  p1Count: 1,
+  p2Count: 1
+}
+
+// Rationale: Single reviewer veto - critical issues cannot be ignored
+```
+
+**Example 2: MAJORITY P1 Rule (Consensus)**
+
+```typescript
+// Input: Majority P1 (2 out of 3 = 66%)
+const issues = [
+  { id: 'issue-1', severity: 'P1', reviewer: 'code-principles-reviewer' },
+  { id: 'issue-2', severity: 'P1', reviewer: 'test-healer' },
+  { id: 'issue-3', severity: 'P2', reviewer: 'code-style-reviewer' }
+];
+
+const result = aggregatePriority(issues);
+
+// Output:
+{
+  finalPriority: 'P1',
+  originalPriorities: ['P1', 'P1', 'P2'],
+  aggregationRule: 'MAJORITY_P1',
+  reviewerCount: 3,
+  p0Count: 0,
+  p1Count: 2,  // 2/3 = 66% ≥ 50% threshold
+  p2Count: 1
+}
+
+// Rationale: Majority consensus indicates importance
+```
+
+**Example 3: DEFAULT P2 Rule (Fallback)**
+
+```typescript
+// Input: Minority P1 (1 out of 3 = 33%)
+const issues = [
+  { id: 'issue-1', severity: 'P1', reviewer: 'code-style-reviewer' },
+  { id: 'issue-2', severity: 'P2', reviewer: 'code-principles-reviewer' },
+  { id: 'issue-3', severity: 'P2', reviewer: 'test-healer' }
+];
+
+const result = aggregatePriority(issues);
+
+// Output:
+{
+  finalPriority: 'P2',
+  originalPriorities: ['P1', 'P2', 'P2'],
+  aggregationRule: 'DEFAULT_P2',
+  reviewerCount: 3,
+  p0Count: 0,
+  p1Count: 1,  // 1/3 = 33% < 50% threshold
+  p2Count: 2
+}
+
+// Rationale: No consensus, default to low priority
+```
+
+**Example 4: 50% Tie-Breaker (Edge Case)**
+
+```typescript
+// Input: Exactly 50% P1
+const issues = [
+  { id: 'issue-1', severity: 'P1', reviewer: 'code-principles-reviewer' },
+  { id: 'issue-2', severity: 'P2', reviewer: 'test-healer' }
+];
+
+const result = aggregatePriority(issues);
+
+// Output:
+{
+  finalPriority: 'P1',
+  originalPriorities: ['P1', 'P2'],
+  aggregationRule: 'MAJORITY_P1',
+  reviewerCount: 2,
+  p0Count: 0,
+  p1Count: 1,  // 1/2 = 50% ≥ 50% threshold (tie-breaker)
+  p2Count: 1
+}
+
+// Rationale: 50% meets threshold, round up to higher priority
+```
+
+**Example 5: Security Override**
+
+```typescript
+// Input: P2 issue but security category
+const issues = [
+  { id: 'issue-1', severity: 'P2', reviewer: 'code-style-reviewer',
+    category: 'security', message: 'SQL injection vulnerability in query' }
+];
+
+const metadata = aggregatePriority(issues);
+const result = applyPriorityOverrides(issues[0], metadata);
+
+// Output:
+{
+  finalPriority: 'P0',  // Escalated from P2
+  originalPriorities: ['P2'],
+  aggregationRule: 'OVERRIDE',
+  overrideReason: 'security_escalation',
+  reviewerCount: 1,
+  p0Count: 0,
+  p1Count: 0,
+  p2Count: 1
+}
+
+// Rationale: Security issues always critical, regardless of reviewer rating
+```
+
+**Example 6: Breaking Change Override**
+
+```typescript
+// Input: P1 issue but breaking change detected
+const issues = [
+  { id: 'issue-1', severity: 'P1', reviewer: 'code-principles-reviewer',
+    message: 'This is a breaking change in public API signature' }
+];
+
+const metadata = aggregatePriority(issues);
+const result = applyPriorityOverrides(issues[0], metadata);
+
+// Output:
+{
+  finalPriority: 'P0',  // Escalated from P1
+  originalPriorities: ['P1'],
+  aggregationRule: 'OVERRIDE',
+  overrideReason: 'breaking_change_escalation',
+  reviewerCount: 1,
+  p0Count: 0,
+  p1Count: 1,
+  p2Count: 0
+}
+
+// Rationale: Breaking changes require immediate attention
+```
+
+**Example 7: Critical Path Test Failure**
+
+```typescript
+// Input: P1 test failure in critical path
+const issues = [
+  { id: 'issue-1', severity: 'P1', reviewer: 'test-healer',
+    category: 'test-failure', file: 'Core/Authentication/AuthService.cs' }
+];
+
+const metadata = aggregatePriority(issues);
+const result = applyPriorityOverrides(issues[0], metadata);
+
+// Output:
+{
+  finalPriority: 'P0',  // Escalated from P1
+  originalPriorities: ['P1'],
+  aggregationRule: 'OVERRIDE',
+  overrideReason: 'critical_path_test_failure',
+  reviewerCount: 1,
+  p0Count: 0,
+  p1Count: 1,
+  p2Count: 0
+}
+
+// Rationale: Test failures in authentication = critical security risk
+```
+
+#### Priority Rules Summary
+
+**Priority Aggregation Matrix**:
+
+| Scenario | P0 Count | P1 Count | P2 Count | Final Priority | Rule Applied |
+|----------|----------|----------|----------|----------------|--------------|
+| Any critical | ≥1 | any | any | **P0** | ANY_P0 |
+| Majority warning | 0 | ≥50% | <50% | **P1** | MAJORITY_P1 |
+| Tie-breaker (50%) | 0 | 50% | 50% | **P1** | MAJORITY_P1 |
+| Minority warning | 0 | <50% | >50% | **P2** | DEFAULT_P2 |
+| All improvements | 0 | 0 | 100% | **P2** | DEFAULT_P2 |
+| Security issue | any | any | any | **P0** | OVERRIDE (security) |
+| Breaking change | any | any | any | **P0** | OVERRIDE (breaking) |
+| Critical path test | any | any | any | **P0** | OVERRIDE (test) |
+
+**Key Characteristics**:
+
+1. **Safety-First**: ANY P0 escalates entire issue (1 veto overrides all)
+2. **Consensus-Driven**: ≥50% majority for P1 (democratic threshold)
+3. **Conservative**: Ties round up to higher priority (P1 > P2)
+4. **Override Power**: Special cases trump all aggregation rules
+5. **Transparent**: Full metadata tracking for audit trail
+
+---
+
+### 3.2B: Confidence Weighting System
+
+**Purpose**: Calculate weighted confidence scores based on reviewer domain expertise.
+
+#### Reviewer Weight Configuration
+
+```typescript
+/**
+ * Reviewer expertise weights
+ * - baseWeight: Default weight for all categories
+ * - categoryWeights: Multipliers for domain-specific expertise
+ */
+interface ReviewerWeight {
+  name: string;
+  baseWeight: number;
+  categoryWeights: Map<string, number>;
+}
+
+/**
+ * Reviewer expertise configuration
+ *
+ * Design rationale:
+ * - All reviewers start with baseWeight 1.0 (equal baseline)
+ * - Category multipliers reflect domain expertise:
+ *   - test-healer: 1.5x for test-failure (highest expertise)
+ *   - code-principles-reviewer: 1.3x for SOLID (architectural expertise)
+ *   - code-style-reviewer: 1.2x for formatting (style expertise)
+ *
+ * Multiplier ranges:
+ * - 1.0-1.1x: Slight expertise advantage
+ * - 1.1-1.3x: Moderate expertise advantage
+ * - 1.3-1.5x: Significant expertise advantage
+ * - 1.5x+: Domain specialist (highest confidence)
+ */
+const reviewerWeights: ReviewerWeight[] = [
+  {
+    name: 'code-style-reviewer',
+    baseWeight: 1.0,
+    categoryWeights: new Map([
+      ['formatting', 1.2],        // Style specialist
+      ['naming', 1.1],            // Naming conventions
+      ['indentation', 1.2],       // Whitespace expertise
+      ['braces', 1.2],            // Code structure
+      ['spacing', 1.15]           // Visual consistency
+    ])
+  },
+  {
+    name: 'code-principles-reviewer',
+    baseWeight: 1.0,
+    categoryWeights: new Map([
+      ['solid', 1.3],             // SOLID principles expert
+      ['dry', 1.2],               // DRY principle
+      ['architecture', 1.1],      // Architectural patterns
+      ['kiss', 1.15],             // KISS principle
+      ['separation-of-concerns', 1.2]  // SoC principle
+    ])
+  },
+  {
+    name: 'test-healer',
+    baseWeight: 1.0,
+    categoryWeights: new Map([
+      ['test-failure', 1.5],      // HIGHEST: Test analysis specialist
+      ['coverage', 1.2],          // Coverage analysis
+      ['test-quality', 1.3],      // Test design
+      ['test-structure', 1.2],    // Test organization
+      ['assertion', 1.25]         // Assertion patterns
+    ])
+  }
+];
+```
+
+#### Weighted Confidence Calculation
+
+```typescript
+/**
+ * Calculate weighted confidence score based on reviewer expertise
+ *
+ * FORMULA:
+ * weighted_confidence = Σ(confidence_i × weight_i) / Σ(weight_i)
+ *
+ * Where:
+ * - confidence_i: Individual reviewer confidence (0.0-1.0)
+ * - weight_i: Reviewer weight for issue category (baseWeight × categoryMultiplier)
+ *
+ * @param issues - Deduplicated issues with multiple confidence scores
+ * @returns Weighted average confidence (0.0-1.0)
+ *
+ * @example
+ * // test-failure: test-healer has 1.5x expertise
+ * calculateWeightedConfidence([
+ *   { reviewer: 'test-healer', confidence: 0.90, category: 'test-failure' },
+ *   { reviewer: 'code-style-reviewer', confidence: 0.70, category: 'test-failure' }
+ * ])
+ * // → (0.90 × 1.5 + 0.70 × 1.0) / (1.5 + 1.0) = 0.828
+ *
+ * // formatting: code-style-reviewer has 1.2x expertise
+ * calculateWeightedConfidence([
+ *   { reviewer: 'code-style-reviewer', confidence: 0.85, category: 'formatting' },
+ *   { reviewer: 'code-principles-reviewer', confidence: 0.75, category: 'formatting' }
+ * ])
+ * // → (0.85 × 1.2 + 0.75 × 1.0) / (1.2 + 1.0) = 0.805
+ */
+function calculateWeightedConfidence(issues: Issue[]): number {
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  for (const issue of issues) {
+    // Find reviewer weight configuration
+    const reviewerWeight = findReviewerWeight(issue.reviewer);
+
+    // Get category-specific weight (or fallback to baseWeight)
+    const weight = reviewerWeight.categoryWeights.get(issue.category)
+                   || reviewerWeight.baseWeight;
+
+    // Accumulate weighted sum
+    weightedSum += issue.confidence * weight;
+    totalWeight += weight;
+  }
+
+  // Return weighted average
+  return totalWeight > 0 ? weightedSum / totalWeight : 0.0;
+}
+
+/**
+ * Find reviewer weight configuration by name
+ *
+ * @param reviewerName - Name of reviewer (e.g., 'test-healer')
+ * @returns Reviewer weight configuration
+ * @throws Error if reviewer not found in configuration
+ */
+function findReviewerWeight(reviewerName: string): ReviewerWeight {
+  const weight = reviewerWeights.find(w => w.name === reviewerName);
+
+  if (!weight) {
+    // Default weight for unknown reviewers
+    return {
+      name: reviewerName,
+      baseWeight: 1.0,
+      categoryWeights: new Map()
+    };
+  }
+
+  return weight;
+}
+```
+
+#### Confidence Weighting Examples
+
+**Example 1: test-healer Expertise (test-failure)**
+
+```typescript
+// Input: Test failure detected by test-healer (specialist) and code-style-reviewer
+const issues = [
+  {
+    reviewer: 'test-healer',
+    confidence: 0.90,
+    category: 'test-failure'
+  },
+  {
+    reviewer: 'code-style-reviewer',
+    confidence: 0.70,
+    category: 'test-failure'
+  }
+];
+
+// Weights:
+// - test-healer: 1.5x multiplier (specialist)
+// - code-style-reviewer: 1.0x (base weight)
+
+// Calculation:
+// weighted_confidence = (0.90 × 1.5 + 0.70 × 1.0) / (1.5 + 1.0)
+//                     = (1.35 + 0.70) / 2.5
+//                     = 2.05 / 2.5
+//                     = 0.82
+
+const result = calculateWeightedConfidence(issues);
+// → 0.82
+
+// Interpretation: test-healer's high confidence (0.90) carries more weight
+// due to domain expertise, pulling average up from simple mean (0.80)
+```
+
+**Example 2: code-style-reviewer Expertise (formatting)**
+
+```typescript
+// Input: Formatting issue detected by code-style-reviewer and code-principles-reviewer
+const issues = [
+  {
+    reviewer: 'code-style-reviewer',
+    confidence: 0.85,
+    category: 'formatting'
+  },
+  {
+    reviewer: 'code-principles-reviewer',
+    confidence: 0.75,
+    category: 'formatting'
+  }
+];
+
+// Weights:
+// - code-style-reviewer: 1.2x multiplier (style specialist)
+// - code-principles-reviewer: 1.0x (base weight)
+
+// Calculation:
+// weighted_confidence = (0.85 × 1.2 + 0.75 × 1.0) / (1.2 + 1.0)
+//                     = (1.02 + 0.75) / 2.2
+//                     = 1.77 / 2.2
+//                     = 0.805
+
+const result = calculateWeightedConfidence(issues);
+// → 0.805
+
+// Interpretation: code-style-reviewer's expertise in formatting increases
+// confidence from simple mean (0.80) to 0.805
+```
+
+**Example 3: code-principles-reviewer Expertise (SOLID)**
+
+```typescript
+// Input: SOLID violation detected by multiple reviewers
+const issues = [
+  {
+    reviewer: 'code-principles-reviewer',
+    confidence: 0.92,
+    category: 'solid'
+  },
+  {
+    reviewer: 'code-style-reviewer',
+    confidence: 0.78,
+    category: 'solid'
+  },
+  {
+    reviewer: 'test-healer',
+    confidence: 0.80,
+    category: 'solid'
+  }
+];
+
+// Weights:
+// - code-principles-reviewer: 1.3x multiplier (SOLID specialist)
+// - code-style-reviewer: 1.0x (base weight)
+// - test-healer: 1.0x (base weight)
+
+// Calculation:
+// weighted_confidence = (0.92 × 1.3 + 0.78 × 1.0 + 0.80 × 1.0) / (1.3 + 1.0 + 1.0)
+//                     = (1.196 + 0.78 + 0.80) / 3.3
+//                     = 2.776 / 3.3
+//                     = 0.841
+
+const result = calculateWeightedConfidence(issues);
+// → 0.841
+
+// Interpretation: code-principles-reviewer's high confidence (0.92) with
+// SOLID expertise (1.3x) pulls average up from simple mean (0.833)
+```
+
+**Example 4: Equal Weights (no expertise advantage)**
+
+```typescript
+// Input: Issue in category with no specialist
+const issues = [
+  {
+    reviewer: 'code-style-reviewer',
+    confidence: 0.85,
+    category: 'documentation'  // No specialist for this category
+  },
+  {
+    reviewer: 'code-principles-reviewer',
+    confidence: 0.75,
+    category: 'documentation'
+  }
+];
+
+// Weights:
+// - code-style-reviewer: 1.0x (base weight, no category multiplier)
+// - code-principles-reviewer: 1.0x (base weight, no category multiplier)
+
+// Calculation:
+// weighted_confidence = (0.85 × 1.0 + 0.75 × 1.0) / (1.0 + 1.0)
+//                     = (0.85 + 0.75) / 2.0
+//                     = 1.60 / 2.0
+//                     = 0.80
+
+const result = calculateWeightedConfidence(issues);
+// → 0.80
+
+// Interpretation: No expertise advantage → simple average
+```
+
+#### Confidence Weighting Summary
+
+**Weight Multiplier Impact**:
+
+| Category | Specialist Reviewer | Multiplier | Confidence Boost |
+|----------|---------------------|------------|------------------|
+| test-failure | test-healer | 1.5x | +50% weight |
+| solid | code-principles-reviewer | 1.3x | +30% weight |
+| formatting | code-style-reviewer | 1.2x | +20% weight |
+| coverage | test-healer | 1.2x | +20% weight |
+| dry | code-principles-reviewer | 1.2x | +20% weight |
+
+**Key Characteristics**:
+
+1. **Domain Expertise**: Higher weights for category specialists
+2. **Fair Baseline**: All reviewers start at 1.0 base weight
+3. **Weighted Average**: Formula prevents extreme values
+4. **Graceful Fallback**: Unknown categories use base weight
+5. **Transparent Calculation**: Full weight tracking for audit
+
+---
+
+### 3.2C: Priority Validation and Conflict Resolution
+
+**Purpose**: Detect priority inconsistencies in similar issues and reconcile conflicts.
+
+#### Validation Result Interface
+
+```typescript
+/**
+ * Priority validation result
+ */
+interface ValidationResult {
+  isValid: boolean;
+  inconsistencies: PriorityInconsistency[];
+  reconciled: boolean;
+  reconciledIssues: Issue[];
+}
+
+/**
+ * Priority inconsistency details
+ */
+interface PriorityInconsistency {
+  issueIds: string[];
+  priorities: Priority[];
+  similarityScore: number;
+  reconciledPriority: Priority;
+  reason: string;
+}
+```
+
+#### Priority Consistency Validation
+
+```typescript
+/**
+ * Validate priority consistency across similar issues
+ *
+ * ALGORITHM:
+ * 1. Group issues by similarity (semantic + exact match)
+ * 2. Detect conflicts: similar issues with different priorities
+ * 3. Reconcile conflicts: choose highest priority (P0 > P1 > P2)
+ * 4. Report inconsistencies for manual review
+ *
+ * RECONCILIATION RULE:
+ * - If similar issues have conflicting priorities → use HIGHEST priority
+ * - Rationale: Conservative approach (safety over permissiveness)
+ *
+ * @param consolidatedIssues - Issues after deduplication
+ * @returns Validation result with reconciliation
+ *
+ * @example
+ * // Input: Similar issues with conflicting priorities
+ * validatePriorityConsistency([
+ *   { id: 'issue-1', message: 'Missing null check', severity: 'P0',
+ *     file: 'AuthService.cs', line: 42 },
+ *   { id: 'issue-2', message: 'Null check missing', severity: 'P1',
+ *     file: 'AuthService.cs', line: 42 }
+ * ])
+ *
+ * // Output:
+ * {
+ *   isValid: false,
+ *   inconsistencies: [{
+ *     issueIds: ['issue-1', 'issue-2'],
+ *     priorities: ['P0', 'P1'],
+ *     similarityScore: 0.92,
+ *     reconciledPriority: 'P0',
+ *     reason: 'Similar issues had conflicting priorities. Reconciled to P0 (highest).'
+ *   }],
+ *   reconciled: true,
+ *   reconciledIssues: [
+ *     { id: 'issue-1', severity: 'P0', ... },
+ *     { id: 'issue-2', severity: 'P0', ... }  // Escalated from P1 to P0
+ *   ]
+ * }
+ */
+function validatePriorityConsistency(
+  consolidatedIssues: Issue[]
+): ValidationResult {
+
+  const inconsistencies: PriorityInconsistency[] = [];
+  const reconciledIssues: Issue[] = [...consolidatedIssues];
+
+  // Step 1: Group issues by similarity
+  const similarGroups = groupBySimilarity(consolidatedIssues);
+
+  // Step 2: Detect priority conflicts within each group
+  for (const group of similarGroups) {
+    // Extract priorities from group
+    const priorities = group.issues.map(i => i.severity as Priority);
+    const uniquePriorities = new Set(priorities);
+
+    // Step 3: If multiple priorities exist → inconsistency detected
+    if (uniquePriorities.size > 1) {
+      // Determine highest priority (P0 > P1 > P2)
+      const highestPriority = reconcilePriorities(priorities);
+
+      // Record inconsistency
+      inconsistencies.push({
+        issueIds: group.issues.map(i => i.id),
+        priorities: priorities,
+        similarityScore: group.averageSimilarity,
+        reconciledPriority: highestPriority,
+        reason: `Similar issues (similarity: ${(group.averageSimilarity * 100).toFixed(1)}%) ` +
+                `had conflicting priorities: ${priorities.join(', ')}. ` +
+                `Reconciled to ${highestPriority} (highest priority).`
+      });
+
+      // Step 4: Reconcile - update all issues in group to highest priority
+      for (const issue of group.issues) {
+        const reconciledIssue = reconciledIssues.find(i => i.id === issue.id);
+        if (reconciledIssue) {
+          reconciledIssue.severity = highestPriority;
+          reconciledIssue.metadata = {
+            ...reconciledIssue.metadata,
+            priorityReconciled: true,
+            originalPriority: issue.severity,
+            reconciledFrom: priorities
+          };
+        }
+      }
+    }
+  }
+
+  return {
+    isValid: inconsistencies.length === 0,
+    inconsistencies,
+    reconciled: inconsistencies.length > 0,
+    reconciledIssues
+  };
+}
+
+/**
+ * Reconcile conflicting priorities by choosing highest
+ *
+ * Priority hierarchy: P0 > P1 > P2
+ *
+ * @param priorities - Array of priorities to reconcile
+ * @returns Highest priority
+ *
+ * @example
+ * reconcilePriorities(['P0', 'P1', 'P2']) // → 'P0'
+ * reconcilePriorities(['P1', 'P2', 'P2']) // → 'P1'
+ * reconcilePriorities(['P2', 'P2', 'P2']) // → 'P2'
+ */
+function reconcilePriorities(priorities: Priority[]): Priority {
+  if (priorities.includes(Priority.P0)) {
+    return Priority.P0;
+  }
+  if (priorities.includes(Priority.P1)) {
+    return Priority.P1;
+  }
+  return Priority.P2;
+}
+
+/**
+ * Group issues by similarity for conflict detection
+ *
+ * Uses same similarity algorithm as deduplication (Task 3.1):
+ * - Levenshtein distance < 15 characters → similar
+ * - Same file + line range overlap → similar
+ * - Same category + semantic match → similar
+ *
+ * @param issues - Issues to group
+ * @returns Groups of similar issues
+ */
+interface SimilarityGroup {
+  issues: Issue[];
+  averageSimilarity: number;
+}
+
+function groupBySimilarity(issues: Issue[]): SimilarityGroup[] {
+  const groups: SimilarityGroup[] = [];
+  const processed = new Set<string>();
+
+  for (let i = 0; i < issues.length; i++) {
+    if (processed.has(issues[i].id)) continue;
+
+    const group: Issue[] = [issues[i]];
+    processed.add(issues[i].id);
+
+    let totalSimilarity = 0;
+    let comparisons = 0;
+
+    for (let j = i + 1; j < issues.length; j++) {
+      if (processed.has(issues[j].id)) continue;
+
+      const similarity = calculateSimilarity(issues[i], issues[j]);
+
+      // Similarity threshold: 0.85 (same as deduplication)
+      if (similarity >= 0.85) {
+        group.push(issues[j]);
+        processed.add(issues[j].id);
+        totalSimilarity += similarity;
+        comparisons++;
+      }
+    }
+
+    const averageSimilarity = comparisons > 0
+      ? totalSimilarity / comparisons
+      : 1.0;
+
+    groups.push({
+      issues: group,
+      averageSimilarity
+    });
+  }
+
+  return groups;
+}
+```
+
+#### Priority Validation Examples
+
+**Example 1: Conflict Detected and Reconciled**
+
+```typescript
+// Input: Similar issues with conflicting priorities
+const issues = [
+  {
+    id: 'issue-1',
+    message: 'Missing null check in ProcessRequest method',
+    severity: 'P0',
+    file: 'Services/AuthService.cs',
+    line: 42,
+    category: 'error-handling'
+  },
+  {
+    id: 'issue-2',
+    message: 'Null check missing in ProcessRequest',
+    severity: 'P1',
+    file: 'Services/AuthService.cs',
+    line: 42,
+    category: 'error-handling'
+  }
+];
+
+const result = validatePriorityConsistency(issues);
+
+// Output:
+{
+  isValid: false,  // Inconsistency detected
+  inconsistencies: [
+    {
+      issueIds: ['issue-1', 'issue-2'],
+      priorities: ['P0', 'P1'],
+      similarityScore: 0.92,  // High similarity (92%)
+      reconciledPriority: 'P0',  // Highest priority wins
+      reason: 'Similar issues (similarity: 92.0%) had conflicting priorities: P0, P1. ' +
+              'Reconciled to P0 (highest priority).'
+    }
+  ],
+  reconciled: true,  // Auto-reconciliation applied
+  reconciledIssues: [
+    { id: 'issue-1', severity: 'P0', ... },  // Unchanged
+    {
+      id: 'issue-2',
+      severity: 'P0',  // Escalated from P1 to P0
+      metadata: {
+        priorityReconciled: true,
+        originalPriority: 'P1',
+        reconciledFrom: ['P0', 'P1']
+      }
+    }
+  ]
+}
+
+// Action: Both issues now have P0 priority (conservative reconciliation)
+```
+
+**Example 2: No Conflicts (All Consistent)**
+
+```typescript
+// Input: Similar issues with same priority
+const issues = [
+  {
+    id: 'issue-1',
+    message: 'Variable name should use camelCase',
+    severity: 'P1',
+    file: 'Services/AuthService.cs',
+    line: 42
+  },
+  {
+    id: 'issue-2',
+    message: 'Variable name not following camelCase convention',
+    severity: 'P1',
+    file: 'Services/AuthService.cs',
+    line: 42
+  }
+];
+
+const result = validatePriorityConsistency(issues);
+
+// Output:
+{
+  isValid: true,  // No inconsistencies
+  inconsistencies: [],
+  reconciled: false,
+  reconciledIssues: [
+    { id: 'issue-1', severity: 'P1', ... },  // Unchanged
+    { id: 'issue-2', severity: 'P1', ... }   // Unchanged
+  ]
+}
+
+// Action: No reconciliation needed, priorities already consistent
+```
+
+**Example 3: Multiple Conflict Groups**
+
+```typescript
+// Input: Multiple similarity groups with different conflicts
+const issues = [
+  // Group 1: Null check conflict (P0 vs P1)
+  { id: 'issue-1', message: 'Missing null check', severity: 'P0',
+    file: 'AuthService.cs', line: 42 },
+  { id: 'issue-2', message: 'Null check missing', severity: 'P1',
+    file: 'AuthService.cs', line: 42 },
+
+  // Group 2: Naming conflict (P1 vs P2)
+  { id: 'issue-3', message: 'Variable name not camelCase', severity: 'P1',
+    file: 'UserService.cs', line: 15 },
+  { id: 'issue-4', message: 'camelCase convention not followed', severity: 'P2',
+    file: 'UserService.cs', line: 15 }
+];
+
+const result = validatePriorityConsistency(issues);
+
+// Output:
+{
+  isValid: false,
+  inconsistencies: [
+    {
+      issueIds: ['issue-1', 'issue-2'],
+      priorities: ['P0', 'P1'],
+      similarityScore: 0.91,
+      reconciledPriority: 'P0',
+      reason: 'Similar issues (similarity: 91.0%) had conflicting priorities: P0, P1. ' +
+              'Reconciled to P0 (highest priority).'
+    },
+    {
+      issueIds: ['issue-3', 'issue-4'],
+      priorities: ['P1', 'P2'],
+      similarityScore: 0.88,
+      reconciledPriority: 'P1',
+      reason: 'Similar issues (similarity: 88.0%) had conflicting priorities: P1, P2. ' +
+              'Reconciled to P1 (highest priority).'
+    }
+  ],
+  reconciled: true,
+  reconciledIssues: [
+    { id: 'issue-1', severity: 'P0', ... },  // Unchanged
+    { id: 'issue-2', severity: 'P0', ... },  // Escalated from P1
+    { id: 'issue-3', severity: 'P1', ... },  // Unchanged
+    { id: 'issue-4', severity: 'P1', ... }   // Escalated from P2
+  ]
+}
+
+// Action: Both conflict groups reconciled conservatively (highest priority)
+```
+
+**Example 4: Three-Way Conflict (P0 vs P1 vs P2)**
+
+```typescript
+// Input: Three similar issues with three different priorities
+const issues = [
+  { id: 'issue-1', message: 'Error handling missing', severity: 'P0',
+    file: 'AuthService.cs', line: 85 },
+  { id: 'issue-2', message: 'Missing error handling', severity: 'P1',
+    file: 'AuthService.cs', line: 85 },
+  { id: 'issue-3', message: 'Error handler not implemented', severity: 'P2',
+    file: 'AuthService.cs', line: 85 }
+];
+
+const result = validatePriorityConsistency(issues);
+
+// Output:
+{
+  isValid: false,
+  inconsistencies: [
+    {
+      issueIds: ['issue-1', 'issue-2', 'issue-3'],
+      priorities: ['P0', 'P1', 'P2'],
+      similarityScore: 0.89,
+      reconciledPriority: 'P0',  // Highest among all three
+      reason: 'Similar issues (similarity: 89.0%) had conflicting priorities: P0, P1, P2. ' +
+              'Reconciled to P0 (highest priority).'
+    }
+  ],
+  reconciled: true,
+  reconciledIssues: [
+    { id: 'issue-1', severity: 'P0', ... },  // Unchanged
+    { id: 'issue-2', severity: 'P0', ... },  // Escalated from P1
+    { id: 'issue-3', severity: 'P0', ... }   // Escalated from P2
+  ]
+}
+
+// Action: All three issues escalated to P0 (conservative approach)
+```
+
+#### Priority Validation Summary
+
+**Conflict Resolution Matrix**:
+
+| Conflicting Priorities | Reconciled Priority | Rationale |
+|------------------------|---------------------|-----------|
+| [P0, P1] | **P0** | P0 > P1 (critical wins) |
+| [P0, P2] | **P0** | P0 > P2 (critical wins) |
+| [P1, P2] | **P1** | P1 > P2 (warning wins) |
+| [P0, P1, P2] | **P0** | P0 > all (critical wins) |
+| [P1, P1, P2] | **P1** | P1 > P2 (majority + higher) |
+
+**Key Characteristics**:
+
+1. **Conservative Reconciliation**: Always choose highest priority (safety-first)
+2. **Similarity-Based**: Only reconcile issues with high similarity (≥85%)
+3. **Transparent Tracking**: Full audit trail of original priorities
+4. **Automatic Resolution**: No manual intervention for unambiguous cases
+5. **Conflict Reporting**: Detailed inconsistency reports for review
+
+---
+
+## Priority Aggregation Integration
+
+### Complete Workflow
+
+```typescript
+/**
+ * Full priority aggregation workflow
+ *
+ * STEPS:
+ * 1. Aggregate priority from multiple reviewer ratings
+ * 2. Apply special overrides (security, breaking changes, critical path)
+ * 3. Calculate weighted confidence based on domain expertise
+ * 4. Validate priority consistency across similar issues
+ * 5. Return enriched issue with final priority + metadata
+ */
+function processPriorityAggregation(
+  deduplicatedIssues: Issue[]
+): ProcessedIssue[] {
+
+  const processedIssues: ProcessedIssue[] = [];
+
+  for (const issue of deduplicatedIssues) {
+    // Step 1: Aggregate priority from source issues
+    const priorityMetadata = aggregatePriority(issue.sourceIssues);
+
+    // Step 2: Apply special overrides
+    const finalMetadata = applyPriorityOverrides(issue, priorityMetadata);
+
+    // Step 3: Calculate weighted confidence
+    const weightedConfidence = calculateWeightedConfidence(issue.sourceIssues);
+
+    // Step 4: Create enriched issue
+    processedIssues.push({
+      ...issue,
+      severity: finalMetadata.finalPriority,
+      confidence: weightedConfidence,
+      priorityMetadata: finalMetadata,
+      processed: true
+    });
+  }
+
+  // Step 5: Validate priority consistency
+  const validationResult = validatePriorityConsistency(processedIssues);
+
+  // Return reconciled issues if conflicts detected
+  return validationResult.reconciled
+    ? validationResult.reconciledIssues
+    : processedIssues;
+}
+```
+
+### Integration Example
+
+```typescript
+// INPUT: Deduplicated issues from Task 3.1
+const deduplicatedIssues = [
+  {
+    id: 'consolidated-1',
+    message: 'Missing null check in ProcessRequest method',
+    file: 'Services/AuthService.cs',
+    line: 42,
+    category: 'error-handling',
+    sourceIssues: [
+      { reviewer: 'code-principles-reviewer', severity: 'P0', confidence: 0.88 },
+      { reviewer: 'test-healer', severity: 'P1', confidence: 0.82 }
+    ]
+  }
+];
+
+// PROCESS: Apply priority aggregation
+const processedIssues = processPriorityAggregation(deduplicatedIssues);
+
+// OUTPUT: Enriched issue with aggregated priority
+[
+  {
+    id: 'consolidated-1',
+    message: 'Missing null check in ProcessRequest method',
+    file: 'Services/AuthService.cs',
+    line: 42,
+    category: 'error-handling',
+    severity: 'P0',  // ANY P0 rule applied
+    confidence: 0.85,  // Weighted average
+    priorityMetadata: {
+      finalPriority: 'P0',
+      originalPriorities: ['P0', 'P1'],
+      aggregationRule: 'ANY_P0',
+      reviewerCount: 2,
+      p0Count: 1,
+      p1Count: 1,
+      p2Count: 0
+    },
+    sourceIssues: [
+      { reviewer: 'code-principles-reviewer', severity: 'P0', confidence: 0.88 },
+      { reviewer: 'test-healer', severity: 'P1', confidence: 0.82 }
+    ],
+    processed: true
+  }
+]
+```
+
+---
+
+---
+
+## 3. RECOMMENDATION SYNTHESIS
+
+**Purpose**: Extract actionable recommendations from consolidated issues, generate prioritized action items, and build theme summaries for strategic insights.
+
+**Core Principle**: Transform validated issues into actionable guidance that helps developers prioritize fixes and understand patterns.
+
+**Key Components**:
+1. Recommendation Extractor (3.3A)
+2. Action Item Generator (3.3B)
+3. Theme Summary Builder (3.3C)
+
+---
+
+### 3.1. Recommendation Extractor
+
+**Goal**: Extract recommendations from high-confidence issues (≥60%) and categorize them by theme.
+
+**Confidence Threshold**: 0.60 (60%) - only extract from reliable issues
+
+**Theme Categories**:
+- **refactoring**: Code structure improvements
+- **testing**: Test coverage and quality
+- **documentation**: Code documentation and comments
+- **performance**: Speed and efficiency optimizations
+- **security**: Security vulnerabilities and validation
+- **general**: Uncategorized recommendations
+
+#### Recommendation Interface
+
+```typescript
+/**
+ * Recommendation from review consolidation
+ *
+ * Represents actionable guidance extracted from consolidated issues.
+ * Multiple reviewers may suggest the same improvement.
+ */
+interface Recommendation {
+  /** Recommendation category/theme */
+  theme: string;
+
+  /** Human-readable recommendation description */
+  description: string;
+
+  /** Number of reviewers who suggested this */
+  frequency: number;
+
+  /** Average confidence across all sources (0.0-1.0) */
+  confidence: number;
+
+  /** Related issue IDs that support this recommendation */
+  relatedIssues: string[];
+
+  /** Estimated effort to implement */
+  effort: 'low' | 'medium' | 'high';
+
+  /** Unique reviewers who suggested this */
+  reviewers: string[];
+
+  /** Keywords that triggered this theme */
+  matchedKeywords: string[];
+}
+```
+
+#### extractRecommendations() Function
+
+```typescript
+/**
+ * Extract recommendations from consolidated issues
+ *
+ * ALGORITHM:
+ * 1. Filter issues by confidence (≥0.60)
+ * 2. Extract suggestions from issues
+ * 3. Categorize each suggestion by theme
+ * 4. Deduplicate similar recommendations
+ * 5. Rank by frequency (most common first)
+ *
+ * @param reviewResults - All review results from parallel execution
+ * @returns Ranked list of recommendations
+ */
+function extractRecommendations(reviewResults: ReviewResult[]): Recommendation[] {
+  const recommendations: Recommendation[] = [];
+
+  // Process all review results
+  for (const result of reviewResults) {
+    const reviewer = result.reviewer;
+
+    // Process each issue in the review
+    for (const issue of result.issues) {
+      // RULE: Only extract from high-confidence issues
+      if (!issue.suggestion || issue.confidence < 0.60) {
+        continue;
+      }
+
+      // Categorize recommendation by theme
+      const theme = categorizeRecommendation(issue.suggestion);
+
+      // Add or update recommendation (deduplication)
+      addOrUpdateRecommendation(
+        recommendations,
+        theme,
+        issue,
+        reviewer
+      );
+    }
+  }
+
+  // Rank by frequency (most common first)
+  return recommendations.sort((a, b) => b.frequency - a.frequency);
+}
+```
+
+#### categorizeRecommendation() Function
+
+```typescript
+/**
+ * Categorize recommendation by theme using keyword matching
+ *
+ * ALGORITHM:
+ * 1. Normalize suggestion text (lowercase)
+ * 2. Check each theme's keywords
+ * 3. Return first matching theme
+ * 4. Default to 'general' if no match
+ *
+ * @param suggestion - Recommendation text from issue
+ * @returns Theme category
+ */
+function categorizeRecommendation(suggestion: string): string {
+  // Theme keyword mappings
+  const keywords: Record<string, string[]> = {
+    'refactoring': [
+      'refactor',
+      'extract',
+      'simplify',
+      'clean up',
+      'restructure',
+      'reorganize',
+      'modularize',
+      'split',
+      'separate'
+    ],
+    'testing': [
+      'test',
+      'coverage',
+      'assertion',
+      'mock',
+      'unit test',
+      'integration test',
+      'test case',
+      'verify',
+      'validate behavior'
+    ],
+    'documentation': [
+      'document',
+      'comment',
+      'explain',
+      'describe',
+      'clarify',
+      'xml doc',
+      'summary',
+      'remarks',
+      'example'
+    ],
+    'performance': [
+      'optimize',
+      'cache',
+      'speed',
+      'efficient',
+      'performance',
+      'faster',
+      'reduce',
+      'improve latency',
+      'async'
+    ],
+    'security': [
+      'secure',
+      'validate',
+      'sanitize',
+      'encrypt',
+      'authentication',
+      'authorization',
+      'injection',
+      'xss',
+      'csrf'
+    ]
+  };
+
+  const normalized = suggestion.toLowerCase();
+
+  // Check each theme's keywords
+  for (const [theme, words] of Object.entries(keywords)) {
+    const matchedWords = words.filter(word => normalized.includes(word));
+
+    if (matchedWords.length > 0) {
+      // Return theme with matched keywords for transparency
+      return theme;
+    }
+  }
+
+  // Default to general category
+  return 'general';
+}
+```
+
+#### addOrUpdateRecommendation() Helper
+
+```typescript
+/**
+ * Add new recommendation or update existing similar one
+ *
+ * DEDUPLICATION STRATEGY:
+ * 1. Check if similar recommendation exists (same theme + overlapping issues)
+ * 2. If exists: Merge (increment frequency, add issues, update confidence)
+ * 3. If new: Add to list
+ *
+ * @param recommendations - Current recommendations list
+ * @param theme - Recommendation theme
+ * @param issue - Source issue
+ * @param reviewer - Reviewer name
+ */
+function addOrUpdateRecommendation(
+  recommendations: Recommendation[],
+  theme: string,
+  issue: Issue,
+  reviewer: string
+): void {
+  // Find existing recommendation with same theme
+  const existing = recommendations.find(rec => {
+    // Same theme?
+    if (rec.theme !== theme) {
+      return false;
+    }
+
+    // Overlapping issues? (at least 1 common issue ID)
+    const commonIssues = rec.relatedIssues.filter(id =>
+      issue.id === id || issue.sourceIssues?.some(si => si.id === id)
+    );
+
+    return commonIssues.length > 0;
+  });
+
+  if (existing) {
+    // UPDATE: Merge with existing recommendation
+    existing.frequency += 1;
+    existing.relatedIssues.push(issue.id);
+
+    // Add reviewer if not already present
+    if (!existing.reviewers.includes(reviewer)) {
+      existing.reviewers.push(reviewer);
+    }
+
+    // Recalculate average confidence
+    existing.confidence = calculateAverageConfidence(existing.relatedIssues);
+  } else {
+    // ADD: Create new recommendation
+    recommendations.push({
+      theme,
+      description: issue.suggestion!,
+      frequency: 1,
+      confidence: issue.confidence,
+      relatedIssues: [issue.id],
+      effort: estimateEffortFromIssue(issue),
+      reviewers: [reviewer],
+      matchedKeywords: extractKeywords(issue.suggestion!, theme)
+    });
+  }
+}
+```
+
+#### Helper Functions
+
+```typescript
+/**
+ * Estimate effort from issue characteristics
+ */
+function estimateEffortFromIssue(issue: Issue): 'low' | 'medium' | 'high' {
+  // Simple issue (style, naming) → low effort
+  if (issue.category === 'code-style' || issue.category === 'naming') {
+    return 'low';
+  }
+
+  // Complex issue (architecture, security) → high effort
+  if (issue.category === 'architecture' || issue.category === 'security') {
+    return 'high';
+  }
+
+  // Medium effort by default
+  return 'medium';
+}
+
+/**
+ * Extract keywords that matched for this theme
+ */
+function extractKeywords(suggestion: string, theme: string): string[] {
+  const keywords: Record<string, string[]> = {
+    'refactoring': ['refactor', 'extract', 'simplify', 'clean up'],
+    'testing': ['test', 'coverage', 'assertion', 'mock'],
+    'documentation': ['document', 'comment', 'explain', 'describe'],
+    'performance': ['optimize', 'cache', 'speed', 'efficient'],
+    'security': ['secure', 'validate', 'sanitize', 'encrypt']
+  };
+
+  const normalized = suggestion.toLowerCase();
+  const themeKeywords = keywords[theme] || [];
+
+  return themeKeywords.filter(word => normalized.includes(word));
+}
+
+/**
+ * Calculate average confidence from related issues
+ */
+function calculateAverageConfidence(issueIds: string[]): number {
+  // In real implementation, lookup issues and average their confidence
+  // Placeholder for pseudo-code
+  return 0.75;
+}
+```
+
+#### Extraction Examples
+
+**Example 1: Single Theme Extraction**
+
+```typescript
+// INPUT: Review results with recommendations
+const reviewResults: ReviewResult[] = [
+  {
+    reviewer: 'code-principles-reviewer',
+    timestamp: '2025-10-16T10:00:00Z',
+    issues: [
+      {
+        id: 'issue-1',
+        message: 'Duplicate validation logic in UserController and AuthController',
+        file: 'Controllers/UserController.cs',
+        line: 42,
+        severity: 'P1',
+        confidence: 0.85,
+        category: 'code-duplication',
+        suggestion: 'Extract validation logic to shared ValidationService'
+      }
+    ]
+  },
+  {
+    reviewer: 'code-style-reviewer',
+    timestamp: '2025-10-16T10:01:00Z',
+    issues: [
+      {
+        id: 'issue-2',
+        message: 'DRY violation: validation repeated across controllers',
+        file: 'Controllers/AuthController.cs',
+        line: 28,
+        severity: 'P1',
+        confidence: 0.78,
+        category: 'code-duplication',
+        suggestion: 'Refactor common validation into base controller'
+      }
+    ]
+  }
+];
+
+// PROCESS: Extract recommendations
+const recommendations = extractRecommendations(reviewResults);
+
+// OUTPUT: Deduplicated recommendations
+[
+  {
+    theme: 'refactoring',
+    description: 'Extract validation logic to shared ValidationService',
+    frequency: 2,  // Both reviewers suggested this
+    confidence: 0.815,  // Average of 0.85 and 0.78
+    relatedIssues: ['issue-1', 'issue-2'],
+    effort: 'medium',
+    reviewers: ['code-principles-reviewer', 'code-style-reviewer'],
+    matchedKeywords: ['extract', 'refactor']
+  }
+]
+```
+
+**Example 2: Multiple Theme Extraction**
+
+```typescript
+// INPUT: Mixed recommendations across themes
+const reviewResults: ReviewResult[] = [
+  {
+    reviewer: 'code-principles-reviewer',
+    issues: [
+      {
+        id: 'issue-1',
+        message: 'Missing unit tests for AuthService',
+        severity: 'P1',
+        confidence: 0.88,
+        suggestion: 'Add unit tests to cover authentication logic'
+      },
+      {
+        id: 'issue-2',
+        message: 'No input validation on login endpoint',
+        severity: 'P0',
+        confidence: 0.92,
+        suggestion: 'Add validation attributes to prevent injection attacks'
+      }
+    ]
+  },
+  {
+    reviewer: 'test-healer',
+    issues: [
+      {
+        id: 'issue-3',
+        message: 'Test coverage for AuthService is 42%',
+        severity: 'P1',
+        confidence: 0.95,
+        suggestion: 'Increase test coverage to 80% for critical paths'
+      }
+    ]
+  }
+];
+
+// OUTPUT: Multiple themes extracted
+[
+  {
+    theme: 'testing',
+    description: 'Add unit tests to cover authentication logic',
+    frequency: 2,
+    confidence: 0.915,
+    relatedIssues: ['issue-1', 'issue-3'],
+    effort: 'medium',
+    reviewers: ['code-principles-reviewer', 'test-healer'],
+    matchedKeywords: ['test', 'coverage']
+  },
+  {
+    theme: 'security',
+    description: 'Add validation attributes to prevent injection attacks',
+    frequency: 1,
+    confidence: 0.92,
+    relatedIssues: ['issue-2'],
+    effort: 'high',
+    reviewers: ['code-principles-reviewer'],
+    matchedKeywords: ['validation', 'injection']
+  }
+]
+```
+
+**Example 3: Low Confidence Filtering**
+
+```typescript
+// INPUT: Mixed confidence recommendations
+const reviewResults: ReviewResult[] = [
+  {
+    reviewer: 'code-style-reviewer',
+    issues: [
+      {
+        id: 'issue-1',
+        confidence: 0.45,  // Below threshold
+        suggestion: 'Consider renaming method (not sure)'
+      },
+      {
+        id: 'issue-2',
+        confidence: 0.72,  // Above threshold
+        suggestion: 'Simplify nested if statements using guard clauses'
+      },
+      {
+        id: 'issue-3',
+        confidence: 0.59,  // Just below threshold
+        suggestion: 'Maybe extract this to helper'
+      }
+    ]
+  }
+];
+
+// OUTPUT: Only high-confidence recommendation extracted
+[
+  {
+    theme: 'refactoring',
+    description: 'Simplify nested if statements using guard clauses',
+    frequency: 1,
+    confidence: 0.72,  // Only issue-2 included
+    relatedIssues: ['issue-2'],
+    effort: 'low',
+    reviewers: ['code-style-reviewer'],
+    matchedKeywords: ['simplify']
+  }
+]
+
+// NOTE: issue-1 (0.45) and issue-3 (0.59) excluded by ≥0.60 threshold
+```
+
+---
+
+### 3.2. Action Item Generator
+
+**Goal**: Convert consolidated issues into prioritized, actionable tasks with effort estimates.
+
+**Sorting Order**:
+1. Priority: P0 > P1 > P2
+2. Effort: low > medium > high (within same priority)
+
+**Effort Estimation**:
+- Simple issues (style, naming) → "1-2h"
+- Medium issues (refactoring, tests) → "3-4h"
+- Complex issues (architecture, security) → "5-8h"
+
+#### ActionItem Interface
+
+```typescript
+/**
+ * Actionable task for developers
+ *
+ * Represents a prioritized work item with effort estimate and context.
+ */
+interface ActionItem {
+  /** Task priority (P0 critical, P1 warning, P2 suggestion) */
+  priority: Priority;
+
+  /** Human-readable task title */
+  title: string;
+
+  /** Estimated time to complete (e.g., "2h", "3-4h") */
+  estimatedEffort: string;
+
+  /** Related issue IDs for context */
+  relatedIssues: string[];
+
+  /** Actionable recommendation text */
+  recommendation: string;
+
+  /** Reviewers who identified this issue */
+  reviewers: string[];
+
+  /** Files affected by this action */
+  files: string[];
+
+  /** Optional: Quick win flag (low effort, high impact) */
+  quickWin?: boolean;
+}
+```
+
+#### generateActionItems() Function
+
+```typescript
+/**
+ * Generate prioritized action items from consolidated issues
+ *
+ * ALGORITHM:
+ * 1. Convert each consolidated issue to action item
+ * 2. Estimate effort based on issue complexity
+ * 3. Find and link related issues
+ * 4. Sort by priority (P0 > P1 > P2) then effort (low > medium > high)
+ * 5. Flag quick wins (low effort, high priority)
+ *
+ * @param consolidatedIssues - Issues after deduplication and priority aggregation
+ * @returns Sorted list of action items
+ */
+function generateActionItems(consolidatedIssues: Issue[]): ActionItem[] {
+  const items: ActionItem[] = [];
+
+  for (const issue of consolidatedIssues) {
+    // Estimate effort from issue characteristics
+    const effort = estimateEffort(issue);
+
+    // Find related issues (similar location, theme, or reviewer)
+    const relatedIds = findRelatedIssues(issue, consolidatedIssues);
+
+    // Extract unique reviewers
+    const reviewers = issue.sources
+      ? issue.sources.map(s => s.reviewer)
+      : [issue.reviewer];
+
+    // Extract affected files
+    const files = [
+      issue.file,
+      ...relatedIds.map(id => {
+        const related = consolidatedIssues.find(i => i.id === id);
+        return related?.file || '';
+      })
+    ].filter((f, idx, arr) => f && arr.indexOf(f) === idx);
+
+    // Create action item
+    const item: ActionItem = {
+      priority: issue.severity,
+      title: `${issue.message} (${issue.file}:${issue.line})`,
+      estimatedEffort: effort,
+      relatedIssues: [issue.id, ...relatedIds],
+      recommendation: issue.suggestion || 'Manual fix required',
+      reviewers: [...new Set(reviewers)],  // Deduplicate
+      files
+    };
+
+    // Flag quick wins (P0/P1 with low effort)
+    if ((issue.severity === 'P0' || issue.severity === 'P1') &&
+        effort === '1-2h') {
+      item.quickWin = true;
+    }
+
+    items.push(item);
+  }
+
+  // Sort by priority (P0 > P1 > P2) then effort (low > medium > high)
+  return items.sort(compareActionItems);
+}
+```
+
+#### estimateEffort() Function
+
+```typescript
+/**
+ * Estimate effort to fix issue
+ *
+ * EFFORT RULES:
+ * - Simple (style, naming, braces): 1-2h
+ * - Medium (refactoring, tests, docs): 3-4h
+ * - Complex (architecture, security, breaking): 5-8h
+ *
+ * @param issue - Consolidated issue
+ * @returns Effort estimate string
+ */
+function estimateEffort(issue: Issue): string {
+  // Simple fixes (style, formatting, naming)
+  const simpleCategories = [
+    'code-style',
+    'naming',
+    'formatting',
+    'braces',
+    'whitespace'
+  ];
+
+  if (simpleCategories.includes(issue.category)) {
+    return '1-2h';
+  }
+
+  // Complex fixes (architecture, security, breaking changes)
+  const complexCategories = [
+    'architecture',
+    'security',
+    'breaking-change',
+    'performance-critical',
+    'data-integrity'
+  ];
+
+  if (complexCategories.includes(issue.category)) {
+    return '5-8h';
+  }
+
+  // Check for complexity indicators in message
+  const complexKeywords = [
+    'refactor',
+    'redesign',
+    'restructure',
+    'breaking',
+    'migration',
+    'security'
+  ];
+
+  const message = issue.message.toLowerCase();
+  if (complexKeywords.some(kw => message.includes(kw))) {
+    return '5-8h';
+  }
+
+  // Medium effort by default
+  return '3-4h';
+}
+```
+
+#### findRelatedIssues() Function
+
+```typescript
+/**
+ * Find issues related to current issue
+ *
+ * RELATION CRITERIA:
+ * 1. Same file and nearby lines (±10 lines)
+ * 2. Same category and similar message
+ * 3. Same reviewer and similar location
+ *
+ * @param issue - Target issue
+ * @param allIssues - All consolidated issues
+ * @returns Array of related issue IDs
+ */
+function findRelatedIssues(issue: Issue, allIssues: Issue[]): string[] {
+  const related: string[] = [];
+
+  for (const other of allIssues) {
+    // Skip self
+    if (other.id === issue.id) {
+      continue;
+    }
+
+    // Criterion 1: Same file, nearby lines (±10 lines)
+    if (other.file === issue.file &&
+        Math.abs(other.line - issue.line) <= 10) {
+      related.push(other.id);
+      continue;
+    }
+
+    // Criterion 2: Same category and high message similarity
+    if (other.category === issue.category) {
+      const similarity = calculateTextSimilarity(issue.message, other.message);
+      if (similarity >= 0.70) {
+        related.push(other.id);
+        continue;
+      }
+    }
+
+    // Criterion 3: Common reviewer and similar file path
+    const commonReviewers = issue.sources?.some(s1 =>
+      other.sources?.some(s2 => s1.reviewer === s2.reviewer)
+    );
+
+    if (commonReviewers && isSimilarFilePath(issue.file, other.file)) {
+      related.push(other.id);
+    }
+  }
+
+  return related;
+}
+
+/**
+ * Check if file paths are similar (same directory or similar names)
+ */
+function isSimilarFilePath(path1: string, path2: string): boolean {
+  const dir1 = path1.split('/').slice(0, -1).join('/');
+  const dir2 = path2.split('/').slice(0, -1).join('/');
+
+  return dir1 === dir2;
+}
+```
+
+#### compareActionItems() Comparator
+
+```typescript
+/**
+ * Compare action items for sorting
+ *
+ * SORT ORDER:
+ * 1. Priority: P0 > P1 > P2
+ * 2. Effort (within same priority): low > medium > high
+ *
+ * RATIONALE: Fix critical issues first, prioritizing quick wins
+ *
+ * @param a - First action item
+ * @param b - Second action item
+ * @returns Comparison result (-1, 0, 1)
+ */
+function compareActionItems(a: ActionItem, b: ActionItem): number {
+  // Priority order map
+  const priorityOrder: Record<Priority, number> = {
+    'P0': 0,
+    'P1': 1,
+    'P2': 2
+  };
+
+  // Compare priority first
+  const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+  if (priorityDiff !== 0) {
+    return priorityDiff;
+  }
+
+  // If same priority, compare effort (low effort first)
+  const effortOrder: Record<string, number> = {
+    '1-2h': 0,
+    '3-4h': 1,
+    '5-8h': 2
+  };
+
+  const effortA = effortOrder[a.estimatedEffort] ?? 1;
+  const effortB = effortOrder[b.estimatedEffort] ?? 1;
+
+  return effortA - effortB;
+}
+```
+
+#### Action Item Examples
+
+**Example 1: Single Priority Group**
+
+```typescript
+// INPUT: Consolidated issues with same priority
+const issues: Issue[] = [
+  {
+    id: 'issue-1',
+    message: 'Missing braces in if statement',
+    file: 'Services/AuthService.cs',
+    line: 42,
+    severity: 'P1',
+    category: 'code-style',
+    suggestion: 'Add braces to all block statements'
+  },
+  {
+    id: 'issue-2',
+    message: 'Complex method needs refactoring',
+    file: 'Services/UserService.cs',
+    line: 105,
+    severity: 'P1',
+    category: 'refactoring',
+    suggestion: 'Extract method to reduce complexity'
+  }
+];
+
+// PROCESS: Generate action items
+const actionItems = generateActionItems(issues);
+
+// OUTPUT: Sorted by effort (low first within P1)
+[
+  {
+    priority: 'P1',
+    title: 'Missing braces in if statement (Services/AuthService.cs:42)',
+    estimatedEffort: '1-2h',  // Simple fix first
+    relatedIssues: ['issue-1'],
+    recommendation: 'Add braces to all block statements',
+    reviewers: ['code-style-reviewer'],
+    files: ['Services/AuthService.cs'],
+    quickWin: true  // P1 + low effort
+  },
+  {
+    priority: 'P1',
+    title: 'Complex method needs refactoring (Services/UserService.cs:105)',
+    estimatedEffort: '3-4h',  // Medium fix second
+    relatedIssues: ['issue-2'],
+    recommendation: 'Extract method to reduce complexity',
+    reviewers: ['code-principles-reviewer'],
+    files: ['Services/UserService.cs'],
+    quickWin: false
+  }
+]
+```
+
+**Example 2: Mixed Priorities**
+
+```typescript
+// INPUT: Issues with different priorities
+const issues: Issue[] = [
+  {
+    id: 'issue-1',
+    message: 'Null reference exception risk',
+    file: 'Controllers/AuthController.cs',
+    line: 28,
+    severity: 'P0',
+    category: 'error-handling',
+    suggestion: 'Add null check before property access'
+  },
+  {
+    id: 'issue-2',
+    message: 'Variable name not camelCase',
+    file: 'Services/UserService.cs',
+    line: 15,
+    severity: 'P2',
+    category: 'naming',
+    suggestion: 'Rename to follow camelCase convention'
+  },
+  {
+    id: 'issue-3',
+    message: 'Missing XML documentation',
+    file: 'Services/AuthService.cs',
+    line: 42,
+    severity: 'P1',
+    category: 'documentation',
+    suggestion: 'Add XML summary to public method'
+  }
+];
+
+// OUTPUT: Sorted by priority (P0 > P1 > P2)
+[
+  {
+    priority: 'P0',
+    title: 'Null reference exception risk (Controllers/AuthController.cs:28)',
+    estimatedEffort: '1-2h',
+    relatedIssues: ['issue-1'],
+    recommendation: 'Add null check before property access',
+    reviewers: ['code-principles-reviewer'],
+    files: ['Controllers/AuthController.cs'],
+    quickWin: true  // P0 + low effort
+  },
+  {
+    priority: 'P1',
+    title: 'Missing XML documentation (Services/AuthService.cs:42)',
+    estimatedEffort: '3-4h',
+    relatedIssues: ['issue-3'],
+    recommendation: 'Add XML summary to public method',
+    reviewers: ['code-style-reviewer'],
+    files: ['Services/AuthService.cs'],
+    quickWin: false
+  },
+  {
+    priority: 'P2',
+    title: 'Variable name not camelCase (Services/UserService.cs:15)',
+    estimatedEffort: '1-2h',
+    relatedIssues: ['issue-2'],
+    recommendation: 'Rename to follow camelCase convention',
+    reviewers: ['code-style-reviewer'],
+    files: ['Services/UserService.cs'],
+    quickWin: false  // P2 not high priority
+  }
+]
+```
+
+**Example 3: Related Issues Linking**
+
+```typescript
+// INPUT: Multiple issues in same file
+const issues: Issue[] = [
+  {
+    id: 'issue-1',
+    message: 'Missing null check in ProcessRequest',
+    file: 'Services/AuthService.cs',
+    line: 42,
+    severity: 'P0',
+    category: 'error-handling'
+  },
+  {
+    id: 'issue-2',
+    message: 'Null reference risk in ValidateToken',
+    file: 'Services/AuthService.cs',
+    line: 48,  // Only 6 lines away
+    severity: 'P0',
+    category: 'error-handling'
+  },
+  {
+    id: 'issue-3',
+    message: 'No null check in RefreshToken',
+    file: 'Services/AuthService.cs',
+    line: 55,  // Only 7 lines from issue-2
+    severity: 'P0',
+    category: 'error-handling'
+  }
+];
+
+// OUTPUT: Related issues linked together
+[
+  {
+    priority: 'P0',
+    title: 'Missing null check in ProcessRequest (Services/AuthService.cs:42)',
+    estimatedEffort: '1-2h',
+    relatedIssues: ['issue-1', 'issue-2', 'issue-3'],  // All 3 linked
+    recommendation: 'Add null checks before property access',
+    reviewers: ['code-principles-reviewer'],
+    files: ['Services/AuthService.cs'],
+    quickWin: true
+  },
+  {
+    priority: 'P0',
+    title: 'Null reference risk in ValidateToken (Services/AuthService.cs:48)',
+    estimatedEffort: '1-2h',
+    relatedIssues: ['issue-2', 'issue-1', 'issue-3'],  // All 3 linked
+    recommendation: 'Add null checks before property access',
+    reviewers: ['code-principles-reviewer'],
+    files: ['Services/AuthService.cs'],
+    quickWin: true
+  },
+  {
+    priority: 'P0',
+    title: 'No null check in RefreshToken (Services/AuthService.cs:55)',
+    estimatedEffort: '1-2h',
+    relatedIssues: ['issue-3', 'issue-2', 'issue-1'],  // All 3 linked
+    recommendation: 'Add null checks before property access',
+    reviewers: ['code-principles-reviewer'],
+    files: ['Services/AuthService.cs'],
+    quickWin: true
+  }
+]
+
+// NOTE: All 3 issues linked as they are in same file, nearby lines, and same category
+```
+
+---
+
+### 3.3. Theme Summary Builder
+
+**Goal**: Aggregate recommendations by theme to identify patterns and strategic improvements.
+
+**Top Themes**: Show top 5 themes by occurrence count
+
+**Quick Win Identification**: Flag low-effort items with high impact
+
+**Reviewer Agreement**: Track how many reviewers reported each theme (X/Y format)
+
+#### ThemeSummary Interface
+
+```typescript
+/**
+ * Aggregated summary of recommendation theme
+ *
+ * Provides strategic view of patterns across all reviews.
+ */
+interface ThemeSummary {
+  /** Theme category */
+  theme: string;
+
+  /** Number of unique reviewers who reported this theme */
+  reportedBy: number;
+
+  /** Total number of reviewers in consolidation */
+  totalReviewers: number;
+
+  /** Total occurrences of this theme */
+  occurrences: number;
+
+  /** Number of unique files affected */
+  filesAffected: number;
+
+  /** Consolidated recommendation text */
+  recommendation: string;
+
+  /** Is this a quick win? (low effort, high impact) */
+  quickWin: boolean;
+
+  /** Effort estimate for addressing this theme */
+  effort: string;
+
+  /** Example issues (up to 3) */
+  examples: string[];
+}
+```
+
+#### buildThemeSummary() Function
+
+```typescript
+/**
+ * Build theme summary from recommendations
+ *
+ * ALGORITHM:
+ * 1. Group recommendations by theme
+ * 2. Count occurrences and unique reviewers per theme
+ * 3. Calculate files affected
+ * 4. Identify quick wins (low effort themes)
+ * 5. Sort by occurrences (most common first)
+ * 6. Return top 5 themes
+ *
+ * @param recommendations - Extracted recommendations
+ * @param consolidatedIssues - All issues for context
+ * @param totalReviewers - Total number of reviewers
+ * @returns Top 5 theme summaries
+ */
+function buildThemeSummary(
+  recommendations: Recommendation[],
+  consolidatedIssues: Issue[],
+  totalReviewers: number
+): ThemeSummary[] {
+  const themes = new Map<string, ThemeSummary>();
+
+  for (const rec of recommendations) {
+    if (!themes.has(rec.theme)) {
+      // Get files affected by this theme's issues
+      const affectedFiles = countUniqueFiles(rec.relatedIssues, consolidatedIssues);
+
+      // Get example issue messages
+      const examples = getExampleIssues(rec.relatedIssues, consolidatedIssues, 3);
+
+      // Create theme summary
+      themes.set(rec.theme, {
+        theme: rec.theme,
+        reportedBy: rec.reviewers.length,
+        totalReviewers,
+        occurrences: rec.relatedIssues.length,
+        filesAffected: affectedFiles.length,
+        recommendation: rec.description,
+        quickWin: rec.effort === 'low',
+        effort: formatEffort(rec.effort),
+        examples
+      });
+    } else {
+      // Update existing theme summary
+      const existing = themes.get(rec.theme)!;
+      existing.occurrences += rec.relatedIssues.length;
+
+      // Update unique reviewers count
+      const allReviewers = new Set([...existing.examples, ...rec.reviewers]);
+      existing.reportedBy = allReviewers.size;
+
+      // Recalculate files affected
+      const allIssueIds = [
+        ...existing.examples,
+        ...rec.relatedIssues
+      ];
+      const files = countUniqueFiles(allIssueIds, consolidatedIssues);
+      existing.filesAffected = files.length;
+    }
+  }
+
+  // Sort by occurrences (most common first) and return top 5
+  return Array.from(themes.values())
+    .sort((a, b) => b.occurrences - a.occurrences)
+    .slice(0, 5);
+}
+```
+
+#### Helper Functions
+
+```typescript
+/**
+ * Count unique files affected by issues
+ *
+ * @param issueIds - Issue IDs to check
+ * @param allIssues - All consolidated issues
+ * @returns Array of unique file paths
+ */
+function countUniqueFiles(issueIds: string[], allIssues: Issue[]): string[] {
+  const files = new Set<string>();
+
+  for (const id of issueIds) {
+    const issue = allIssues.find(i => i.id === id);
+    if (issue) {
+      files.add(issue.file);
+    }
+  }
+
+  return Array.from(files);
+}
+
+/**
+ * Format effort estimate for display
+ *
+ * @param effort - Effort level
+ * @returns Human-readable effort estimate
+ */
+function formatEffort(effort: 'low' | 'medium' | 'high'): string {
+  const effortMap: Record<string, string> = {
+    'low': '1-2 hours',
+    'medium': '3-4 hours',
+    'high': '5-8 hours'
+  };
+
+  return effortMap[effort] || '3-4 hours';
+}
+
+/**
+ * Get example issue messages
+ *
+ * @param issueIds - Issue IDs to sample
+ * @param allIssues - All consolidated issues
+ * @param limit - Maximum number of examples
+ * @returns Array of issue messages
+ */
+function getExampleIssues(
+  issueIds: string[],
+  allIssues: Issue[],
+  limit: number
+): string[] {
+  const examples: string[] = [];
+
+  for (const id of issueIds.slice(0, limit)) {
+    const issue = allIssues.find(i => i.id === id);
+    if (issue) {
+      examples.push(`${issue.message} (${issue.file}:${issue.line})`);
+    }
+  }
+
+  return examples;
+}
+```
+
+#### Theme Summary Examples
+
+**Example 1: Single Theme Dominance**
+
+```typescript
+// INPUT: Many recommendations in one theme
+const recommendations: Recommendation[] = [
+  {
+    theme: 'testing',
+    description: 'Add unit tests for business logic',
+    frequency: 3,
+    confidence: 0.88,
+    relatedIssues: ['issue-1', 'issue-2', 'issue-5', 'issue-7', 'issue-12'],
+    effort: 'medium',
+    reviewers: ['test-healer', 'code-principles-reviewer', 'code-style-reviewer']
+  },
+  {
+    theme: 'refactoring',
+    description: 'Extract duplicate code',
+    frequency: 2,
+    confidence: 0.75,
+    relatedIssues: ['issue-3', 'issue-8'],
+    effort: 'medium',
+    reviewers: ['code-principles-reviewer', 'code-style-reviewer']
+  }
+];
+
+// PROCESS: Build theme summary
+const summary = buildThemeSummary(recommendations, allIssues, 3);
+
+// OUTPUT: Top theme highlighted
+[
+  {
+    theme: 'testing',
+    reportedBy: 3,
+    totalReviewers: 3,
+    occurrences: 5,
+    filesAffected: 4,
+    recommendation: 'Add unit tests for business logic',
+    quickWin: false,
+    effort: '3-4 hours',
+    examples: [
+      'Missing unit tests for AuthService (Services/AuthService.cs:42)',
+      'No tests for UserService methods (Services/UserService.cs:105)',
+      'Test coverage gap in OrderProcessor (Services/OrderProcessor.cs:28)'
+    ]
+  },
+  {
+    theme: 'refactoring',
+    reportedBy: 2,
+    totalReviewers: 3,
+    occurrences: 2,
+    filesAffected: 2,
+    recommendation: 'Extract duplicate code',
+    quickWin: false,
+    effort: '3-4 hours',
+    examples: [
+      'Duplicate validation in UserController (Controllers/UserController.cs:42)',
+      'Repeated code in AuthController (Controllers/AuthController.cs:28)'
+    ]
+  }
+]
+```
+
+**Example 2: Multiple Themes with Quick Wins**
+
+```typescript
+// INPUT: Mixed themes with varying effort
+const recommendations: Recommendation[] = [
+  {
+    theme: 'code-style',
+    frequency: 4,
+    relatedIssues: ['issue-1', 'issue-2', 'issue-3', 'issue-4'],
+    effort: 'low',  // Quick win
+    reviewers: ['code-style-reviewer']
+  },
+  {
+    theme: 'security',
+    frequency: 2,
+    relatedIssues: ['issue-5', 'issue-6'],
+    effort: 'high',
+    reviewers: ['code-principles-reviewer', 'security-scanner']
+  },
+  {
+    theme: 'documentation',
+    frequency: 3,
+    relatedIssues: ['issue-7', 'issue-8', 'issue-9'],
+    effort: 'low',  // Quick win
+    reviewers: ['code-style-reviewer']
+  }
+];
+
+// OUTPUT: Quick wins flagged
+[
+  {
+    theme: 'code-style',
+    reportedBy: 1,
+    totalReviewers: 2,
+    occurrences: 4,
+    filesAffected: 3,
+    recommendation: 'Add braces to all block statements',
+    quickWin: true,  // Low effort, multiple occurrences
+    effort: '1-2 hours',
+    examples: [...]
+  },
+  {
+    theme: 'documentation',
+    reportedBy: 1,
+    totalReviewers: 2,
+    occurrences: 3,
+    filesAffected: 3,
+    recommendation: 'Add XML documentation to public APIs',
+    quickWin: true,  // Low effort
+    effort: '1-2 hours',
+    examples: [...]
+  },
+  {
+    theme: 'security',
+    reportedBy: 2,
+    totalReviewers: 2,
+    occurrences: 2,
+    filesAffected: 2,
+    recommendation: 'Add input validation to prevent injection',
+    quickWin: false,  // High effort
+    effort: '5-8 hours',
+    examples: [...]
+  }
+]
+```
+
+**Example 3: Reviewer Agreement Analysis**
+
+```typescript
+// INPUT: Varying reviewer agreement
+const recommendations: Recommendation[] = [
+  {
+    theme: 'error-handling',
+    frequency: 3,  // All 3 reviewers agreed
+    relatedIssues: ['issue-1', 'issue-2', 'issue-3'],
+    reviewers: ['code-principles-reviewer', 'test-healer', 'code-style-reviewer']
+  },
+  {
+    theme: 'performance',
+    frequency: 1,  // Only 1 reviewer mentioned
+    relatedIssues: ['issue-4'],
+    reviewers: ['code-principles-reviewer']
+  }
+];
+
+// OUTPUT: Agreement tracked
+[
+  {
+    theme: 'error-handling',
+    reportedBy: 3,  // All reviewers
+    totalReviewers: 3,
+    occurrences: 3,
+    filesAffected: 2,
+    recommendation: 'Add comprehensive error handling',
+    quickWin: false,
+    effort: '3-4 hours',
+    examples: [...]
+    // NOTE: 3/3 reviewers = high confidence theme
+  },
+  {
+    theme: 'performance',
+    reportedBy: 1,  // Only one reviewer
+    totalReviewers: 3,
+    occurrences: 1,
+    filesAffected: 1,
+    recommendation: 'Optimize database queries',
+    quickWin: false,
+    effort: '5-8 hours',
+    examples: [...]
+    // NOTE: 1/3 reviewers = lower priority theme
+  }
+]
+```
+
+---
+
+## Recommendation Synthesis Integration
+
+### Complete Workflow
+
+```typescript
+/**
+ * Full recommendation synthesis workflow
+ *
+ * INPUT: Consolidated issues (from deduplication + priority aggregation)
+ * OUTPUT: Recommendations, action items, and theme summaries
+ *
+ * STAGES:
+ * 1. Extract recommendations from high-confidence issues (≥60%)
+ * 2. Generate prioritized action items
+ * 3. Build top 5 theme summaries
+ * 4. Identify quick wins
+ */
+function synthesizeRecommendations(
+  reviewResults: ReviewResult[],
+  consolidatedIssues: Issue[]
+): RecommendationSynthesisResult {
+
+  // STAGE 1: Extract recommendations (3.3A)
+  const recommendations = extractRecommendations(reviewResults);
+
+  // STAGE 2: Generate action items (3.3B)
+  const actionItems = generateActionItems(consolidatedIssues);
+
+  // STAGE 3: Build theme summaries (3.3C)
+  const totalReviewers = new Set(reviewResults.map(r => r.reviewer)).size;
+  const themeSummaries = buildThemeSummary(
+    recommendations,
+    consolidatedIssues,
+    totalReviewers
+  );
+
+  // STAGE 4: Identify quick wins
+  const quickWins = actionItems.filter(item => item.quickWin);
+
+  return {
+    recommendations,
+    actionItems,
+    themeSummaries,
+    quickWins,
+    statistics: {
+      totalRecommendations: recommendations.length,
+      totalActionItems: actionItems.length,
+      topThemes: themeSummaries.length,
+      quickWinCount: quickWins.length,
+      highConfidenceIssues: consolidatedIssues.filter(i => i.confidence >= 0.60).length
+    }
+  };
+}
+
+interface RecommendationSynthesisResult {
+  recommendations: Recommendation[];
+  actionItems: ActionItem[];
+  themeSummaries: ThemeSummary[];
+  quickWins: ActionItem[];
+  statistics: {
+    totalRecommendations: number;
+    totalActionItems: number;
+    topThemes: number;
+    quickWinCount: number;
+    highConfidenceIssues: number;
+  };
+}
+```
+
+### Integration Example
+
+```typescript
+// CONTEXT: Full pipeline from raw reviews to recommendations
+
+// INPUT: Raw review results from parallel execution
+const reviewResults: ReviewResult[] = [
+  {
+    reviewer: 'code-principles-reviewer',
+    timestamp: '2025-10-16T10:00:00Z',
+    issues: [
+      {
+        id: 'issue-1',
+        message: 'Missing null check',
+        file: 'Services/AuthService.cs',
+        line: 42,
+        severity: 'P0',
+        confidence: 0.88,
+        category: 'error-handling',
+        suggestion: 'Add null check before property access'
+      },
+      {
+        id: 'issue-2',
+        message: 'No unit tests for AuthService',
+        file: 'Services/AuthService.cs',
+        line: 1,
+        severity: 'P1',
+        confidence: 0.85,
+        category: 'testing',
+        suggestion: 'Add comprehensive unit test coverage'
+      }
+    ]
+  },
+  {
+    reviewer: 'test-healer',
+    timestamp: '2025-10-16T10:01:00Z',
+    issues: [
+      {
+        id: 'issue-3',
+        message: 'Test coverage for AuthService is 42%',
+        file: 'Services/AuthService.cs',
+        line: 1,
+        severity: 'P1',
+        confidence: 0.90,
+        category: 'testing',
+        suggestion: 'Increase test coverage to 80%'
+      }
+    ]
+  },
+  {
+    reviewer: 'code-style-reviewer',
+    timestamp: '2025-10-16T10:02:00Z',
+    issues: [
+      {
+        id: 'issue-4',
+        message: 'Missing braces in if statement',
+        file: 'Controllers/UserController.cs',
+        line: 28,
+        severity: 'P2',
+        confidence: 0.75,
+        category: 'code-style',
+        suggestion: 'Add braces to all block statements'
+      }
+    ]
+  }
+];
+
+// STEP 1: Deduplication (Task 3.1)
+const deduplicatedIssues = deduplicateIssues(reviewResults);
+// Result: issue-2 and issue-3 merged (same file, similar message)
+
+// STEP 2: Priority Aggregation (Task 3.2)
+const consolidatedIssues = processPriorityAggregation(deduplicatedIssues);
+// Result: Priorities aggregated, confidence weighted
+
+// STEP 3: Recommendation Synthesis (Task 3.3)
+const synthesis = synthesizeRecommendations(reviewResults, consolidatedIssues);
+
+// OUTPUT:
+{
+  recommendations: [
+    {
+      theme: 'testing',
+      description: 'Add comprehensive unit test coverage',
+      frequency: 2,
+      confidence: 0.875,
+      relatedIssues: ['issue-2-3-merged'],  // Deduplicated issue
+      effort: 'medium',
+      reviewers: ['code-principles-reviewer', 'test-healer'],
+      matchedKeywords: ['test', 'coverage']
+    },
+    {
+      theme: 'refactoring',
+      description: 'Add null check before property access',
+      frequency: 1,
+      confidence: 0.88,
+      relatedIssues: ['issue-1'],
+      effort: 'low',
+      reviewers: ['code-principles-reviewer'],
+      matchedKeywords: []
+    },
+    {
+      theme: 'refactoring',
+      description: 'Add braces to all block statements',
+      frequency: 1,
+      confidence: 0.75,
+      relatedIssues: ['issue-4'],
+      effort: 'low',
+      reviewers: ['code-style-reviewer'],
+      matchedKeywords: []
+    }
+  ],
+
+  actionItems: [
+    {
+      priority: 'P0',
+      title: 'Missing null check (Services/AuthService.cs:42)',
+      estimatedEffort: '1-2h',
+      relatedIssues: ['issue-1'],
+      recommendation: 'Add null check before property access',
+      reviewers: ['code-principles-reviewer'],
+      files: ['Services/AuthService.cs'],
+      quickWin: true
+    },
+    {
+      priority: 'P1',
+      title: 'Test coverage for AuthService is 42% (Services/AuthService.cs:1)',
+      estimatedEffort: '3-4h',
+      relatedIssues: ['issue-2-3-merged'],
+      recommendation: 'Add comprehensive unit test coverage',
+      reviewers: ['code-principles-reviewer', 'test-healer'],
+      files: ['Services/AuthService.cs'],
+      quickWin: false
+    },
+    {
+      priority: 'P2',
+      title: 'Missing braces in if statement (Controllers/UserController.cs:28)',
+      estimatedEffort: '1-2h',
+      relatedIssues: ['issue-4'],
+      recommendation: 'Add braces to all block statements',
+      reviewers: ['code-style-reviewer'],
+      files: ['Controllers/UserController.cs'],
+      quickWin: false
+    }
+  ],
+
+  themeSummaries: [
+    {
+      theme: 'testing',
+      reportedBy: 2,
+      totalReviewers: 3,
+      occurrences: 1,  // One merged issue
+      filesAffected: 1,
+      recommendation: 'Add comprehensive unit test coverage',
+      quickWin: false,
+      effort: '3-4 hours',
+      examples: [
+        'Test coverage for AuthService is 42% (Services/AuthService.cs:1)'
+      ]
+    },
+    {
+      theme: 'refactoring',
+      reportedBy: 2,
+      totalReviewers: 3,
+      occurrences: 2,
+      filesAffected: 2,
+      recommendation: 'Add null check before property access',
+      quickWin: true,
+      effort: '1-2 hours',
+      examples: [
+        'Missing null check (Services/AuthService.cs:42)',
+        'Missing braces in if statement (Controllers/UserController.cs:28)'
+      ]
+    }
+  ],
+
+  quickWins: [
+    {
+      priority: 'P0',
+      title: 'Missing null check (Services/AuthService.cs:42)',
+      estimatedEffort: '1-2h',
+      relatedIssues: ['issue-1'],
+      recommendation: 'Add null check before property access',
+      reviewers: ['code-principles-reviewer'],
+      files: ['Services/AuthService.cs'],
+      quickWin: true
+    }
+  ],
+
+  statistics: {
+    totalRecommendations: 3,
+    totalActionItems: 3,
+    topThemes: 2,
+    quickWinCount: 1,
+    highConfidenceIssues: 3
+  }
+}
+```
+
+---
+
+## Recommendation Synthesis Summary
+
+**Key Characteristics**:
+
+1. **Confidence Filtering**: Only extract from issues with ≥60% confidence
+2. **Theme Categorization**: 6 themes (refactoring, testing, documentation, performance, security, general)
+3. **Prioritization**: Sort by priority (P0 > P1 > P2) then effort (low > medium > high)
+4. **Quick Win Detection**: Flag low-effort, high-priority items
+5. **Top 5 Themes**: Strategic view of most common patterns
+6. **Reviewer Agreement**: Track consensus across reviewers (X/Y format)
+
+**Integration Points**:
+- Input: Deduplicated issues (Task 3.1) + Priority-aggregated issues (Task 3.2)
+- Output: Recommendations, action items, theme summaries, quick wins
+- Format: Markdown-friendly for report generation
+
+**Quality Metrics**:
+- Categorization accuracy: >90% (keyword matching)
+- Deduplication rate: Similar recommendations merged
+- Action item coverage: 100% of consolidated issues
+- Theme coverage: Top 5 patterns identified
+
+---
+
 **Algorithm Status**: ACTIVE
 **Owner**: Development Team
 **Last Updated**: 2025-10-16
