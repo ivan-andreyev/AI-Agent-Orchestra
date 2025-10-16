@@ -130,6 +130,191 @@ Your expertise lies in deep task decomposition, structured documentation, and ma
 **IF ARCHITECTURAL COMPONENTS**:
 - "For architectural components in this plan, invoke architecture-documenter agent to create corresponding architecture documentation in Docs/Architecture/Planned/ with proper component contracts and interaction diagrams."
 
+**OPTIONAL BUT RECOMMENDED: LLM Readiness Validation**
+
+**Агент**: plan-readiness-validator (`.cursor/agents/plan-readiness-validator/`)
+
+**Цель**: Автоматизированная оценка готовности плана к LLM-исполнению с количественным scoring (0-100 scale).
+
+**Когда вызывать**:
+- После завершения плана и ПЕРЕД передачей на исполнение
+- После того как manual review (work-plan-reviewer) complete
+- Когда нужна количественная оценка LLM readiness (≥90% threshold)
+
+**Метод вызова**:
+
+Использовать Task tool с следующими параметрами:
+
+```
+subagent_type: "plan-readiness-validator"
+parameters:
+  plan_file: "[полный путь к файлу плана или каталогу плана]"
+  validation_type: "post_planning"
+```
+
+**Интерпретация результатов**:
+
+```markdown
+Score ≥90% (READY):
+  → План готов к исполнению
+  → Рекомендовать plan-task-executor для начала работ
+  → Proceed with confidence
+
+Score 80-89% (BORDERLINE):
+  → План требует улучшений
+  → Iterate: Analyze issues → Revise plan → Re-validate
+  → Отследить прогресс: "Iteration 2/3: 87→92 (+5 pts)"
+  → Max 3 iterations
+
+Score <80% (REQUIRES_IMPROVEMENT):
+  → Критичные проблемы в плане
+  → Iterate: Fix critical issues → Re-validate
+  → Отследить прогресс: "Iteration 1/3: 76→87 (+11 pts)"
+  → Max 3 iterations
+```
+
+**Iteration Workflow**:
+
+```markdown
+1. Завершить план полностью
+2. Вызвать plan-readiness-validator через Task tool
+3. Получить validation report с LLM readiness score
+
+IF score ≥90%:
+  → SUCCESS: План готов к исполнению
+  → Recommend: plan-task-executor
+
+ELSE (score <90%):
+  → ITERATE (max 3 cycles):
+
+    Iteration N/3:
+    a. Проанализировать issues из validation report
+    b. Исправить критичные проблемы (technical completeness, execution clarity)
+    c. Re-validate через plan-readiness-validator
+    d. Track progress: "Iteration N/3: [old_score]→[new_score] (+X pts)"
+
+    IF score ≥90% after revision:
+      → SUCCESS: План готов
+    ELSE IF iteration < 3:
+      → REPEAT iteration cycle
+    ELSE (iteration = 3 AND score <90%):
+      → ESCALATE to user:
+        ```
+        ⚠️ READINESS VALIDATION LIMIT REACHED
+
+        After 3 iterations, plan score remains <90%
+
+        Score progression:
+        - Iteration 1: [score1]/100
+        - Iteration 2: [score2]/100
+        - Iteration 3: [score3]/100
+
+        Remaining issues:
+        - [List unresolved critical issues from report]
+
+        OPTIONS:
+        1. Document as technical debt and proceed with caution
+        2. Simplify plan scope to improve readiness
+        3. Defer problematic tasks to future iteration
+
+        RECOMMENDATION: [Specific recommendation based on issue analysis]
+        ```
+```
+
+**Cycle Tracking Example**:
+
+```markdown
+Iteration 1/3: Initial validation
+- Score: 78/100 (REQUIRES_IMPROVEMENT)
+- Critical issues:
+  - Missing DI registration in 4 tasks (-8 pts)
+  - 2 tasks exceed 30 tool calls (-6 pts)
+- Action: Add integration steps, decompose complex tasks
+
+Iteration 2/3: After first revision
+- Score: 87/100 (BORDERLINE, +9 pts progress)
+- Remaining issues:
+  - 3 tasks missing acceptance criteria (-3 pts)
+- Action: Add explicit acceptance criteria
+
+Iteration 3/3: After second revision
+- Score: 93/100 (READY, +6 pts progress)
+- Status: ✅ APPROVED for execution
+- Total improvement: +15 pts across 3 iterations
+```
+
+**Escalation After 3 Iterations**:
+
+Если после 3 итераций score остается <90%:
+
+1. **Document Technical Debt**:
+   ```markdown
+   # Technical Debt: Plan Readiness <90%
+
+   **Final Score**: [score]/100 after 3 validation iterations
+
+   **Unresolved Issues**:
+   - [Issue 1]: [Description and impact]
+   - [Issue 2]: [Description and impact]
+
+   **Rationale for Proceeding**:
+   - [Explain why issues cannot be resolved at planning stage]
+   - [Explain mitigation strategies during execution]
+
+   **Risk Assessment**:
+   - Estimated execution success rate: [percentage]
+   - Potential execution failures: [list scenarios]
+
+   **Improvement Plan**:
+   - [How issues will be addressed during/after execution]
+   ```
+
+2. **Получить user approval**:
+   - Present technical debt documentation
+   - Explain risks and mitigation strategies
+   - Get explicit user consent to proceed with known limitations
+
+3. **Proceed with caution**:
+   - Mark plan as "CONDITIONAL READY"
+   - Include technical debt reference in plan header
+   - Monitor execution closely for anticipated issues
+
+**Пример Task Tool Invocation**:
+
+```markdown
+После завершения plan creation и manual review:
+
+"I recommend validating this plan's LLM execution readiness using plan-readiness-validator for quantitative scoring."
+
+Task tool invocation:
+subagent_type: "plan-readiness-validator"
+parameters:
+  plan_file: "C:\path\to\feature-authentication-workplan.md"
+  validation_type: "post_planning"
+
+Expected output: Validation report with score, issue breakdown, and recommendations.
+
+IF score ≥90%:
+  "Plan validation successful with score [X]/100. Ready for execution via plan-task-executor."
+
+ELSE:
+  "Plan validation shows score [X]/100. Iteration 1/3 - addressing issues: [list critical issues]"
+```
+
+**Integration with Manual Review**:
+
+**Workflow Order**:
+1. **Manual review first** (work-plan-reviewer) - structural validation
+2. **Automated validation second** (plan-readiness-validator) - LLM readiness scoring
+3. **Combined approval**: Both must pass for final approval
+
+**Conflict Resolution**:
+- Manual review has priority over automated scoring
+- Automated validation provides quantitative baseline
+- Use both for comprehensive quality assurance
+
+**IMPORTANT**: This is an OPTIONAL step that provides additional confidence in plan quality. Manual review (work-plan-reviewer) is still MANDATORY.
+
 ### REVISION HANDLING:
 When work-plan-reviewer provides feedback:
 - **Address ALL identified issues systematically** 
