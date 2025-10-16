@@ -24,6 +24,1349 @@ The Review Consolidation Algorithm processes multiple independent reviewer repor
 
 ---
 
+## Reviewer Selection Algorithm
+
+**Purpose**: Dynamically determine which reviewers to invoke based on file types and review context
+
+**Design Philosophy**:
+- **File-driven**: Select reviewers based on file extensions and patterns
+- **Context-aware**: Adjust reviewer selection based on review context (post-implementation vs pre-commit)
+- **Configurable**: Allow override via explicit reviewer list parameter
+- **Efficient**: Skip irrelevant reviewers for configuration/documentation files
+
+### File Type to Reviewer Mapping
+
+**Core Mapping Rules**:
+
+```typescript
+/**
+ * Maps file types to required reviewers
+ * @param files Array of file paths to review
+ * @returns Set of reviewer IDs to invoke
+ */
+function selectReviewers(files: string[]): Set<string> {
+  const reviewers = new Set<string>();
+
+  for (const file of files) {
+    // C# Production Code Files
+    if (file.endsWith('.cs') && !file.includes('Test')) {
+      reviewers.add('code-style-reviewer');        // ALWAYS for .cs files
+      reviewers.add('code-principles-reviewer');   // ALWAYS for .cs files
+    }
+
+    // C# Test Files
+    if (file.endsWith('.cs') && file.includes('Test')) {
+      reviewers.add('code-style-reviewer');        // ALWAYS for test files
+      reviewers.add('code-principles-reviewer');   // ALWAYS for test files
+      reviewers.add('test-healer');                // ALWAYS (priority) for test files
+    }
+
+    // Configuration Files - SKIP ALL REVIEWERS
+    if (file.match(/\.(json|xml|yaml|yml|config)$/)) {
+      // Explicitly skip - no reviewers needed for configuration
+      continue;
+    }
+
+    // Documentation Files - SKIP ALL REVIEWERS (for now)
+    if (file.endsWith('.md')) {
+      // Future: documentation-reviewer
+      continue;
+    }
+
+    // Other Code Files (TypeScript, JavaScript, etc.) - Future support
+    if (file.match(/\.(ts|tsx|js|jsx)$/)) {
+      // Future: Adapt to support multiple languages
+      continue;
+    }
+  }
+
+  return reviewers;
+}
+```
+
+### File Type Mapping Table
+
+| File Pattern | code-style-reviewer | code-principles-reviewer | test-healer | Notes |
+|--------------|---------------------|--------------------------|-------------|-------|
+| `*.cs` (no "Test") | ✅ ALWAYS | ✅ ALWAYS | ❌ SKIP | Production C# code |
+| `*Test.cs` | ✅ ALWAYS | ✅ ALWAYS | ✅ ALWAYS (priority) | C# test files |
+| `*Tests.cs` | ✅ ALWAYS | ✅ ALWAYS | ✅ ALWAYS (priority) | C# test files |
+| `*.Tests.cs` | ✅ ALWAYS | ✅ ALWAYS | ✅ ALWAYS (priority) | C# test files |
+| `*.json` | ❌ SKIP | ❌ SKIP | ❌ SKIP | Configuration files |
+| `*.xml` | ❌ SKIP | ❌ SKIP | ❌ SKIP | Configuration files |
+| `*.yaml`, `*.yml` | ❌ SKIP | ❌ SKIP | ❌ SKIP | Configuration files |
+| `*.config` | ❌ SKIP | ❌ SKIP | ❌ SKIP | Configuration files |
+| `*.md` | ❌ SKIP | ❌ SKIP | ❌ SKIP | Documentation (future: documentation-reviewer) |
+| `*.ts`, `*.tsx` | 🔮 FUTURE | 🔮 FUTURE | 🔮 FUTURE | TypeScript support planned |
+| `*.js`, `*.jsx` | 🔮 FUTURE | 🔮 FUTURE | 🔮 FUTURE | JavaScript support planned |
+
+### Context-Based Reviewer Selection
+
+**Review Context Modifiers**:
+
+```typescript
+/**
+ * Adjusts reviewer selection based on review context
+ * @param baseReviewers Set of reviewers selected by file type
+ * @param context Review context (post-implementation, pre-commit, etc.)
+ * @returns Adjusted set of reviewer IDs
+ */
+function adjustForContext(
+  baseReviewers: Set<string>,
+  context: ReviewContext
+): Set<string> {
+
+  switch (context) {
+    case 'post-implementation':
+      // Comprehensive review - use ALL selected reviewers
+      return baseReviewers;
+
+    case 'pre-commit':
+      // Fast validation - skip test-healer for speed
+      const fastReviewers = new Set(baseReviewers);
+      fastReviewers.delete('test-healer');
+      return fastReviewers;
+
+    case 'technical-debt':
+      // Deep analysis - use ALL reviewers + extended timeout
+      return baseReviewers;
+
+    case 'ad-hoc':
+      // User-driven - use ALL selected reviewers
+      return baseReviewers;
+
+    default:
+      return baseReviewers;
+  }
+}
+
+type ReviewContext = 'post-implementation' | 'pre-commit' | 'technical-debt' | 'ad-hoc';
+```
+
+### Context Impact Table
+
+| Review Context | Reviewer Adjustment | Timeout | Rationale |
+|----------------|---------------------|---------|-----------|
+| `post-implementation` | Use ALL selected reviewers | 5 min | Comprehensive post-feature review |
+| `pre-commit` | SKIP test-healer | 5 min | Fast validation before commit, focus on style+principles |
+| `technical-debt` | Use ALL selected reviewers | 10 min | Deep analysis requires all reviewers + more time |
+| `ad-hoc` | Use ALL selected reviewers | 5 min | User-initiated, use full coverage |
+
+### Dynamic Reviewer List Generation
+
+**Complete Selection Algorithm**:
+
+```typescript
+/**
+ * Generates final reviewer list with context adjustments
+ * @param files Array of file paths to review
+ * @param context Review context
+ * @param explicitReviewers Optional explicit reviewer override
+ * @returns Final array of reviewer IDs to invoke
+ */
+function generateReviewerList(
+  files: string[],
+  context: ReviewContext,
+  explicitReviewers?: string[]
+): string[] {
+
+  // STEP 1: Check for explicit override
+  if (explicitReviewers && explicitReviewers.length > 0) {
+    // User explicitly specified reviewers - use those
+    return explicitReviewers;
+  }
+
+  // STEP 2: Select reviewers based on file types
+  const baseReviewers = selectReviewers(files);
+
+  // STEP 3: Adjust for review context
+  const adjustedReviewers = adjustForContext(baseReviewers, context);
+
+  // STEP 4: Validate minimum reviewer requirement
+  if (adjustedReviewers.size === 0) {
+    throw new Error('No reviewers selected - all files are configuration/documentation');
+  }
+
+  // STEP 5: Return sorted array for consistent ordering
+  return Array.from(adjustedReviewers).sort();
+}
+```
+
+### Edge Case Handling
+
+**Edge Case 1: Mixed File Types**
+
+```typescript
+// Input: Mixed C# code and test files
+const files = [
+  'src/Services/AuthService.cs',           // Production code
+  'src/Tests/AuthServiceTests.cs',         // Test file
+  'src/Program.cs'                         // Production code
+];
+
+// Expected reviewers:
+// - code-style-reviewer (all .cs files)
+// - code-principles-reviewer (all .cs files)
+// - test-healer (test files detected)
+
+const reviewers = selectReviewers(files);
+// Result: ['code-principles-reviewer', 'code-style-reviewer', 'test-healer']
+```
+
+**Edge Case 2: Configuration Only**
+
+```typescript
+// Input: Only configuration files
+const files = [
+  'appsettings.json',
+  'launchSettings.json',
+  'web.config'
+];
+
+// Expected: Throw error (no reviewers applicable)
+try {
+  const reviewers = generateReviewerList(files, 'post-implementation');
+} catch (error) {
+  // Error: "No reviewers selected - all files are configuration/documentation"
+}
+```
+
+**Edge Case 3: Pre-Commit Context Optimization**
+
+```typescript
+// Input: Mixed files with pre-commit context
+const files = [
+  'src/Services/AuthService.cs',
+  'src/Tests/AuthServiceTests.cs'
+];
+
+// Base reviewers: ['code-style-reviewer', 'code-principles-reviewer', 'test-healer']
+// Context: 'pre-commit'
+// Adjustment: Remove test-healer for speed
+
+const reviewers = generateReviewerList(files, 'pre-commit');
+// Result: ['code-principles-reviewer', 'code-style-reviewer']
+// Benefit: ~33% faster (2 reviewers instead of 3)
+```
+
+**Edge Case 4: Explicit Reviewer Override**
+
+```typescript
+// Input: User explicitly requests only code-style-reviewer
+const files = [
+  'src/Services/AuthService.cs',
+  'src/Tests/AuthServiceTests.cs'
+];
+
+const reviewers = generateReviewerList(
+  files,
+  'post-implementation',
+  ['code-style-reviewer']  // Explicit override
+);
+
+// Result: ['code-style-reviewer']
+// Rationale: User override takes precedence over automatic selection
+```
+
+### Performance Considerations
+
+**Selection Performance**:
+- File type detection: O(n) where n = number of files
+- Reviewer set operations: O(r) where r = number of reviewers (~3)
+- Total: O(n) - linear time complexity
+- Expected time: <10ms for typical file sets (10-50 files)
+
+**Caching Strategy** (Future Enhancement):
+```typescript
+// Cache reviewer selection for identical file lists
+const reviewerCache = new Map<string, string[]>();
+
+function generateReviewerListCached(
+  files: string[],
+  context: ReviewContext
+): string[] {
+  const cacheKey = `${files.sort().join('|')}:${context}`;
+
+  if (reviewerCache.has(cacheKey)) {
+    return reviewerCache.get(cacheKey)!;
+  }
+
+  const reviewers = generateReviewerList(files, context);
+  reviewerCache.set(cacheKey, reviewers);
+  return reviewers;
+}
+```
+
+### Integration with Parallel Execution
+
+**Complete Workflow**:
+
+```typescript
+// STEP 1: Generate reviewer list
+const reviewers = generateReviewerList(files, context, explicitReviewers);
+
+// STEP 2: Build parallel Task calls
+const tasks = reviewers.map(reviewerType => ({
+  tool: "Task",
+  params: {
+    subagent_type: reviewerType,
+    description: `Review ${files.length} files for ${reviewerType} issues`,
+    prompt: generateReviewPrompt(reviewerType, files),
+    timeout: getTimeoutForContext(context)
+  }
+}));
+
+// STEP 3: Execute all tasks in parallel
+const results = await executeTasks(tasks);
+
+function getTimeoutForContext(context: ReviewContext): number {
+  switch (context) {
+    case 'technical-debt': return 600000;  // 10 minutes
+    default: return 300000;                // 5 minutes
+  }
+}
+```
+
+### Validation Rules
+
+**Pre-Execution Validation**:
+
+```typescript
+/**
+ * Validates reviewer selection before execution
+ * @param reviewers Selected reviewer IDs
+ * @param files Files to review
+ * @throws Error if validation fails
+ */
+function validateReviewerSelection(reviewers: string[], files: string[]): void {
+  // Rule 1: At least one reviewer required
+  if (reviewers.length === 0) {
+    throw new Error('No reviewers selected - cannot proceed with empty reviewer list');
+  }
+
+  // Rule 2: All reviewers must be valid
+  const validReviewers = ['code-style-reviewer', 'code-principles-reviewer', 'test-healer'];
+  for (const reviewer of reviewers) {
+    if (!validReviewers.includes(reviewer)) {
+      throw new Error(`Invalid reviewer: ${reviewer}`);
+    }
+  }
+
+  // Rule 3: Maximum 5 reviewers (prevent excessive parallelization)
+  if (reviewers.length > 5) {
+    throw new Error(`Too many reviewers: ${reviewers.length} (maximum: 5)`);
+  }
+
+  // Rule 4: At least one reviewable file
+  const reviewableFiles = files.filter(f =>
+    !f.match(/\.(json|xml|yaml|yml|config|md)$/)
+  );
+
+  if (reviewableFiles.length === 0) {
+    throw new Error('No reviewable files - all files are configuration/documentation');
+  }
+}
+```
+
+### Examples
+
+**Example 1: Production Code Only**
+```typescript
+Input:
+  files: ['Services/AuthService.cs', 'Controllers/AuthController.cs']
+  context: 'post-implementation'
+
+Output:
+  reviewers: ['code-principles-reviewer', 'code-style-reviewer']
+  rationale: No test files detected, skip test-healer
+```
+
+**Example 2: Mixed Code and Tests**
+```typescript
+Input:
+  files: [
+    'Services/AuthService.cs',
+    'Tests/Services/AuthServiceTests.cs',
+    'Controllers/AuthController.cs'
+  ]
+  context: 'post-implementation'
+
+Output:
+  reviewers: ['code-principles-reviewer', 'code-style-reviewer', 'test-healer']
+  rationale: Test files detected, include all reviewers
+```
+
+**Example 3: Pre-Commit Optimization**
+```typescript
+Input:
+  files: [
+    'Services/AuthService.cs',
+    'Tests/Services/AuthServiceTests.cs'
+  ]
+  context: 'pre-commit'
+
+Output:
+  reviewers: ['code-principles-reviewer', 'code-style-reviewer']
+  rationale: Pre-commit context - skip test-healer for speed (2-3 min instead of 5 min)
+```
+
+---
+
+## Result Collection Interfaces
+
+**Purpose**: Define standardized data structures for collecting and storing reviewer outputs
+
+**Design Philosophy**:
+- **Uniform**: All reviewers return ReviewResult regardless of internal format
+- **Extensible**: Metadata field allows reviewer-specific data
+- **Type-safe**: Explicit status enum prevents invalid states
+- **Traceable**: Each issue has unique ID for deduplication tracking
+
+### ReviewResult Interface
+
+**Core Data Structure** for storing individual reviewer outputs:
+
+```typescript
+/**
+ * Standard result structure returned by each reviewer
+ * @interface ReviewResult
+ */
+interface ReviewResult {
+  // Reviewer Identification
+  reviewer_name: string;              // e.g., "code-style-reviewer"
+
+  // Execution Metadata
+  execution_time_ms: number;          // Time taken by reviewer (milliseconds)
+  status: ReviewStatus;               // Execution outcome
+
+  // Issues Found
+  issues: Issue[];                    // Array of detected issues
+
+  // Quality Metrics
+  confidence: number;                 // Overall reviewer confidence (0.0-1.0)
+
+  // Additional Context
+  metadata: ReviewMetadata;           // Reviewer-specific metadata
+
+  // Error Information (optional)
+  error?: string;                     // Error message if status is 'error' or 'partial'
+}
+
+/**
+ * Execution status enum
+ */
+type ReviewStatus =
+  | 'success'    // Reviewer completed successfully
+  | 'timeout'    // Reviewer exceeded time limit
+  | 'error'      // Reviewer failed with error
+  | 'partial';   // Reviewer returned partial results (some parsing failed)
+
+/**
+ * Reviewer-specific metadata
+ */
+interface ReviewMetadata {
+  files_reviewed: number;             // Number of files analyzed
+  rules_applied: number;              // Number of rules checked
+  cache_hit: boolean;                 // Whether result came from cache
+  version: string;                    // Reviewer version (e.g., "1.0")
+
+  // Optional fields for specific reviewers
+  test_coverage?: number;             // test-healer: coverage percentage
+  architecture_score?: number;        // architecture-documenter: score
+  [key: string]: any;                 // Allow additional metadata
+}
+```
+
+**ReviewResult Examples**:
+
+**Example 1: Successful Review**
+```typescript
+const successResult: ReviewResult = {
+  reviewer_name: 'code-style-reviewer',
+  execution_time_ms: 4200,
+  status: 'success',
+  issues: [
+    /* array of issues */
+  ],
+  confidence: 0.95,
+  metadata: {
+    files_reviewed: 5,
+    rules_applied: 12,
+    cache_hit: false,
+    version: '1.0'
+  }
+};
+```
+
+**Example 2: Timeout Result**
+```typescript
+const timeoutResult: ReviewResult = {
+  reviewer_name: 'code-principles-reviewer',
+  execution_time_ms: 300000,  // 5 minutes
+  status: 'timeout',
+  issues: [],
+  confidence: 0.0,
+  metadata: {
+    files_reviewed: 0,
+    rules_applied: 0,
+    cache_hit: false,
+    version: '1.0'
+  },
+  error: 'Reviewer exceeded 5 minute timeout'
+};
+```
+
+**Example 3: Partial Result (Parse Error)**
+```typescript
+const partialResult: ReviewResult = {
+  reviewer_name: 'test-healer',
+  execution_time_ms: 3800,
+  status: 'partial',
+  issues: [
+    /* issues that could be parsed */
+  ],
+  confidence: 0.5,  // Lower confidence due to partial parsing
+  metadata: {
+    files_reviewed: 3,  // Only 3/5 files parsed successfully
+    rules_applied: 5,
+    cache_hit: false,
+    version: '1.0'
+  },
+  error: 'XML parse error on TestResults.xml, recovered partial results'
+};
+```
+
+### Issue Interface
+
+**Core Data Structure** for representing individual code issues:
+
+```typescript
+/**
+ * Standardized issue structure used across all reviewers
+ * @interface Issue
+ */
+interface Issue {
+  // Unique Identification
+  id: string;                         // Hash for deduplication (generated from file+line+category)
+
+  // Location Information
+  file: string;                       // Relative file path (e.g., "Services/AuthService.cs")
+  line: number;                       // Line number where issue occurs
+  column?: number;                    // Optional column number (if available)
+
+  // Classification
+  severity: IssueSeverity;            // Priority level (P0/P1/P2)
+  category: string;                   // Issue category (e.g., "naming_convention")
+  rule: string;                       // Rule identifier (e.g., "csharp-naming-PascalCase")
+
+  // Description
+  message: string;                    // Human-readable issue description
+  suggestion?: string;                // Optional fix suggestion
+
+  // Quality Metrics
+  confidence: number;                 // Reviewer confidence in this issue (0.0-1.0)
+
+  // Attribution
+  reviewer: string;                   // Reviewer that detected this issue
+
+  // Optional Context
+  code_snippet?: string;              // Optional code snippet showing issue
+  fix_example?: string;               // Optional example of corrected code
+}
+
+/**
+ * Issue severity enum
+ */
+type IssueSeverity =
+  | 'P0'    // Critical - Must fix immediately (blocks commit)
+  | 'P1'    // Important - Should fix before merge (warnings)
+  | 'P2';   // Informational - Nice to fix (improvements)
+
+/**
+ * Category constants for common issue types
+ */
+const IssueCategory = {
+  // Code Style
+  NAMING_CONVENTION: 'naming_convention',
+  FORMATTING: 'formatting',
+  BRACES: 'mandatory_braces',
+  DOCUMENTATION: 'xml_documentation',
+
+  // Code Principles
+  SOLID_SRP: 'solid_srp',
+  SOLID_OCP: 'solid_ocp',
+  SOLID_LSP: 'solid_lsp',
+  SOLID_ISP: 'solid_isp',
+  SOLID_DIP: 'solid_dip',
+  DRY_VIOLATION: 'dry_violation',
+  COMPLEXITY: 'complexity',
+
+  // Testing
+  TEST_COVERAGE: 'test_coverage',
+  TEST_QUALITY: 'test_quality',
+  MISSING_TEST: 'missing_test',
+  TEST_SMELL: 'test_smell',
+
+  // Architecture
+  CIRCULAR_DEPENDENCY: 'circular_dependency',
+  ARCHITECTURAL_VIOLATION: 'architectural_violation',
+
+  // General
+  ERROR_HANDLING: 'error_handling',
+  SECURITY: 'security',
+  PERFORMANCE: 'performance'
+} as const;
+```
+
+**Issue Hash Generation**:
+
+```typescript
+/**
+ * Generates unique hash for issue deduplication
+ * @param file File path
+ * @param line Line number
+ * @param category Issue category
+ * @returns SHA-256 hash string
+ */
+function generateIssueHash(file: string, line: number, category: string): string {
+  const composite = `${file}:${line}:${category}`;
+  return sha256(composite).substring(0, 16);  // First 16 chars of hash
+}
+
+// Example usage
+const issueId = generateIssueHash('Services/AuthService.cs', 42, 'naming_convention');
+// Result: "a3f2c8e91b4d7f6a"
+```
+
+**Issue Examples**:
+
+**Example 1: Style Issue (P1)**
+```typescript
+const styleIssue: Issue = {
+  id: 'a3f2c8e91b4d7f6a',
+  file: 'Services/AuthService.cs',
+  line: 42,
+  column: 12,
+  severity: 'P1',
+  category: IssueCategory.NAMING_CONVENTION,
+  rule: 'csharp-naming-PascalCase',
+  message: 'Variable "x" should use descriptive name following camelCase convention',
+  suggestion: 'Rename to "userRequest" or similar descriptive name',
+  confidence: 0.85,
+  reviewer: 'code-style-reviewer',
+  code_snippet: 'var x = GetUserRequest();',
+  fix_example: 'var userRequest = GetUserRequest();'
+};
+```
+
+**Example 2: Principle Violation (P0)**
+```typescript
+const principleIssue: Issue = {
+  id: 'b7d4e2f8c9a1e3b5',
+  file: 'Services/AuthService.cs',
+  line: 85,
+  severity: 'P0',
+  category: IssueCategory.SOLID_DIP,
+  rule: 'dependency-inversion',
+  message: 'Class depends on concrete implementation instead of abstraction, violates Dependency Inversion Principle',
+  suggestion: 'Inject IAuthRepository interface instead of concrete AuthRepository',
+  confidence: 0.92,
+  reviewer: 'code-principles-reviewer',
+  code_snippet: 'private AuthRepository _repo = new AuthRepository();',
+  fix_example: 'private readonly IAuthRepository _repo;\npublic AuthService(IAuthRepository repo) { _repo = repo; }'
+};
+```
+
+**Example 3: Test Coverage Issue (P1)**
+```typescript
+const testIssue: Issue = {
+  id: 'c8e5f1a9d2b7c4e6',
+  file: 'Services/AuthService.cs',
+  line: 120,
+  severity: 'P1',
+  category: IssueCategory.MISSING_TEST,
+  rule: 'test-coverage-required',
+  message: 'Method ProcessAuthenticationRequest has zero test coverage',
+  suggestion: 'Add unit tests covering success case, failure cases, and edge cases',
+  confidence: 0.88,
+  reviewer: 'test-healer'
+};
+```
+
+### Issue Deduplication ID Strategy
+
+**Composite Key Design**:
+
+The issue ID is generated from three components to enable both exact match and semantic deduplication:
+
+```typescript
+/**
+ * Issue deduplication strategy
+ *
+ * EXACT MATCH: Uses (file, line, category) composite key
+ * - Same file, same line, same category → DUPLICATE
+ * - Hash ensures fast lookup in deduplication map
+ *
+ * SEMANTIC MATCH: Compares message similarity if exact match fails
+ * - Levenshtein distance ≥80% → POTENTIAL DUPLICATE
+ * - Requires additional context checks (file proximity, line proximity)
+ */
+
+// Exact match key generation
+function generateExactMatchKey(issue: Issue): string {
+  return generateIssueHash(issue.file, issue.line, issue.category);
+}
+
+// Semantic similarity key generation (for fallback)
+function generateSemanticKey(issue: Issue): string {
+  // Normalize message for comparison
+  const normalized = issue.message
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')  // Remove punctuation
+    .replace(/\s+/g, ' ')      // Normalize whitespace
+    .trim();
+
+  return sha256(normalized).substring(0, 16);
+}
+```
+
+**Deduplication Example**:
+
+```typescript
+// Three reviewers report similar issues
+const issue1: Issue = {
+  id: generateIssueHash('AuthService.cs', 42, 'naming_convention'),
+  file: 'AuthService.cs',
+  line: 42,
+  category: 'naming_convention',
+  message: 'Variable "x" should be renamed',
+  reviewer: 'code-style-reviewer',
+  // ...
+};
+
+const issue2: Issue = {
+  id: generateIssueHash('AuthService.cs', 42, 'naming_convention'),  // SAME ID
+  file: 'AuthService.cs',
+  line: 42,
+  category: 'naming_convention',
+  message: 'Variable "x" violates naming convention',
+  reviewer: 'code-principles-reviewer',
+  // ...
+};
+
+// Deduplication algorithm recognizes these as duplicates via exact match
+// Result: Single merged issue with reviewers: ['code-style-reviewer', 'code-principles-reviewer']
+```
+
+### Interface Validation
+
+**Validation Rules** for ReviewResult and Issue:
+
+```typescript
+/**
+ * Validates ReviewResult structure
+ * @throws Error if validation fails
+ */
+function validateReviewResult(result: ReviewResult): void {
+  // Required fields
+  if (!result.reviewer_name || typeof result.reviewer_name !== 'string') {
+    throw new Error('Invalid ReviewResult: reviewer_name required');
+  }
+
+  if (typeof result.execution_time_ms !== 'number' || result.execution_time_ms < 0) {
+    throw new Error('Invalid ReviewResult: execution_time_ms must be non-negative number');
+  }
+
+  if (!['success', 'timeout', 'error', 'partial'].includes(result.status)) {
+    throw new Error(`Invalid ReviewResult: status must be success|timeout|error|partial, got ${result.status}`);
+  }
+
+  if (!Array.isArray(result.issues)) {
+    throw new Error('Invalid ReviewResult: issues must be array');
+  }
+
+  if (typeof result.confidence !== 'number' || result.confidence < 0 || result.confidence > 1) {
+    throw new Error('Invalid ReviewResult: confidence must be between 0 and 1');
+  }
+
+  // Validate each issue
+  result.issues.forEach((issue, index) => {
+    try {
+      validateIssue(issue);
+    } catch (error) {
+      throw new Error(`Invalid issue at index ${index}: ${error.message}`);
+    }
+  });
+}
+
+/**
+ * Validates Issue structure
+ * @throws Error if validation fails
+ */
+function validateIssue(issue: Issue): void {
+  if (!issue.id || typeof issue.id !== 'string') {
+    throw new Error('Invalid Issue: id required');
+  }
+
+  if (!issue.file || typeof issue.file !== 'string') {
+    throw new Error('Invalid Issue: file required');
+  }
+
+  if (typeof issue.line !== 'number' || issue.line < 1) {
+    throw new Error('Invalid Issue: line must be positive number');
+  }
+
+  if (!['P0', 'P1', 'P2'].includes(issue.severity)) {
+    throw new Error(`Invalid Issue: severity must be P0|P1|P2, got ${issue.severity}`);
+  }
+
+  if (!issue.category || typeof issue.category !== 'string') {
+    throw new Error('Invalid Issue: category required');
+  }
+
+  if (!issue.message || typeof issue.message !== 'string') {
+    throw new Error('Invalid Issue: message required');
+  }
+
+  if (typeof issue.confidence !== 'number' || issue.confidence < 0 || issue.confidence > 1) {
+    throw new Error('Invalid Issue: confidence must be between 0 and 1');
+  }
+
+  if (!issue.reviewer || typeof issue.reviewer !== 'string') {
+    throw new Error('Invalid Issue: reviewer required');
+  }
+}
+```
+
+---
+
+## Result Caching System
+
+**Purpose**: Cache reviewer results to avoid re-running expensive reviews for unchanged files
+
+**Design Philosophy**:
+- **Fast lookup**: O(1) access via Map-based storage
+- **Automatic expiry**: 15-minute TTL prevents stale results
+- **File-based keys**: Hash file contents for cache invalidation on changes
+- **Memory efficient**: In-memory only (no persistence overhead)
+
+### ResultCache Class
+
+**Core Caching Implementation**:
+
+```typescript
+/**
+ * In-memory cache for reviewer results with automatic TTL expiry
+ * @class ResultCache
+ */
+class ResultCache {
+  // Private storage
+  private cache: Map<string, CachedResult>;
+  private readonly TTL: number;
+
+  /**
+   * Constructor
+   * @param ttl Time-to-live in milliseconds (default: 900000 = 15 minutes)
+   */
+  constructor(ttl: number = 900000) {
+    this.cache = new Map<string, CachedResult>();
+    this.TTL = ttl;
+
+    // Start automatic cleanup interval (every 5 minutes)
+    this.startCleanupInterval();
+  }
+
+  /**
+   * Stores reviewer result in cache
+   * @param key Cache key (generated from files + reviewer)
+   * @param result ReviewResult to cache
+   */
+  store(key: string, result: ReviewResult): void {
+    const now = Date.now();
+
+    this.cache.set(key, {
+      result: result,
+      timestamp: now,
+      expires: now + this.TTL
+    });
+
+    console.log(`[Cache] Stored result for key: ${key} (expires in ${this.TTL / 1000}s)`);
+  }
+
+  /**
+   * Retrieves reviewer result from cache
+   * @param key Cache key
+   * @returns ReviewResult if cached and not expired, null otherwise
+   */
+  retrieve(key: string): ReviewResult | null {
+    const cached = this.cache.get(key);
+
+    if (!cached) {
+      console.log(`[Cache] MISS for key: ${key}`);
+      return null;
+    }
+
+    const now = Date.now();
+
+    // Check if expired
+    if (now > cached.expires) {
+      console.log(`[Cache] EXPIRED for key: ${key} (age: ${(now - cached.timestamp) / 1000}s)`);
+      this.cache.delete(key);
+      return null;
+    }
+
+    console.log(`[Cache] HIT for key: ${key} (age: ${(now - cached.timestamp) / 1000}s)`);
+
+    // Update cache hit flag in metadata
+    const result = { ...cached.result };
+    result.metadata = { ...result.metadata, cache_hit: true };
+
+    return result;
+  }
+
+  /**
+   * Generates cache key from file list and reviewer ID
+   * @param files Array of file paths
+   * @param reviewer Reviewer ID
+   * @returns Cache key string
+   */
+  getCacheKey(files: string[], reviewer: string): string {
+    // Sort files for consistent key generation
+    const sortedFiles = [...files].sort();
+
+    // Generate file hash (combined hash of all file contents)
+    const fileHash = this.hashFiles(sortedFiles);
+
+    // Combine with reviewer ID
+    return `${reviewer}:${fileHash}`;
+  }
+
+  /**
+   * Hashes file list for cache key generation
+   * @param files Sorted array of file paths
+   * @returns SHA-256 hash of file paths and modification times
+   */
+  private hashFiles(files: string[]): string {
+    // In real implementation, hash file contents + modification time
+    // For specification, we use file paths + timestamps
+    const composite = files.map(file => {
+      // Include file path and last modified time
+      const mtime = getFileModificationTime(file);
+      return `${file}:${mtime}`;
+    }).join('|');
+
+    return sha256(composite).substring(0, 16);
+  }
+
+  /**
+   * Invalidates cache entries for specific files
+   * @param files Array of file paths that changed
+   */
+  invalidate(files: string[]): void {
+    let invalidated = 0;
+
+    // Find and delete cache entries containing these files
+    for (const [key, cached] of this.cache.entries()) {
+      // Check if key contains any of the changed files
+      // (Keys are format: "reviewer:file_hash")
+      const fileHash = key.split(':')[1];
+
+      // Re-generate hash for changed files
+      const newFileHash = this.hashFiles(files);
+
+      if (fileHash === newFileHash) {
+        this.cache.delete(key);
+        invalidated++;
+      }
+    }
+
+    if (invalidated > 0) {
+      console.log(`[Cache] Invalidated ${invalidated} entries due to file changes`);
+    }
+  }
+
+  /**
+   * Clears all cache entries
+   */
+  clear(): void {
+    const size = this.cache.size;
+    this.cache.clear();
+    console.log(`[Cache] Cleared ${size} entries`);
+  }
+
+  /**
+   * Gets current cache statistics
+   * @returns Cache statistics object
+   */
+  getStats(): CacheStats {
+    const now = Date.now();
+    let expired = 0;
+    let valid = 0;
+
+    for (const [key, cached] of this.cache.entries()) {
+      if (now > cached.expires) {
+        expired++;
+      } else {
+        valid++;
+      }
+    }
+
+    return {
+      total_entries: this.cache.size,
+      valid_entries: valid,
+      expired_entries: expired,
+      ttl_ms: this.TTL,
+      memory_estimate_kb: this.estimateMemoryUsage()
+    };
+  }
+
+  /**
+   * Estimates memory usage of cache
+   * @returns Estimated memory in KB
+   */
+  private estimateMemoryUsage(): number {
+    // Rough estimate: 10KB per cached result
+    return this.cache.size * 10;
+  }
+
+  /**
+   * Starts automatic cleanup interval
+   * Removes expired entries every 5 minutes
+   */
+  private startCleanupInterval(): void {
+    setInterval(() => {
+      this.cleanup();
+    }, 300000);  // 5 minutes
+  }
+
+  /**
+   * Removes expired entries from cache
+   */
+  private cleanup(): void {
+    const now = Date.now();
+    let removed = 0;
+
+    for (const [key, cached] of this.cache.entries()) {
+      if (now > cached.expires) {
+        this.cache.delete(key);
+        removed++;
+      }
+    }
+
+    if (removed > 0) {
+      console.log(`[Cache] Cleanup removed ${removed} expired entries`);
+    }
+  }
+}
+
+/**
+ * Cached result with expiration metadata
+ */
+interface CachedResult {
+  result: ReviewResult;
+  timestamp: number;  // When cached (milliseconds since epoch)
+  expires: number;    // Expiration time (milliseconds since epoch)
+}
+
+/**
+ * Cache statistics structure
+ */
+interface CacheStats {
+  total_entries: number;
+  valid_entries: number;
+  expired_entries: number;
+  ttl_ms: number;
+  memory_estimate_kb: number;
+}
+
+/**
+ * Helper function to get file modification time
+ * (Placeholder - implementation depends on environment)
+ */
+function getFileModificationTime(file: string): number {
+  // In Node.js: fs.statSync(file).mtime.getTime()
+  // In browser: Not applicable (no file system access)
+  // For specification: return mock timestamp
+  return Date.now();
+}
+```
+
+### Cache Integration with Parallel Execution
+
+**Complete Workflow with Caching**:
+
+```typescript
+// Global cache instance
+const reviewerCache = new ResultCache(900000);  // 15-minute TTL
+
+/**
+ * Launches parallel reviews with cache checking
+ * @param files Files to review
+ * @param reviewers Reviewer IDs to invoke
+ * @returns Promise resolving to reviewer results
+ */
+async function launchParallelReviewsWithCache(
+  files: string[],
+  reviewers: string[]
+): Promise<ReviewResult[]> {
+
+  const results: ReviewResult[] = [];
+  const reviewersToRun: string[] = [];
+
+  // STEP 1: Check cache for each reviewer
+  for (const reviewer of reviewers) {
+    const cacheKey = reviewerCache.getCacheKey(files, reviewer);
+    const cachedResult = reviewerCache.retrieve(cacheKey);
+
+    if (cachedResult) {
+      // Cache hit - use cached result
+      console.log(`✅ Cache HIT for ${reviewer} (saved ~4-5 minutes)`);
+      results.push(cachedResult);
+    } else {
+      // Cache miss - need to run reviewer
+      console.log(`❌ Cache MISS for ${reviewer} (will execute)`);
+      reviewersToRun.push(reviewer);
+    }
+  }
+
+  // STEP 2: Run reviewers that had cache misses
+  if (reviewersToRun.length > 0) {
+    console.log(`\nRunning ${reviewersToRun.length}/${reviewers.length} reviewers (${reviewers.length - reviewersToRun.length} cached)\n`);
+
+    const newResults = await launchParallelReviews(files, reviewersToRun);
+
+    // STEP 3: Store new results in cache
+    for (const result of newResults) {
+      const cacheKey = reviewerCache.getCacheKey(files, result.reviewer_name);
+      reviewerCache.store(cacheKey, result);
+    }
+
+    results.push(...newResults);
+  } else {
+    console.log(`\n✅ All ${reviewers.length} reviewers served from cache (0 executions needed)\n`);
+  }
+
+  return results;
+}
+```
+
+### Cache Performance Benefits
+
+**Cache Hit Scenarios**:
+
+**Scenario 1: Re-review After Small Change**
+```typescript
+// Initial review (all cache misses)
+const files = ['AuthService.cs', 'UserService.cs', 'TokenService.cs'];
+const reviewers = ['code-style-reviewer', 'code-principles-reviewer', 'test-healer'];
+
+// Time: 5 minutes (parallel execution)
+await launchParallelReviewsWithCache(files, reviewers);
+
+// User fixes one issue in AuthService.cs
+// File hash changes for AuthService.cs
+
+// Re-review (cache invalidation for affected reviewers)
+const results = await launchParallelReviewsWithCache(files, reviewers);
+
+// Cache behavior:
+// - AuthService.cs changed → cache keys invalidated
+// - UserService.cs, TokenService.cs unchanged → cache keys still valid
+// - Result: Partial cache hit (some reviewers served from cache)
+// - Time: 2-3 minutes (only re-review changed files)
+```
+
+**Scenario 2: Multiple Reviews of Same Files**
+```typescript
+// First review (all cache misses)
+await launchParallelReviewsWithCache(files, reviewers);  // 5 minutes
+
+// Second review within 15 minutes (all cache hits)
+await launchParallelReviewsWithCache(files, reviewers);  // <1 second
+
+// Cache savings: 99.7% reduction (5 minutes → <1 second)
+```
+
+**Scenario 3: Different Reviewers, Same Files**
+```typescript
+// Initial review with 2 reviewers
+await launchParallelReviewsWithCache(files, ['code-style-reviewer', 'code-principles-reviewer']);
+
+// Later review with 3 reviewers (add test-healer)
+await launchParallelReviewsWithCache(files, ['code-style-reviewer', 'code-principles-reviewer', 'test-healer']);
+
+// Cache behavior:
+// - code-style-reviewer: CACHE HIT
+// - code-principles-reviewer: CACHE HIT
+// - test-healer: CACHE MISS (first time running)
+// - Time: ~2 minutes (only test-healer runs)
+```
+
+### Cache Invalidation Strategies
+
+**File Change Detection**:
+
+```typescript
+/**
+ * Watches files for changes and invalidates cache
+ * @param files Files to watch
+ */
+function watchFilesForChanges(files: string[]): void {
+  // Use file system watcher (e.g., fs.watch in Node.js)
+  for (const file of files) {
+    watchFile(file, (event) => {
+      if (event === 'change') {
+        console.log(`[Cache] File changed: ${file}, invalidating cache`);
+        reviewerCache.invalidate([file]);
+      }
+    });
+  }
+}
+
+/**
+ * Manual cache invalidation for specific reviewers
+ * @param files Files that changed
+ * @param reviewers Reviewers to invalidate (optional, default: all)
+ */
+function invalidateCacheForFiles(files: string[], reviewers?: string[]): void {
+  if (reviewers) {
+    // Invalidate specific reviewers
+    for (const reviewer of reviewers) {
+      const cacheKey = reviewerCache.getCacheKey(files, reviewer);
+      reviewerCache.cache.delete(cacheKey);
+    }
+  } else {
+    // Invalidate all reviewers for these files
+    reviewerCache.invalidate(files);
+  }
+}
+```
+
+**Time-Based Expiration**:
+
+```typescript
+// Cache entries automatically expire after 15 minutes (TTL)
+// Rationale:
+// - Files may change without file system events (git operations, external edits)
+// - Code rules may be updated (new rules in .cursor/rules/*.mdc)
+// - 15 minutes balances freshness vs performance
+
+// Cleanup runs every 5 minutes to remove expired entries
+// Memory usage: ~10KB per cached result × ~10 reviewers × 3 results = ~300KB
+```
+
+### Cache Statistics and Monitoring
+
+**Usage Example**:
+
+```typescript
+// Get cache statistics
+const stats = reviewerCache.getStats();
+
+console.log(`
+Cache Statistics:
+  Total entries: ${stats.total_entries}
+  Valid entries: ${stats.valid_entries}
+  Expired entries: ${stats.expired_entries}
+  TTL: ${stats.ttl_ms / 1000} seconds
+  Memory usage: ~${stats.memory_estimate_kb} KB
+`);
+
+// Example output:
+// Cache Statistics:
+//   Total entries: 9
+//   Valid entries: 9
+//   Expired entries: 0
+//   TTL: 900 seconds
+//   Memory usage: ~90 KB
+```
+
+**Cache Hit Rate Tracking**:
+
+```typescript
+/**
+ * Tracks cache hit rate over time
+ */
+class CacheMetrics {
+  private hits = 0;
+  private misses = 0;
+
+  recordHit(): void {
+    this.hits++;
+  }
+
+  recordMiss(): void {
+    this.misses++;
+  }
+
+  getHitRate(): number {
+    const total = this.hits + this.misses;
+    return total > 0 ? this.hits / total : 0;
+  }
+
+  reset(): void {
+    this.hits = 0;
+    this.misses = 0;
+  }
+
+  getStats(): { hits: number; misses: number; hitRate: number } {
+    return {
+      hits: this.hits,
+      misses: this.misses,
+      hitRate: this.getHitRate()
+    };
+  }
+}
+
+// Global metrics tracker
+const cacheMetrics = new CacheMetrics();
+
+// Update retrieve method to track metrics
+retrieve(key: string): ReviewResult | null {
+  const cached = this.cache.get(key);
+
+  if (!cached || Date.now() > cached.expires) {
+    cacheMetrics.recordMiss();
+    return null;
+  }
+
+  cacheMetrics.recordHit();
+  return cached.result;
+}
+
+// Display metrics
+const metrics = cacheMetrics.getStats();
+console.log(`Cache Hit Rate: ${(metrics.hitRate * 100).toFixed(1)}% (${metrics.hits} hits, ${metrics.misses} misses)`);
+// Output: "Cache Hit Rate: 75.0% (6 hits, 2 misses)"
+```
+
+### Performance Impact
+
+**Expected Cache Performance**:
+
+| Scenario | Without Cache | With Cache | Speedup |
+|----------|--------------|------------|---------|
+| All hits (no file changes) | 5 minutes | <1 second | 300x |
+| Partial hit (1/3 files changed) | 5 minutes | ~2 minutes | 2.5x |
+| All misses (all files changed) | 5 minutes | 5 minutes | 1x (no benefit) |
+
+**Memory Usage**:
+
+| Cache Size | Entries | Memory | Notes |
+|------------|---------|--------|-------|
+| Small | 10 entries | ~100 KB | Typical for single-feature reviews |
+| Medium | 50 entries | ~500 KB | Multi-feature concurrent reviews |
+| Large | 100 entries | ~1 MB | Large-scale refactoring reviews |
+
+**Cleanup Overhead**:
+
+- Cleanup runs every 5 minutes
+- Time complexity: O(n) where n = cache size
+- Typical cleanup time: <10ms for 100 entries
+- Memory freed: ~10KB per expired entry
+
+---
+
 ## Algorithm Components
 
 ### 1. Issue Deduplication
