@@ -4601,10 +4601,3135 @@ Recommended Next Actions:
 
 ---
 
-**Prompt Version**: 1.0
+## Master Report Generator
+
+### Overview
+
+The Master Report Generator transforms consolidated issues into professional, actionable documentation. It produces comprehensive markdown reports with structured sections, visual indicators, code context, and detailed metadata.
+
+**Purpose**:
+- Generate professional consolidated review reports
+- Present issues in priority-ordered, actionable format
+- Include code context for developer clarity
+- Provide comprehensive execution metadata
+- Support both human readability and automation parsing
+
+**Integration**: Phase 4 (Report Generation & Output) - Task 4.1
+
+---
+
+### Report Structure Template
+
+Every consolidated report follows this 6-section structure:
+
+```markdown
+# Consolidated Code Review Report
+
+**Review Context**: [plan-name or description]
+**Review Date**: [ISO 8601 timestamp]
+**Status**: 🟢 GREEN / 🟡 YELLOW / 🔴 RED
+**Overall Confidence**: [percentage]
+
+---
+
+## Table of Contents
+
+*Auto-generated for reports with >50 issues*
+
+1. [Executive Summary](#executive-summary)
+2. [Critical Issues (P0)](#critical-issues-p0---immediate-action-required)
+3. [Warnings (P1)](#warnings-p1---recommended-fixes)
+4. [Improvements (P2)](#improvements-p2---optional-enhancements)
+5. [Common Themes](#common-themes-across-reviewers)
+6. [Prioritized Action Items](#prioritized-action-items)
+7. [Review Metadata](#review-metadata)
+
+---
+
+## Executive Summary
+
+**Scope**:
+- **Files Reviewed**: [count]
+- **Lines of Code**: [total LOC]
+- **Reviewers**: [list of reviewer names]
+- **Total Review Time**: [duration]
+
+**Findings**:
+- **Total Issues Found**: [before consolidation count]
+- **After Deduplication**: [after consolidation count] ([ratio]% reduction)
+- **Critical Issues (P0)**: [count] - require immediate action
+- **Warnings (P1)**: [count] - recommended fixes
+- **Improvements (P2)**: [count] - optional enhancements
+
+**Overall Assessment**:
+[1-2 paragraph summary of code quality, major themes, and recommended next steps]
+
+**Key Themes**:
+1. [Theme 1] - [brief description]
+2. [Theme 2] - [brief description]
+3. [Theme 3] - [brief description]
+
+**Recommended Next Steps**:
+- **Immediate**: [Priority actions for P0 issues]
+- **Short-term**: [Priority actions for P1 issues]
+- **Long-term**: [Priority actions for P2 issues]
+
+---
+
+## Critical Issues (P0) - Immediate Action Required
+
+🔴 **Issues that must be fixed before deployment or further development**
+
+### [File/Component Name]
+
+#### 🔴 [Issue Title] (Line [number])
+
+**Description**: [What is wrong - clear, specific description]
+
+**Impact**: [Why this is critical - business/technical impact]
+
+**Action Required**: [What to do immediately - specific steps]
+
+**Reviewers**: [reviewer-1], [reviewer-2] ([agreement]% agreement)
+
+**Confidence**: 🟢 High / 🟡 Medium / 🔴 Low ([percentage]%)
+
+**Code Context**:
+```csharp
+// [File:Line]
+[5 lines before]
+>>> [problematic line highlighted] <<<
+[5 lines after]
+```
+
+**Suggested Fix**:
+```csharp
+// Recommended implementation
+[code example if applicable]
+```
+
+---
+
+## Warnings (P1) - Recommended Fixes
+
+🟡 **Issues that should be addressed soon to maintain code quality**
+
+### [File/Component Name]
+
+#### 🟡 [Issue Title] (Line [number])
+
+**Description**: [What needs improvement]
+
+**Rationale**: [Why this matters - maintainability, performance, security]
+
+**Recommendation**: [Suggested approach to fix]
+
+**Reviewers**: [reviewer-1], [reviewer-2]
+
+**Confidence**: [indicator] ([percentage]%)
+
+**Code Context**:
+```csharp
+// [File:Line]
+[code snippet with context]
+```
+
+---
+
+## Improvements (P2) - Optional Enhancements
+
+🟢 **Suggestions for code quality improvements and best practices**
+
+**Grouped by Category**:
+
+### Refactoring Opportunities
+- [Issue 1] ([File:Line]) - [brief description]
+- [Issue 2] ([File:Line]) - [brief description]
+
+### Code Style Improvements
+- [Issue 3] ([File:Line]) - [brief description]
+- [Issue 4] ([File:Line]) - [brief description]
+
+### Documentation Suggestions
+- [Issue 5] ([File:Line]) - [brief description]
+
+### Performance Optimizations
+- [Issue 6] ([File:Line]) - [brief description]
+
+---
+
+## Common Themes Across Reviewers
+
+**Top recurring patterns identified by multiple reviewers**:
+
+### 1. [Theme Name] ([occurrences] occurrences)
+
+**Reported by**: [reviewer-1], [reviewer-2] ([X]/[Y] reviewers)
+
+**Files Affected**: [file-1], [file-2], [file-3]
+
+**Description**: [What pattern was observed across multiple locations]
+
+**Recommended Action**: [High-level strategy to address theme across codebase]
+
+**Quick Wins Available**: Yes / No
+
+**Estimated Total Effort**: [hours]
+
+**Related Issues**: #[issue-1], #[issue-2], #[issue-3]
+
+### 2. [Theme Name] ([occurrences] occurrences)
+
+[Same structure as above]
+
+### 3. [Theme Name] ([occurrences] occurrences)
+
+[Same structure as above]
+
+*[Continue for top 5-10 themes]*
+
+---
+
+## Prioritized Action Items
+
+**Issues ordered by priority and estimated effort for optimal execution**:
+
+| # | Priority | Issue | File:Line | Effort | Related Issues | Quick Win |
+|---|----------|-------|-----------|--------|----------------|-----------|
+| 1 | 🔴 P0 | [Issue title] | [File:Line] | [1-2h] | #12, #15, #23 | ✅ Yes |
+| 2 | 🔴 P0 | [Issue title] | [File:Line] | [2-4h] | #7 | ❌ No |
+| 3 | 🟡 P1 | [Issue title] | [File:Line] | [1-2h] | #3, #8, #14 | ✅ Yes |
+| 4 | 🟡 P1 | [Issue title] | [File:Line] | [4-6h] | #19 | ❌ No |
+| 5 | 🟢 P2 | [Issue title] | [File:Line] | [6-8h] | #5, #11, #22 | ❌ No |
+
+**Execution Strategy**:
+1. **Phase 1 (Immediate)**: Quick wins with P0 priority (items #1, #2)
+2. **Phase 2 (This Sprint)**: Remaining P0 + high-priority P1 (items #3, #4)
+3. **Phase 3 (Next Sprint)**: P1 warnings and high-value P2 improvements (items #5)
+4. **Phase 4 (Backlog)**: Remaining P2 improvements (low priority)
+
+---
+
+## Review Metadata
+
+### Execution Summary
+- **Review Started**: [ISO 8601 timestamp]
+- **Review Completed**: [ISO 8601 timestamp]
+- **Total Duration**: [human-readable duration]
+- **Consolidation Time**: [human-readable duration]
+- **Files Reviewed**: [count]
+- **Lines of Code**: [formatted with thousands separator]
+
+### Issue Statistics
+- **Issues Before Consolidation**: [count]
+- **Issues After Consolidation**: [count]
+- **Deduplication Ratio**: [percentage]%
+- **Critical Issues (P0)**: [count]
+- **Warnings (P1)**: [count]
+- **Improvements (P2)**: [count]
+
+### Reviewer Participation
+
+| Reviewer | Status | Execution Time | Issues Found | Cache Hit |
+|----------|--------|----------------|--------------|-----------|
+| [reviewer-1] | ✅ Success | [duration] | [count] | Yes/No |
+| [reviewer-2] | ✅ Success | [duration] | [count] | Yes/No |
+| [reviewer-3] | ⏱️ Timeout | [duration] | [count] | Yes/No |
+| [reviewer-4] | ❌ Error | [duration] | 0 | No |
+
+### Quality Metrics
+- **Overall Confidence**: [percentage]%
+- **Reviewer Agreement**: [percentage]%
+- **Coverage**: [percentage]% (successfully reviewed files)
+- **Average Time Per File**: [duration]
+- **Cache Hit Rate**: [percentage]% (if applicable)
+- **Timeout Count**: [count]
+
+### Confidence Distribution
+
+| Confidence Level | Issue Count | Percentage |
+|------------------|-------------|------------|
+| 🟢 High (≥80%) | [count] | [percentage]% |
+| 🟡 Medium (60-80%) | [count] | [percentage]% |
+| 🔴 Low (<60%) | [count] | [percentage]% |
+
+---
+
+*Generated by review-consolidator v1.0*
+*Report saved: Docs/reviews/[plan-name]-consolidated-review.md*
+```
+
+---
+
+### Report Generation Guidelines
+
+**Section Population Rules**:
+
+1. **Executive Summary**:
+   - MUST be concise (1-2 paragraphs max)
+   - Include key statistics from metadata
+   - Highlight top 3 themes
+   - Provide clear next-step recommendations
+   - Auto-generate from consolidation output
+
+2. **Critical Issues (P0)**:
+   - Sort by file/component for readability
+   - Include ALL P0 issues (no filtering)
+   - MUST include code context (5 lines before/after)
+   - Provide specific action steps
+   - Show reviewer agreement percentage
+
+3. **Warnings (P1)**:
+   - Group by file/component
+   - Include rationale for each warning
+   - Provide actionable recommendations
+   - Code context encouraged but optional
+
+4. **Improvements (P2)**:
+   - Group by category (refactoring, style, docs, performance)
+   - Can be summarized (not full detail required)
+   - Focus on patterns, not individual instances
+   - Optional code snippets
+
+5. **Common Themes**:
+   - Extract top 5-10 themes from recommendation synthesis
+   - Sort by occurrence count (descending)
+   - Show cross-reviewer agreement
+   - Identify quick wins within themes
+   - Include effort estimates
+
+6. **Prioritized Action Items**:
+   - Combine priority + effort for optimal ordering
+   - P0 → P1 → P2 within each effort category
+   - Include related issue references
+   - Flag quick wins (≤2h effort)
+   - Provide execution strategy phases
+
+7. **Review Metadata**:
+   - ALWAYS include complete metadata
+   - Format durations as human-readable (2m 34s, 1h 23m)
+   - Show all reviewer statuses (success/timeout/error)
+   - Include quality metrics and confidence distribution
+   - Cache hit information if applicable
+
+**Formatting Standards**:
+
+- **Line Length**: Maximum 120 characters for text
+- **Code Snippets**: Always show 5 lines before/after (10 line context total)
+- **File References**: Use relative paths from project root
+- **Lists**: Use `-` for bullets (not `*`)
+- **Tables**: Use markdown tables for structured data
+- **Headers**: Proper hierarchy (##, ###, ####)
+- **Emojis**:
+  - 🔴 P0 (Critical)
+  - 🟡 P1 (Warning)
+  - 🟢 P2 (Improvement)
+  - 🟢 High Confidence (≥80%)
+  - 🟡 Medium Confidence (60-80%)
+  - 🔴 Low Confidence (<60%)
+  - ✅ Success/Yes
+  - ❌ Error/No
+  - ⏱️ Timeout
+
+**Table of Contents**:
+- Auto-generate ONLY if total issues >50
+- Include all major sections
+- Use anchor links (#section-name-lowercase)
+- Place after header, before Executive Summary
+
+**Code Context Requirements**:
+- ALWAYS include for P0 issues
+- Recommended for P1 issues
+- Optional for P2 issues
+- Format: 5 lines before + problematic line + 5 lines after
+- Highlight problematic line with `>>>` markers or comment
+- Include file:line reference in code block comment
+
+---
+
+### Report Examples
+
+#### Example 1: Small Review (GREEN Status)
+
+```markdown
+# Consolidated Code Review Report
+
+**Review Context**: CreateTaskCommand Implementation
+**Review Date**: 2025-10-16T14:23:47Z
+**Status**: 🟢 GREEN
+**Overall Confidence**: 89%
+
+---
+
+## Executive Summary
+
+**Scope**:
+- **Files Reviewed**: 2
+- **Lines of Code**: 247
+- **Reviewers**: code-principles-reviewer, code-style-reviewer
+- **Total Review Time**: 2m 34s
+
+**Findings**:
+- **Total Issues Found**: 5
+- **After Deduplication**: 2 (60% reduction)
+- **Critical Issues (P0)**: 0
+- **Warnings (P1)**: 0
+- **Improvements (P2)**: 2
+
+**Overall Assessment**:
+Code quality is high with no critical issues. Two minor style improvements suggested
+regarding brace consistency and XML documentation completeness. Implementation follows
+CQRS pattern correctly with proper MediatR integration.
+
+**Recommended Next Steps**:
+- **Immediate**: None required (GREEN status)
+- **Short-term**: Apply P2 style improvements (optional, 30 min effort)
+- **Long-term**: Maintain current quality standards
+
+---
+
+## Improvements (P2) - Optional Enhancements
+
+### Code Style Improvements
+
+#### 🟢 Missing braces in single-line if statement (Line 42)
+
+**Description**: Single-line if statement lacks mandatory braces per project style guide
+
+**Rationale**: Project requires braces on all block statements for consistency and safety
+
+**Recommendation**: Add braces around single-line statement
+
+**Reviewers**: code-style-reviewer
+
+**Confidence**: 🟢 High (95%)
+
+**Code Context**:
+```csharp
+// Handlers/CreateTaskCommandHandler.cs:42
+    if (request.Title == null)
+        throw new ArgumentNullException(nameof(request.Title));
+>>>     if (string.IsNullOrWhiteSpace(request.Description))
+>>>         _logger.LogWarning("Empty description provided");
+
+    var task = new TaskEntity
+```
+
+**Suggested Fix**:
+```csharp
+    if (string.IsNullOrWhiteSpace(request.Description))
+    {
+        _logger.LogWarning("Empty description provided");
+    }
+```
+
+---
+
+### Documentation Suggestions
+
+#### 🟢 XML documentation incomplete for public method (Line 18)
+
+**Description**: Public Handle method missing <returns> XML documentation
+
+**Recommendation**: Complete XML documentation with returns section
+
+**Reviewers**: code-style-reviewer
+
+**Confidence**: 🟢 High (92%)
+
+---
+
+## Review Metadata
+
+### Execution Summary
+- **Review Started**: 2025-10-16T14:21:13Z
+- **Review Completed**: 2025-10-16T14:23:47Z
+- **Total Duration**: 2m 34s
+- **Consolidation Time**: 0.8s
+- **Files Reviewed**: 2
+- **Lines of Code**: 247
+
+### Issue Statistics
+- **Issues Before Consolidation**: 5
+- **Issues After Consolidation**: 2
+- **Deduplication Ratio**: 60%
+- **Critical Issues (P0)**: 0
+- **Warnings (P1)**: 0
+- **Improvements (P2)**: 2
+
+### Reviewer Participation
+
+| Reviewer | Status | Execution Time | Issues Found | Cache Hit |
+|----------|--------|----------------|--------------|-----------|
+| code-principles-reviewer | ✅ Success | 1m 12s | 3 | No |
+| code-style-reviewer | ✅ Success | 1m 18s | 2 | No |
+
+### Quality Metrics
+- **Overall Confidence**: 89%
+- **Reviewer Agreement**: 100%
+- **Coverage**: 100%
+- **Average Time Per File**: 1m 17s
+
+---
+
+*Generated by review-consolidator v1.0*
+*Report saved: Docs/reviews/create-task-command-consolidated-review.md*
+```
+
+#### Example 2: Medium Review (YELLOW Status)
+
+```markdown
+# Consolidated Code Review Report
+
+**Review Context**: AuthService Refactoring Review
+**Review Date**: 2025-10-16T10:45:22Z
+**Status**: 🟡 YELLOW
+**Overall Confidence**: 76%
+
+---
+
+## Table of Contents
+
+1. [Executive Summary](#executive-summary)
+2. [Critical Issues (P0)](#critical-issues-p0---immediate-action-required)
+3. [Warnings (P1)](#warnings-p1---recommended-fixes)
+4. [Improvements (P2)](#improvements-p2---optional-enhancements)
+5. [Common Themes](#common-themes-across-reviewers)
+6. [Prioritized Action Items](#prioritized-action-items)
+7. [Review Metadata](#review-metadata)
+
+---
+
+## Executive Summary
+
+**Scope**:
+- **Files Reviewed**: 8
+- **Lines of Code**: 1,847
+- **Reviewers**: code-principles-reviewer, code-style-reviewer, test-healer
+- **Total Review Time**: 4m 52s
+
+**Findings**:
+- **Total Issues Found**: 23
+- **After Deduplication**: 18 (22% reduction)
+- **Critical Issues (P0)**: 0
+- **Warnings (P1)**: 6
+- **Improvements (P2)**: 12
+
+**Overall Assessment**:
+No critical issues found, but several warnings regarding null safety, test coverage, and
+dependency injection patterns. Test coverage is below target at 58% (target: 80%).
+AuthService has potential null reference issues that should be addressed before production.
+
+**Key Themes**:
+1. Null Safety Issues - 4 instances across AuthService and TokenValidator
+2. Test Coverage Gaps - 3 components below 80% threshold
+3. DI Registration Missing - 2 services not properly registered
+
+**Recommended Next Steps**:
+- **Immediate**: None (no P0 issues)
+- **Short-term**: Fix null safety issues (P1), add test coverage for AuthService
+- **Long-term**: Complete DI registration, refactor TokenValidator
+
+---
+
+## Warnings (P1) - Recommended Fixes
+
+🟡 **Issues that should be addressed soon to maintain code quality**
+
+### Services/AuthService.cs
+
+#### 🟡 Potential null reference exception in ValidateToken method (Line 127)
+
+**Description**: Method accesses User property without null check after FindByIdAsync call
+
+**Rationale**: FindByIdAsync can return null if user not found, leading to NullReferenceException
+
+**Recommendation**: Add null check before accessing User properties
+
+**Reviewers**: code-principles-reviewer, test-healer (100% agreement)
+
+**Confidence**: 🟢 High (88%)
+
+**Code Context**:
+```csharp
+// Services/AuthService.cs:127
+    var user = await _userRepository.FindByIdAsync(userId);
+
+>>>     if (user.IsActive && user.EmailConfirmed)
+    {
+        return TokenValidationResult.Success(user);
+    }
+```
+
+**Suggested Fix**:
+```csharp
+    var user = await _userRepository.FindByIdAsync(userId);
+
+    if (user == null)
+    {
+        return TokenValidationResult.Failure("User not found");
+    }
+
+    if (user.IsActive && user.EmailConfirmed)
+    {
+        return TokenValidationResult.Success(user);
+    }
+```
+
+---
+
+[Additional P1 issues follow same format]
+
+---
+
+## Common Themes Across Reviewers
+
+**Top recurring patterns identified by multiple reviewers**:
+
+### 1. Null Safety Issues (4 occurrences)
+
+**Reported by**: code-principles-reviewer, test-healer (2/3 reviewers)
+
+**Files Affected**: Services/AuthService.cs, Validators/TokenValidator.cs
+
+**Description**: Multiple instances of property access without null checks after async repository calls
+
+**Recommended Action**: Implement null-conditional operators or explicit null checks before property access
+
+**Quick Wins Available**: Yes
+
+**Estimated Total Effort**: 1-2h
+
+**Related Issues**: #1, #4, #7, #11
+
+### 2. Test Coverage Gaps (3 occurrences)
+
+**Reported by**: test-healer (1/3 reviewers)
+
+**Files Affected**: Services/AuthService.cs (58%), Validators/TokenValidator.cs (45%),
+Services/RefreshTokenService.cs (62%)
+
+**Description**: Three components below 80% test coverage threshold
+
+**Recommended Action**: Add unit tests focusing on edge cases and error paths
+
+**Quick Wins Available**: No
+
+**Estimated Total Effort**: 4-6h
+
+**Related Issues**: #2, #8, #13
+
+---
+
+## Prioritized Action Items
+
+**Issues ordered by priority and estimated effort for optimal execution**:
+
+| # | Priority | Issue | File:Line | Effort | Related Issues | Quick Win |
+|---|----------|-------|-----------|--------|----------------|-----------|
+| 1 | 🟡 P1 | Null reference in ValidateToken | AuthService:127 | 1-2h | #1, #4 | ✅ Yes |
+| 2 | 🟡 P1 | Missing null check in RefreshToken | AuthService:89 | 1h | #7 | ✅ Yes |
+| 3 | 🟡 P1 | Test coverage for AuthService | AuthService:1 | 3-4h | #2 | ❌ No |
+| 4 | 🟡 P1 | DI registration for TokenValidator | Startup:42 | 1h | #11 | ✅ Yes |
+| 5 | 🟢 P2 | Extract validation logic to method | TokenValidator:56 | 2-3h | #5, #9 | ❌ No |
+
+**Execution Strategy**:
+1. **Phase 1 (Today)**: Fix null safety quick wins (#1, #2, #4) - 2-3h total
+2. **Phase 2 (This Week)**: Add AuthService test coverage (#3) - 3-4h
+3. **Phase 3 (Next Sprint)**: P2 refactoring improvements (#5) - 2-3h
+
+---
+
+## Review Metadata
+
+### Execution Summary
+- **Review Started**: 2025-10-16T10:40:30Z
+- **Review Completed**: 2025-10-16T10:45:22Z
+- **Total Duration**: 4m 52s
+- **Consolidation Time**: 1.2s
+- **Files Reviewed**: 8
+- **Lines of Code**: 1,847
+
+### Issue Statistics
+- **Issues Before Consolidation**: 23
+- **Issues After Consolidation**: 18
+- **Deduplication Ratio**: 22%
+- **Critical Issues (P0)**: 0
+- **Warnings (P1)**: 6
+- **Improvements (P2)**: 12
+
+### Reviewer Participation
+
+| Reviewer | Status | Execution Time | Issues Found | Cache Hit |
+|----------|--------|----------------|--------------|-----------|
+| code-principles-reviewer | ✅ Success | 1m 34s | 8 | No |
+| code-style-reviewer | ✅ Success | 1m 42s | 7 | No |
+| test-healer | ✅ Success | 1m 28s | 8 | No |
+
+### Quality Metrics
+- **Overall Confidence**: 76%
+- **Reviewer Agreement**: 67%
+- **Coverage**: 100%
+- **Average Time Per File**: 36s
+
+### Confidence Distribution
+
+| Confidence Level | Issue Count | Percentage |
+|------------------|-------------|------------|
+| 🟢 High (≥80%) | 12 | 67% |
+| 🟡 Medium (60-80%) | 5 | 28% |
+| 🔴 Low (<60%) | 1 | 5% |
+
+---
+
+*Generated by review-consolidator v1.0*
+*Report saved: Docs/reviews/authservice-refactoring-consolidated-review.md*
+```
+
+#### Example 3: Large Technical Debt Review (RED Status)
+
+```markdown
+# Consolidated Code Review Report
+
+**Review Context**: Legacy Module Technical Debt Assessment
+**Review Date**: 2025-10-16T09:15:08Z
+**Status**: 🔴 RED
+**Overall Confidence**: 82%
+
+---
+
+## Table of Contents
+
+1. [Executive Summary](#executive-summary)
+2. [Critical Issues (P0)](#critical-issues-p0---immediate-action-required)
+3. [Warnings (P1)](#warnings-p1---recommended-fixes)
+4. [Improvements (P2)](#improvements-p2---optional-enhancements)
+5. [Common Themes](#common-themes-across-reviewers)
+6. [Prioritized Action Items](#prioritized-action-items)
+7. [Review Metadata](#review-metadata)
+
+---
+
+## Executive Summary
+
+**Scope**:
+- **Files Reviewed**: 42
+- **Lines of Code**: 8,234
+- **Reviewers**: code-principles-reviewer, code-style-reviewer, test-healer
+- **Total Review Time**: 8m 47s
+
+**Findings**:
+- **Total Issues Found**: 234
+- **After Deduplication**: 156 (33% reduction)
+- **Critical Issues (P0)**: 12
+- **Warnings (P1)**: 68
+- **Improvements (P2)**: 76
+
+**Overall Assessment**:
+CRITICAL: Legacy module requires immediate refactoring before production use. Found 12 P0
+issues including missing DI registrations (23 services), circular dependencies (8 detected),
+and zero test coverage (18 modules). Code uses outdated patterns and violates SOLID principles.
+Estimated 3-4 weeks effort to bring to production quality.
+
+**Key Themes**:
+1. DI Registration Missing - 23 services not registered in container
+2. Circular Dependencies - 8 detected between legacy modules
+3. Zero Test Coverage - 18 modules completely untested (0% coverage)
+4. Outdated Patterns - 15 uses of deprecated ServiceLocator anti-pattern
+5. SOLID Violations - 34 instances of tight coupling and SRP violations
+
+**Recommended Next Steps**:
+- **Immediate**: Create refactoring work plan, block production deployment
+- **Short-term**: Fix DI registrations, break circular dependencies, add critical path tests
+- **Long-term**: Complete refactoring, achieve 80% test coverage, modernize patterns
+
+---
+
+## Critical Issues (P0) - Immediate Action Required
+
+🔴 **Issues that must be fixed before deployment or further development**
+
+### Infrastructure/ServiceLocator.cs
+
+#### 🔴 ServiceLocator anti-pattern used throughout legacy module (Line 15)
+
+**Description**: Static ServiceLocator class used for service resolution in 23 locations,
+bypassing proper dependency injection
+
+**Impact**:
+- Prevents unit testing (hard dependencies)
+- Hides dependencies from constructors
+- Causes runtime failures if services not registered
+- Violates IoC principle
+
+**Action Required**:
+1. Identify all 23 usages of ServiceLocator.GetService<T>()
+2. Refactor to constructor injection pattern
+3. Register all services in DI container
+4. Remove ServiceLocator class entirely
+
+**Reviewers**: code-principles-reviewer, test-healer (100% agreement)
+
+**Confidence**: 🟢 High (94%)
+
+**Code Context**:
+```csharp
+// Infrastructure/ServiceLocator.cs:15
+public static class ServiceLocator
+{
+    private static IServiceProvider _provider;
+
+>>>     public static T GetService<T>() where T : class
+>>>     {
+>>>         return _provider.GetService<T>();
+>>>     }
+
+    public static void Initialize(IServiceProvider provider)
+```
+
+**Related Violations**: Found in 23 files:
+- Services/LegacyAuthService.cs (4 usages)
+- Services/LegacyUserService.cs (3 usages)
+- Controllers/LegacyApiController.cs (2 usages)
+- [19 more files...]
+
+---
+
+### Services/LegacyAuthService.cs
+
+#### 🔴 Circular dependency between LegacyAuthService and LegacyUserService (Line 28)
+
+**Description**: LegacyAuthService depends on LegacyUserService, which depends back on
+LegacyAuthService, creating circular reference
+
+**Impact**:
+- DI container cannot resolve dependencies (runtime exception)
+- Tight coupling prevents independent testing
+- Violates Acyclic Dependencies Principle
+- Blocks service registration
+
+**Action Required**:
+1. Extract shared interface (IUserValidator)
+2. Break cycle by introducing abstraction
+3. Move validation logic to separate validator service
+4. Update DI registrations
+
+**Reviewers**: code-principles-reviewer (100% agreement)
+
+**Confidence**: 🟢 High (91%)
+
+**Code Context**:
+```csharp
+// Services/LegacyAuthService.cs:28
+public class LegacyAuthService
+{
+>>>     private readonly LegacyUserService _userService;
+
+    public LegacyAuthService(LegacyUserService userService)
+    {
+        _userService = userService;
+    }
+```
+
+```csharp
+// Services/LegacyUserService.cs:22
+public class LegacyUserService
+{
+>>>     private readonly LegacyAuthService _authService;
+
+    public LegacyUserService(LegacyAuthService authService)
+    {
+        _authService = authService;
+    }
+```
+
+---
+
+[Additional 10 P0 issues follow same detailed format]
+
+---
+
+## Warnings (P1) - Recommended Fixes
+
+🟡 **Issues that should be addressed soon to maintain code quality**
+
+[68 P1 issues grouped by file/component]
+
+---
+
+## Improvements (P2) - Optional Enhancements
+
+🟢 **Suggestions for code quality improvements and best practices**
+
+**Grouped by Category**:
+
+### Refactoring Opportunities (45 issues)
+- Extract method refactoring in 23 locations (reduce complexity)
+- Move magic strings to constants (12 instances)
+- Simplify nested conditionals (10 instances)
+
+### Code Style Improvements (18 issues)
+- Missing braces on single-line statements (8 locations)
+- Inconsistent naming conventions (6 fields)
+- XML documentation incomplete (4 public methods)
+
+### Documentation Suggestions (8 issues)
+- Add class-level documentation for public services
+- Document business logic in complex methods
+- Add examples to public API documentation
+
+### Performance Optimizations (5 issues)
+- Cache expensive reflection calls in validators
+- Use async/await in synchronous DB calls
+- Optimize LINQ queries with multiple enumerations
+
+---
+
+## Common Themes Across Reviewers
+
+**Top recurring patterns identified by multiple reviewers**:
+
+### 1. DI Registration Missing (23 occurrences)
+
+**Reported by**: code-principles-reviewer, test-healer (2/3 reviewers)
+
+**Files Affected**: 23 service classes across Legacy module
+
+**Description**: Services use ServiceLocator pattern instead of proper DI registration,
+preventing container resolution and unit testing
+
+**Recommended Action**:
+1. Create DI registration extension method (services.AddLegacyServices())
+2. Register all 23 services with appropriate lifetimes
+3. Refactor ServiceLocator usages to constructor injection
+4. Add integration tests for DI resolution
+
+**Quick Wins Available**: No (requires architectural refactoring)
+
+**Estimated Total Effort**: 12-16h
+
+**Related Issues**: #1, #3, #5, #8, #12, #15, #19, [17 more...]
+
+### 2. Circular Dependencies (8 occurrences)
+
+**Reported by**: code-principles-reviewer (1/3 reviewers)
+
+**Files Affected**: LegacyAuthService, LegacyUserService, LegacyRoleService,
+LegacyPermissionService, [4 more...]
+
+**Description**: Multiple circular dependency cycles detected between legacy services,
+preventing DI container resolution
+
+**Recommended Action**:
+1. Draw dependency graph to visualize cycles
+2. Extract shared abstractions to break cycles
+3. Apply Dependency Inversion Principle
+4. Create separate validator/helper services
+
+**Quick Wins Available**: No (requires architectural redesign)
+
+**Estimated Total Effort**: 16-20h
+
+**Related Issues**: #2, #7, #10, #14, #18, #22, #27, #31
+
+### 3. Zero Test Coverage (18 occurrences)
+
+**Reported by**: test-healer (1/3 reviewers)
+
+**Files Affected**: 18 service classes with 0% test coverage
+
+**Description**: Critical business logic services have no unit tests, preventing safe
+refactoring and increasing bug risk
+
+**Recommended Action**:
+1. Start with critical path services (AuthService, UserService)
+2. Add characterization tests before refactoring
+3. Target 80% coverage minimum
+4. Use TDD for new feature additions
+
+**Quick Wins Available**: Partial (can add tests incrementally)
+
+**Estimated Total Effort**: 24-30h
+
+**Related Issues**: #4, #6, #9, #11, #13, [13 more...]
+
+### 4. Outdated Patterns (15 occurrences)
+
+**Reported by**: code-principles-reviewer (1/3 reviewers)
+
+**Files Affected**: ServiceLocator pattern (23 usages), Repository pattern violations (8),
+manual transaction management (4)
+
+**Description**: Code uses deprecated anti-patterns and outdated practices from pre-.NET Core era
+
+**Recommended Action**:
+1. Migrate ServiceLocator to DI
+2. Update repositories to EF Core DbContext pattern
+3. Use EF Core transaction scopes
+4. Apply modern async/await patterns
+
+**Quick Wins Available**: No (systematic refactoring required)
+
+**Estimated Total Effort**: 20-24h
+
+**Related Issues**: #1, #16, #17, #20, [11 more...]
+
+### 5. SOLID Violations (34 occurrences)
+
+**Reported by**: code-principles-reviewer (1/3 reviewers)
+
+**Files Affected**: 21 classes with multiple responsibilities, 8 with tight coupling,
+5 with LSP violations
+
+**Description**: Widespread SOLID principle violations including SRP (single responsibility),
+DIP (dependency inversion), and ISP (interface segregation)
+
+**Recommended Action**:
+1. Split "God classes" with multiple responsibilities
+2. Extract interfaces for abstractions
+3. Apply dependency injection systematically
+4. Refactor fat interfaces to role-based interfaces
+
+**Quick Wins Available**: Partial (can refactor incrementally)
+
+**Estimated Total Effort**: 30-40h
+
+**Related Issues**: #21, #23, #24, #25, [30 more...]
+
+---
+
+## Prioritized Action Items
+
+**Issues ordered by priority and estimated effort for optimal execution**:
+
+| # | Priority | Issue | File:Line | Effort | Related Issues | Quick Win |
+|---|----------|-------|-----------|--------|----------------|-----------|
+| 1 | 🔴 P0 | ServiceLocator anti-pattern | ServiceLocator:15 | 12-16h | #1, #3, #5, #8 | ❌ No |
+| 2 | 🔴 P0 | Circular dependency AuthService | LegacyAuthService:28 | 4-6h | #2, #7 | ❌ No |
+| 3 | 🔴 P0 | Circular dependency UserService | LegacyUserService:22 | 4-6h | #2, #10 | ❌ No |
+| 4 | 🔴 P0 | Missing DI registration for 23 services | Startup:1 | 8-10h | #12, #15, #19 | ❌ No |
+| 5 | 🔴 P0 | Circular dependency RoleService | LegacyRoleService:35 | 3-4h | #14, #18 | ❌ No |
+| 6 | 🟡 P1 | Zero test coverage LegacyAuthService | LegacyAuthService:1 | 6-8h | #4, #6 | ❌ No |
+| 7 | 🟡 P1 | Zero test coverage LegacyUserService | LegacyUserService:1 | 6-8h | #9, #11 | ❌ No |
+| 8 | 🟡 P1 | Manual transaction management | DataAccess:89 | 2-3h | #26 | ✅ Yes |
+| 9 | 🟡 P1 | Repository pattern violations | UserRepository:12 | 4-6h | #28, #32 | ❌ No |
+| 10 | 🟢 P2 | Extract method refactoring | Various | 12-16h | #35-57 | ❌ No |
+
+**Execution Strategy**:
+1. **Phase 1 (Week 1)**: BLOCK DEPLOYMENT - Fix P0 circular dependencies (#2, #3, #5)
+2. **Phase 2 (Week 1-2)**: Refactor ServiceLocator and add DI registration (#1, #4)
+3. **Phase 3 (Week 2-3)**: Add critical path test coverage (#6, #7)
+4. **Phase 4 (Week 3-4)**: Address P1 warnings and modernize patterns (#8, #9)
+5. **Phase 5 (Backlog)**: P2 improvements and refactoring (#10+)
+
+**CRITICAL NOTE**: Production deployment BLOCKED until P0 issues resolved (estimated 3-4 weeks)
+
+---
+
+## Review Metadata
+
+### Execution Summary
+- **Review Started**: 2025-10-16T09:06:21Z
+- **Review Completed**: 2025-10-16T09:15:08Z
+- **Total Duration**: 8m 47s
+- **Consolidation Time**: 2.3s
+- **Files Reviewed**: 42
+- **Lines of Code**: 8,234
+
+### Issue Statistics
+- **Issues Before Consolidation**: 234
+- **Issues After Consolidation**: 156
+- **Deduplication Ratio**: 33%
+- **Critical Issues (P0)**: 12
+- **Warnings (P1)**: 68
+- **Improvements (P2)**: 76
+
+### Reviewer Participation
+
+| Reviewer | Status | Execution Time | Issues Found | Cache Hit |
+|----------|--------|----------------|--------------|-----------|
+| code-principles-reviewer | ✅ Success | 3m 12s | 89 | No |
+| code-style-reviewer | ✅ Success | 2m 48s | 127 | No |
+| test-healer | ✅ Success | 2m 34s | 18 | No |
+
+### Quality Metrics
+- **Overall Confidence**: 82%
+- **Reviewer Agreement**: 45%
+- **Coverage**: 100%
+- **Average Time Per File**: 12.5s
+- **Cache Hit Rate**: 0%
+- **Timeout Count**: 0
+
+### Confidence Distribution
+
+| Confidence Level | Issue Count | Percentage |
+|------------------|-------------|------------|
+| 🟢 High (≥80%) | 98 | 63% |
+| 🟡 Medium (60-80%) | 47 | 30% |
+| 🔴 Low (<60%) | 11 | 7% |
+
+---
+
+*Generated by review-consolidator v1.0*
+*Report saved: Docs/reviews/legacy-module-technical-debt-consolidated-review.md*
+```
+
+---
+
+### Integration with Consolidation Algorithm
+
+**Input Requirements from Phase 3**:
+
+1. **Consolidated Issues** (from Task 3.1):
+   - Deduplicated issue list with merged metadata
+   - File:line references for all issues
+   - Code snippets with context
+
+2. **Priority Aggregation** (from Task 3.2):
+   - Final priority for each issue (P0/P1/P2)
+   - Confidence scores with weighted calculation
+   - Reviewer agreement percentages
+
+3. **Recommendation Synthesis** (from Task 3.3):
+   - Theme categorization and occurrence counts
+   - Top 5-10 common patterns
+   - Quick win identification
+   - Prioritized action items
+
+4. **Reviewer Execution Metadata**:
+   - Status (success/timeout/error)
+   - Execution times per reviewer
+   - Issues found per reviewer
+   - Cache hit information
+
+**Output Format**:
+
+- **File**: `Docs/reviews/[review-context]-consolidated-review.md`
+- **Encoding**: UTF-8
+- **Line Endings**: LF (Unix style)
+- **Format**: Valid GitHub Flavored Markdown
+
+**Report Generation Workflow**:
+
+```typescript
+// Step 1: Gather all inputs
+const consolidatedIssues = await runDeduplication(reviewerOutputs);
+const prioritizedIssues = await aggregatePriorities(consolidatedIssues);
+const recommendations = await synthesizeRecommendations(prioritizedIssues);
+const metadata = collectExecutionMetadata(reviewerOutputs, consolidatedIssues);
+
+// Step 2: Generate report sections
+const executiveSummary = generateExecutiveSummary(metadata, recommendations);
+const criticalSection = formatIssueSection(prioritizedIssues.P0, 'Critical Issues (P0)');
+const warningsSection = formatIssueSection(prioritizedIssues.P1, 'Warnings (P1)');
+const improvementsSection = formatIssueSection(prioritizedIssues.P2, 'Improvements (P2)');
+const themesSection = formatThemes(recommendations.themes);
+const actionItemsSection = formatActionItems(recommendations.actionItems);
+const metadataSection = generateMetadataFooter(metadata);
+
+// Step 3: Assemble complete report
+let report = generateHeader(metadata);
+
+// Add TOC if needed
+if (getTotalIssues(prioritizedIssues) > 50) {
+  report += generateTableOfContents();
+}
+
+report += executiveSummary;
+report += criticalSection;
+report += warningsSection;
+report += improvementsSection;
+report += themesSection;
+report += actionItemsSection;
+report += metadataSection;
+
+// Step 4: Save to file
+const filename = `Docs/reviews/${reviewContext}-consolidated-review.md`;
+await fs.writeFile(filename, report, 'utf-8');
+
+return { filename, totalIssues, status };
+```
+
+---
+
+### Quality Assurance Checklist
+
+Before finalizing any consolidated report, verify:
+
+**Structure Validation**:
+- [ ] All 6 required sections present
+- [ ] Executive Summary ≤2 paragraphs
+- [ ] TOC generated if issues >50
+- [ ] Proper header hierarchy (##, ###, ####)
+- [ ] Markdown syntax valid (no parsing errors)
+
+**Content Validation**:
+- [ ] All P0 issues include code context
+- [ ] All issues have file:line references
+- [ ] Reviewer names listed for each issue
+- [ ] Confidence indicators present (emoji + percentage)
+- [ ] Agreement percentages calculated correctly
+- [ ] Priority emojis consistent (🔴🟡🟢)
+
+**Metadata Validation**:
+- [ ] Execution Summary complete
+- [ ] Issue Statistics accurate (before/after counts)
+- [ ] Reviewer Participation table complete
+- [ ] Quality Metrics calculated
+- [ ] Confidence Distribution table accurate
+- [ ] All durations human-readable
+
+**Formatting Validation**:
+- [ ] Line length ≤120 characters
+- [ ] Code snippets use proper syntax highlighting
+- [ ] File paths relative to project root
+- [ ] Consistent bullet style (-)
+- [ ] Tables properly formatted
+- [ ] No broken links/anchors
+
+**Actionability Validation**:
+- [ ] Each P0 issue has specific action steps
+- [ ] Prioritized Action Items table complete
+- [ ] Execution Strategy phases defined
+- [ ] Quick wins identified (≤2h effort)
+- [ ] Effort estimates provided
+- [ ] Related issues cross-referenced
+
+---
+
+## Individual Reviewer Appendices
+
+### Overview
+
+Each active reviewer must have its own appendix section in the master report, preserving the original detailed findings while providing cross-references to the consolidated issues. This ensures full traceability and allows users to understand how individual reviewer reports contributed to the master report.
+
+**Purpose**:
+- **Preserve original findings**: No modifications to reviewer issue descriptions
+- **Enable traceability**: Cross-reference to consolidated issue IDs
+- **Document reviewer methodology**: Show rules/principles applied
+- **Maintain audit trail**: Complete record of all reviewer outputs
+
+**Key Principles**:
+1. One appendix per active reviewer (reviewers that produced results)
+2. Original issue messages preserved verbatim
+3. Every issue links to consolidated issue ID
+4. Rules/principles applied fully documented
+5. No orphaned issues (all source issues referenced)
+
+---
+
+### Appendix Structure Template
+
+Each reviewer appendix follows this standardized structure:
+
+```markdown
+## Appendix [Letter]: [reviewer-name] Full Report
+
+### Summary
+- **Execution Time**: [duration] seconds
+- **Issues Found**: [count]
+- **Confidence**: [percentage]%
+- **Status**: [emoji] [Success|Timeout|Error]
+
+### Detailed Findings
+
+#### [Issue Category Name] ([count] issues)
+
+[Grouped by issue type, rule, or severity]
+
+1. **File**: [filepath]:[line]
+   - **Rule**: [rule-id or principle name]
+   - **Severity**: P0 | P1 | P2
+   - **Message**: [original message from reviewer - UNMODIFIED]
+   - **Suggestion**: [original suggestion from reviewer]
+   - **Confidence**: [0.00-1.00]
+   - **Consolidated Issue**: #[id] [merged indicator]
+
+[Repeat for all issues in category]
+
+#### [Next Issue Category] ([count] issues)
+
+[... continue pattern ...]
+
+### Rules Applied
+
+[List of all rules/principles this reviewer checked]
+
+- [rule-name-1] ([source file])
+- [rule-name-2] ([source file])
+- [...]
+- **Total**: [count] rules from [filename.mdc or principle set]
+
+### Files Not Reviewed
+
+[List files that were in scope but not reviewed by this specific reviewer]
+
+- [filepath] ([reason: wrong file type, timeout, error])
+- [...]
+
+---
+```
+
+---
+
+### Appendix Generation Algorithm
+
+```typescript
+/**
+ * Generates individual reviewer appendix sections
+ *
+ * Creates one appendix per active reviewer with full issue details,
+ * cross-references to consolidated issues, and methodology documentation
+ *
+ * @param reviewerOutputs - Raw outputs from all reviewers
+ * @param consolidatedIssues - Final consolidated issues with sources
+ * @returns Array of appendix markdown sections
+ */
+function generateReviewerAppendices(
+  reviewerOutputs: ReviewerOutput[],
+  consolidatedIssues: ConsolidatedIssue[]
+): string[] {
+  const appendices: string[] = [];
+  const appendixLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+  let letterIndex = 0;
+
+  // Create reverse mapping: reviewer issue ID → consolidated issue ID
+  const issueMapping = buildIssueMapping(consolidatedIssues);
+
+  for (const output of reviewerOutputs) {
+    if (output.status === 'error' || output.issues.length === 0) {
+      continue; // Skip reviewers that produced no results
+    }
+
+    const letter = appendixLetters[letterIndex++];
+    const appendix = formatReviewerAppendix(
+      letter,
+      output,
+      issueMapping,
+      consolidatedIssues
+    );
+
+    appendices.push(appendix);
+  }
+
+  return appendices;
+}
+
+/**
+ * Builds mapping from reviewer issue IDs to consolidated issue IDs
+ *
+ * @param consolidatedIssues - All consolidated issues
+ * @returns Map of "reviewer:issueId" → consolidated issue ID
+ */
+function buildIssueMapping(
+  consolidatedIssues: ConsolidatedIssue[]
+): Map<string, string> {
+  const mapping = new Map<string, string>();
+
+  for (const consIssue of consolidatedIssues) {
+    for (const source of consIssue.sources) {
+      const key = `${source.reviewer}:${source.originalId}`;
+      mapping.set(key, consIssue.id);
+    }
+  }
+
+  return mapping;
+}
+
+/**
+ * Formats a single reviewer appendix section
+ *
+ * @param letter - Appendix letter (A, B, C, etc.)
+ * @param output - Reviewer output data
+ * @param issueMapping - Mapping to consolidated issue IDs
+ * @param consolidatedIssues - All consolidated issues for merge detection
+ * @returns Formatted markdown appendix section
+ */
+function formatReviewerAppendix(
+  letter: string,
+  output: ReviewerOutput,
+  issueMapping: Map<string, string>,
+  consolidatedIssues: ConsolidatedIssue[]
+): string {
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`## Appendix ${letter}: ${output.reviewerName} Full Report`);
+  lines.push('');
+
+  // Summary section
+  lines.push('### Summary');
+  lines.push(`- **Execution Time**: ${Math.round(output.duration / 1000)} seconds`);
+  lines.push(`- **Issues Found**: ${output.issues.length}`);
+  lines.push(`- **Confidence**: ${Math.round(output.averageConfidence * 100)}%`);
+
+  const statusEmoji = output.status === 'success' ? '✅' :
+                      output.status === 'timeout' ? '⏱️' : '❌';
+  const statusText = output.status.charAt(0).toUpperCase() + output.status.slice(1);
+  lines.push(`- **Status**: ${statusEmoji} ${statusText}`);
+  lines.push('');
+
+  // Detailed Findings section
+  lines.push('### Detailed Findings');
+  lines.push('');
+
+  // Group issues by category/type
+  const groupedIssues = groupIssuesByCategory(output.issues, output.reviewerName);
+
+  for (const [category, issues] of groupedIssues.entries()) {
+    lines.push(`#### ${category} (${issues.length} issues)`);
+    lines.push('');
+
+    for (let i = 0; i < issues.length; i++) {
+      const issue = issues[i];
+      const issueNumber = i + 1;
+
+      lines.push(`${issueNumber}. **File**: ${issue.file}:${issue.line}`);
+      lines.push(`   - **Rule**: ${issue.rule || 'general'}`);
+      lines.push(`   - **Severity**: ${issue.severity}`);
+      lines.push(`   - **Message**: ${issue.message}`);
+
+      if (issue.suggestion) {
+        lines.push(`   - **Suggestion**: ${issue.suggestion}`);
+      }
+
+      lines.push(`   - **Confidence**: ${issue.confidence.toFixed(2)}`);
+
+      // Cross-reference to consolidated issue
+      const key = `${output.reviewerName}:${issue.id}`;
+      const consolidatedId = issueMapping.get(key);
+
+      if (consolidatedId) {
+        const consIssue = consolidatedIssues.find(ci => ci.id === consolidatedId);
+        const isMerged = consIssue && consIssue.sources.length > 1;
+        const mergedIndicator = isMerged ? ' (merged)' : '';
+
+        lines.push(`   - **Consolidated Issue**: #${consolidatedId}${mergedIndicator}`);
+      } else {
+        lines.push(`   - **Consolidated Issue**: [Not consolidated - filtered]`);
+      }
+
+      lines.push('');
+    }
+  }
+
+  // Rules Applied section
+  lines.push('### Rules Applied');
+  lines.push('');
+
+  const rules = extractRulesApplied(output);
+  for (const rule of rules) {
+    lines.push(`- ${rule.name} (${rule.source})`);
+  }
+  lines.push(`- **Total**: ${rules.length} rules from ${getRuleSource(output.reviewerName)}`);
+  lines.push('');
+
+  // Files Not Reviewed section
+  lines.push('### Files Not Reviewed');
+  lines.push('');
+
+  const notReviewed = findFilesNotReviewed(output);
+  if (notReviewed.length === 0) {
+    lines.push('- None (all relevant files reviewed)');
+  } else {
+    for (const file of notReviewed) {
+      lines.push(`- ${file.path} (${file.reason})`);
+    }
+  }
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
+ * Groups issues by category for organized presentation
+ *
+ * Categories determined by:
+ * - code-style-reviewer: Rule type (mandatory-braces, naming, documentation)
+ * - code-principles-reviewer: Principle violated (SRP, DRY, SOLID)
+ * - test-healer: Issue type (coverage gaps, test quality, missing tests)
+ *
+ * @param issues - Array of reviewer issues
+ * @param reviewerName - Name of the reviewer
+ * @returns Map of category name to issues
+ */
+function groupIssuesByCategory(
+  issues: ReviewerIssue[],
+  reviewerName: string
+): Map<string, ReviewerIssue[]> {
+  const groups = new Map<string, ReviewerIssue[]>();
+
+  for (const issue of issues) {
+    let category: string;
+
+    if (reviewerName === 'code-style-reviewer') {
+      category = getCategoryFromRule(issue.rule);
+    } else if (reviewerName === 'code-principles-reviewer') {
+      category = getCategoryFromPrinciple(issue.message);
+    } else if (reviewerName === 'test-healer') {
+      category = getCategoryFromTestIssueType(issue);
+    } else {
+      category = 'General Issues';
+    }
+
+    if (!groups.has(category)) {
+      groups.set(category, []);
+    }
+    groups.get(category)!.push(issue);
+  }
+
+  return groups;
+}
+
+/**
+ * Extracts rules/principles applied by reviewer
+ *
+ * @param output - Reviewer output
+ * @returns Array of rules with name and source
+ */
+function extractRulesApplied(output: ReviewerOutput): Array<{name: string; source: string}> {
+  const rules = new Set<string>();
+
+  // Extract unique rules from all issues
+  for (const issue of output.issues) {
+    if (issue.rule) {
+      rules.add(issue.rule);
+    }
+  }
+
+  // Map to rule metadata
+  return Array.from(rules).map(ruleName => ({
+    name: ruleName,
+    source: getRuleSourceFile(output.reviewerName, ruleName)
+  }));
+}
+
+/**
+ * Gets the source file for reviewer rules
+ *
+ * @param reviewerName - Name of reviewer
+ * @returns Source file path
+ */
+function getRuleSource(reviewerName: string): string {
+  const sources: Record<string, string> = {
+    'code-style-reviewer': 'csharp-codestyle.mdc',
+    'code-principles-reviewer': 'main.mdc (SOLID/DRY/KISS)',
+    'test-healer': 'Test quality principles'
+  };
+
+  return sources[reviewerName] || 'Unknown source';
+}
+
+/**
+ * Gets specific source file for a rule
+ *
+ * @param reviewerName - Name of reviewer
+ * @param ruleName - Name of specific rule
+ * @returns Source file path
+ */
+function getRuleSourceFile(reviewerName: string, ruleName: string): string {
+  if (reviewerName === 'code-style-reviewer') {
+    return '.cursor/rules/csharp-codestyle.mdc';
+  } else if (reviewerName === 'code-principles-reviewer') {
+    if (ruleName.includes('SOLID')) {
+      return '.cursor/rules/main.mdc (SOLID principles)';
+    } else if (ruleName.includes('DRY')) {
+      return '.cursor/rules/main.mdc (DRY principle)';
+    }
+    return '.cursor/rules/main.mdc';
+  } else if (reviewerName === 'test-healer') {
+    return 'xUnit best practices';
+  }
+
+  return 'Reviewer internal rules';
+}
+
+/**
+ * Finds files that were in scope but not reviewed
+ *
+ * @param output - Reviewer output
+ * @returns Array of files with reasons
+ */
+function findFilesNotReviewed(
+  output: ReviewerOutput
+): Array<{path: string; reason: string}> {
+  const notReviewed: Array<{path: string; reason: string}> = [];
+
+  // Check if output has filesSkipped metadata
+  if (output.metadata?.filesSkipped) {
+    for (const file of output.metadata.filesSkipped) {
+      notReviewed.push({
+        path: file.path,
+        reason: file.reason || 'Not applicable to this reviewer'
+      });
+    }
+  }
+
+  return notReviewed;
+}
+
+/**
+ * Gets category name from rule ID
+ *
+ * @param rule - Rule identifier
+ * @returns Human-readable category name
+ */
+function getCategoryFromRule(rule: string): string {
+  if (rule.includes('braces')) return 'Mandatory Braces Violations';
+  if (rule.includes('naming')) return 'Naming Convention Violations';
+  if (rule.includes('documentation') || rule.includes('xml')) return 'Documentation Issues';
+  if (rule.includes('formatting')) return 'Formatting Issues';
+
+  return 'Code Style Violations';
+}
+
+/**
+ * Gets category name from principle violation message
+ *
+ * @param message - Issue message
+ * @returns Human-readable category name
+ */
+function getCategoryFromPrinciple(message: string): string {
+  const messageLower = message.toLowerCase();
+
+  if (messageLower.includes('srp') || messageLower.includes('single responsibility')) {
+    return 'Single Responsibility Principle (SRP) Violations';
+  }
+  if (messageLower.includes('dry') || messageLower.includes('duplication')) {
+    return 'DRY Violations (Code Duplication)';
+  }
+  if (messageLower.includes('solid')) {
+    return 'SOLID Principle Violations';
+  }
+  if (messageLower.includes('kiss')) {
+    return 'KISS Violations (Overcomplexity)';
+  }
+
+  return 'Code Principles Violations';
+}
+
+/**
+ * Gets category name from test issue type
+ *
+ * @param issue - Test issue
+ * @returns Human-readable category name
+ */
+function getCategoryFromTestIssueType(issue: ReviewerIssue): string {
+  const messageLower = issue.message.toLowerCase();
+
+  if (messageLower.includes('coverage') || messageLower.includes('missing test')) {
+    return 'Test Coverage Gaps';
+  }
+  if (messageLower.includes('quality') || messageLower.includes('assertion')) {
+    return 'Test Quality Issues';
+  }
+  if (messageLower.includes('timeout') || messageLower.includes('flaky')) {
+    return 'Test Reliability Issues';
+  }
+
+  return 'General Test Issues';
+}
+```
+
+---
+
+### Appendix Examples
+
+#### Example 1: code-style-reviewer Appendix (High Issue Count)
+
+```markdown
+## Appendix A: code-style-reviewer Full Report
+
+### Summary
+- **Execution Time**: 42 seconds
+- **Issues Found**: 48
+- **Confidence**: 95%
+- **Status**: ✅ Success
+
+### Detailed Findings
+
+#### Mandatory Braces Violations (15 issues)
+
+1. **File**: Services/UserService.cs:42
+   - **Rule**: mandatory-braces
+   - **Severity**: P1
+   - **Message**: Single-line if statement must use braces
+   - **Suggestion**: Add braces around statement: `if (user == null) { return null; }`
+   - **Confidence**: 0.95
+   - **Consolidated Issue**: #12 (merged)
+
+2. **File**: Controllers/AuthController.cs:67
+   - **Rule**: mandatory-braces
+   - **Severity**: P1
+   - **Message**: Single-line for loop must use braces
+   - **Suggestion**: Add braces around loop body
+   - **Confidence**: 0.95
+   - **Consolidated Issue**: #12 (merged)
+
+3. **File**: Services/AuthService.cs:103
+   - **Rule**: mandatory-braces
+   - **Severity**: P1
+   - **Message**: Single-line while statement must use braces
+   - **Suggestion**: Wrap loop body in braces
+   - **Confidence**: 0.95
+   - **Consolidated Issue**: #12 (merged)
+
+[... 12 more issues in this category ...]
+
+#### Naming Convention Violations (18 issues)
+
+1. **File**: Services/UserService.cs:15
+   - **Rule**: naming-conventions-private-fields
+   - **Severity**: P2
+   - **Message**: Private field '_usermanager' should use camelCase
+   - **Suggestion**: Rename to '_userManager'
+   - **Confidence**: 0.98
+   - **Consolidated Issue**: #24
+
+2. **File**: Controllers/AuthController.cs:8
+   - **Rule**: naming-conventions-method
+   - **Severity**: P2
+   - **Message**: Method 'get_user' should use PascalCase
+   - **Suggestion**: Rename to 'GetUser'
+   - **Confidence**: 0.98
+   - **Consolidated Issue**: #25
+
+[... 16 more issues ...]
+
+#### Documentation Issues (15 issues)
+
+1. **File**: Interfaces/IAuthService.cs:10
+   - **Rule**: xml-documentation-public-api
+   - **Severity**: P2
+   - **Message**: Public interface method 'Authenticate' missing XML documentation
+   - **Suggestion**: Add /// <summary> tag
+   - **Confidence**: 0.92
+   - **Consolidated Issue**: #35
+
+[... 14 more issues ...]
+
+### Rules Applied
+
+- mandatory-braces (.cursor/rules/csharp-codestyle.mdc)
+- naming-conventions-private-fields (.cursor/rules/csharp-codestyle.mdc)
+- naming-conventions-method (.cursor/rules/csharp-codestyle.mdc)
+- naming-conventions-class (.cursor/rules/csharp-codestyle.mdc)
+- xml-documentation-public-api (.cursor/rules/csharp-codestyle.mdc)
+- formatting-line-length (.cursor/rules/csharp-codestyle.mdc)
+- formatting-indentation (.cursor/rules/csharp-codestyle.mdc)
+- **Total**: 15 rules from csharp-codestyle.mdc
+
+### Files Not Reviewed
+
+- None (all C# files reviewed)
+
+---
+```
+
+#### Example 2: code-principles-reviewer Appendix (Medium Issue Count)
+
+```markdown
+## Appendix B: code-principles-reviewer Full Report
+
+### Summary
+- **Execution Time**: 38 seconds
+- **Issues Found**: 23
+- **Confidence**: 88%
+- **Status**: ✅ Success
+
+### Detailed Findings
+
+#### Single Responsibility Principle (SRP) Violations (8 issues)
+
+1. **File**: Services/AuthService.cs:1
+   - **Rule**: SOLID-SRP
+   - **Severity**: P1
+   - **Message**: AuthService has multiple responsibilities: authentication, authorization, session management, and logging
+   - **Suggestion**: Split into AuthenticationService, AuthorizationService, SessionManager, and use ILogger injection
+   - **Confidence**: 0.85
+   - **Consolidated Issue**: #3
+
+2. **File**: Controllers/UserController.cs:1
+   - **Rule**: SOLID-SRP
+   - **Severity**: P1
+   - **Message**: UserController handles CRUD operations, validation, and email notifications
+   - **Suggestion**: Extract validation to UserValidator, notifications to INotificationService
+   - **Confidence**: 0.82
+   - **Consolidated Issue**: #4
+
+[... 6 more issues ...]
+
+#### DRY Violations (Code Duplication) (10 issues)
+
+1. **File**: Services/UserService.cs:45
+   - **Rule**: DRY-principle
+   - **Severity**: P1
+   - **Message**: Identical null check and logging pattern repeated in 8 methods
+   - **Suggestion**: Extract to ValidateAndLog() helper method
+   - **Confidence**: 0.95
+   - **Consolidated Issue**: #15
+
+2. **File**: Controllers/AuthController.cs:102
+   - **Rule**: DRY-principle
+   - **Severity**: P1
+   - **Message**: JWT token generation logic duplicated in 3 methods
+   - **Suggestion**: Extract to IJwtTokenGenerator service
+   - **Confidence**: 0.92
+   - **Consolidated Issue**: #16
+
+[... 8 more issues ...]
+
+#### SOLID Principle Violations (5 issues)
+
+1. **File**: Infrastructure/ServiceLocator.cs:1
+   - **Rule**: SOLID-anti-pattern
+   - **Severity**: P0
+   - **Message**: ServiceLocator pattern violates Dependency Inversion Principle
+   - **Suggestion**: Replace with constructor injection throughout application
+   - **Confidence**: 0.95
+   - **Consolidated Issue**: #1
+
+[... 4 more issues ...]
+
+### Rules Applied
+
+- SOLID-SRP (.cursor/rules/main.mdc (SOLID principles))
+- SOLID-OCP (.cursor/rules/main.mdc (SOLID principles))
+- SOLID-LSP (.cursor/rules/main.mdc (SOLID principles))
+- SOLID-ISP (.cursor/rules/main.mdc (SOLID principles))
+- SOLID-DIP (.cursor/rules/main.mdc (SOLID principles))
+- DRY-principle (.cursor/rules/main.mdc (DRY principle))
+- KISS-principle (.cursor/rules/main.mdc)
+- **Total**: 7 principles from main.mdc (SOLID/DRY/KISS)
+
+### Files Not Reviewed
+
+- Tests/Services/AuthServiceTests.cs (Test file - not applicable)
+- Tests/Controllers/UserControllerTests.cs (Test file - not applicable)
+
+---
+```
+
+#### Example 3: test-healer Appendix (Low Issue Count)
+
+```markdown
+## Appendix C: test-healer Full Report
+
+### Summary
+- **Execution Time**: 35 seconds
+- **Issues Found**: 12
+- **Confidence**: 91%
+- **Status**: ✅ Success
+
+### Detailed Findings
+
+#### Test Coverage Gaps (7 issues)
+
+1. **File**: Services/AuthService.cs:42
+   - **Rule**: test-coverage
+   - **Severity**: P0
+   - **Message**: Method 'RefreshToken' has no test coverage
+   - **Suggestion**: Add test case for token refresh flow in AuthServiceTests
+   - **Confidence**: 0.95
+   - **Consolidated Issue**: #2
+
+2. **File**: Services/UserService.cs:67
+   - **Rule**: test-coverage
+   - **Severity**: P1
+   - **Message**: Method 'ValidateUserPermissions' has no test coverage
+   - **Suggestion**: Add permission validation tests
+   - **Confidence**: 0.88
+   - **Consolidated Issue**: #18
+
+[... 5 more issues ...]
+
+#### Test Quality Issues (5 issues)
+
+1. **File**: Tests/Services/AuthServiceTests.cs:45
+   - **Rule**: test-quality-assertion
+   - **Severity**: P1
+   - **Message**: Test 'Authenticate_ValidCredentials_ReturnsToken' has no assertions
+   - **Suggestion**: Add Assert.NotNull(result) and validate token properties
+   - **Confidence**: 0.92
+   - **Consolidated Issue**: #28
+
+2. **File**: Tests/Controllers/UserControllerTests.cs:102
+   - **Rule**: test-quality-async
+   - **Severity**: P2
+   - **Message**: Async test not using await properly
+   - **Suggestion**: Use 'await Assert.ThrowsAsync' instead of '.Result'
+   - **Confidence**: 0.85
+   - **Consolidated Issue**: #32
+
+[... 3 more issues ...]
+
+### Rules Applied
+
+- test-coverage (xUnit best practices)
+- test-quality-assertion (xUnit best practices)
+- test-quality-async (xUnit best practices)
+- test-quality-naming (xUnit best practices)
+- test-isolation (xUnit best practices)
+- **Total**: 5 rules from xUnit best practices
+
+### Files Not Reviewed
+
+- None (all test files and related code files reviewed)
+
+---
+```
+
+---
+
+### Integration with Master Report
+
+**Appendix Placement**:
+
+The individual reviewer appendices appear AFTER the main report sections but BEFORE the Review Metadata footer:
+
+```markdown
+[... Master Report Content ...]
+
+## Prioritized Action Items
+
+[Action items table]
+
+---
+
+## Appendix A: code-style-reviewer Full Report
+
+[Full appendix A content]
+
+---
+
+## Appendix B: code-principles-reviewer Full Report
+
+[Full appendix B content]
+
+---
+
+## Appendix C: test-healer Full Report
+
+[Full appendix C content]
+
+---
+
+## Review Metadata
+
+[Metadata footer]
+```
+
+**Cross-Reference Usage**:
+
+Users can follow cross-references in both directions:
+
+1. **Master Report → Appendix**: Each consolidated issue lists "Reported by: code-style-reviewer (Issue S3)"
+2. **Appendix → Master Report**: Each appendix issue shows "Consolidated Issue: #12 (merged)"
+
+**Example Navigation**:
+
+```markdown
+## Critical Issues (P0)
+
+### Issue #1: Service Locator Anti-Pattern
+
+**File**: Infrastructure/ServiceLocator.cs:1
+**Reported by**: code-principles-reviewer (Issue A1)
+[...]
+
+---
+
+## Appendix B: code-principles-reviewer Full Report
+
+### SOLID Principle Violations (5 issues)
+
+1. **File**: Infrastructure/ServiceLocator.cs:1
+   [...]
+   - **Consolidated Issue**: #1
+
+```
+
+---
+
+### Appendix Quality Checklist
+
+Before finalizing appendices, verify:
+
+**Structure Validation**:
+- [ ] One appendix per active reviewer (skip reviewers with 0 issues)
+- [ ] Appendix letters sequential (A, B, C, D, E, F)
+- [ ] All 5 main sections present (Summary, Detailed Findings, Rules Applied, Files Not Reviewed, separator)
+- [ ] Proper markdown hierarchy (##, ###, ####)
+
+**Content Validation**:
+- [ ] Original issue messages preserved verbatim (no modifications)
+- [ ] All 7 issue fields present (File:Line, Rule, Severity, Message, Suggestion, Confidence, Consolidated Issue)
+- [ ] Issues grouped by meaningful categories
+- [ ] Category counts accurate (match number of issues listed)
+- [ ] Consolidated Issue cross-references valid (all IDs exist in master report)
+- [ ] Merged indicators correct (only shown when sources.length > 1)
+
+**Metadata Validation**:
+- [ ] Execution time in seconds (converted from milliseconds)
+- [ ] Issue count matches actual issues listed
+- [ ] Confidence percentage accurate (average of all issue confidences)
+- [ ] Status emoji correct (✅ success, ⏱️ timeout, ❌ error)
+- [ ] Rules list complete (all unique rules from issues)
+- [ ] Rule sources correct (correct .mdc file paths)
+
+**Traceability Validation**:
+- [ ] Every source issue from consolidation appears in an appendix
+- [ ] Every appendix issue references a consolidated issue (or marked as filtered)
+- [ ] No orphaned issues (all original issues accounted for)
+- [ ] Cross-reference IDs bidirectional (master ↔ appendix)
+
+**Formatting Validation**:
+- [ ] Consistent numbering within categories (1, 2, 3...)
+- [ ] Proper indentation for sub-fields (3 spaces)
+- [ ] Confidence scores formatted to 2 decimal places
+- [ ] File paths relative to project root
+- [ ] Category names descriptive and consistent
+
+---
+
+# Output Management and Integration
+
+## Overview
+
+This section specifies the complete output file management system for review-consolidator, including file naming conventions, versioning, archival policies, and distribution mechanisms. The goal is to maintain a searchable, organized review history while preventing directory clutter and enabling easy report comparison across review cycles.
+
+**Core Requirements**:
+- ISO 8601 timestamp-based naming (colon-safe for Windows compatibility)
+- Structured directory organization (main reports, appendices, metadata, archive)
+- Incremental versioning for same file sets (enables comparison)
+- Automatic archival (keep 5 most recent + archive >30 days)
+- Searchable index (index.json) for all reports
+- Console notifications for critical issues (P0 alerts)
+
+---
+
+## File Naming Conventions
+
+### ISO 8601 Colon-Safe Timestamps
+
+**Problem**: ISO 8601 timestamps contain colons (e.g., `2025-10-16T14:23:45.123Z`), which are invalid in Windows filenames.
+
+**Solution**: Replace colons with hyphens in the time portion:
+
+```typescript
+function formatTimestampForFilename(timestamp: Date): string {
+  // Original: 2025-10-16T14:23:45.123Z
+  // Result: 2025-10-16T14-23-45
+
+  const isoString = timestamp.toISOString();
+  const dateTimePart = isoString.split('.')[0]; // Remove milliseconds
+  const colonSafe = dateTimePart.replace(/:/g, '-'); // Replace colons
+
+  return colonSafe;
+}
+
+// Example outputs:
+// 2025-10-16T14-23-45
+// 2025-10-16T09-15-30
+// 2025-10-17T22-00-00
+```
+
+**Benefits**:
+- Cross-platform compatibility (Windows, macOS, Linux)
+- Sortable alphabetically (matches chronological order)
+- Human-readable timestamps
+- Parseable back to Date object
+
+---
+
+### Output Files Interface
+
+```typescript
+interface OutputFiles {
+  masterReport: string;     // Main consolidated report
+  appendices: string[];     // Per-reviewer detailed reports
+  traceability: string;     // Issue traceability matrix
+  metadata: string;         // Structured JSON metadata
+}
+
+function generateOutputFilenames(timestamp: Date, reviewers: string[]): OutputFiles {
+  const dateStr = formatTimestampForFilename(timestamp);
+
+  return {
+    // Master report in main reviews directory
+    masterReport: `Docs/reviews/review-report-${dateStr}.md`,
+
+    // Individual reviewer appendices in subdirectory
+    appendices: reviewers.map(reviewer =>
+      `Docs/reviews/appendices/${reviewer}-${dateStr}.md`
+    ),
+
+    // Traceability matrix in main directory
+    traceability: `Docs/reviews/review-traceability-${dateStr}.md`,
+
+    // Structured metadata for indexing
+    metadata: `Docs/reviews/metadata/review-metadata-${dateStr}.json`
+  };
+}
+```
+
+**Example Output**:
+
+```typescript
+const timestamp = new Date('2025-10-16T14:23:45Z');
+const reviewers = ['code-style-reviewer', 'code-principles-reviewer', 'test-healer'];
+const files = generateOutputFilenames(timestamp, reviewers);
+
+// Result:
+{
+  masterReport: "Docs/reviews/review-report-2025-10-16T14-23-45.md",
+  appendices: [
+    "Docs/reviews/appendices/code-style-reviewer-2025-10-16T14-23-45.md",
+    "Docs/reviews/appendices/code-principles-reviewer-2025-10-16T14-23-45.md",
+    "Docs/reviews/appendices/test-healer-2025-10-16T14-23-45.md"
+  ],
+  traceability: "Docs/reviews/review-traceability-2025-10-16T14-23-45.md",
+  metadata: "Docs/reviews/metadata/review-metadata-2025-10-16T14-23-45.json"
+}
+```
+
+---
+
+### Directory Structure
+
+```
+Docs/reviews/
+├── review-report-2025-10-16T14-23-45.md           (Master report)
+├── review-report-2025-10-16T09-15-30.md           (Previous master)
+├── review-traceability-2025-10-16T14-23-45.md     (Traceability matrix)
+├── review-traceability-2025-10-16T09-15-30.md
+├── index.json                                      (Searchable index)
+│
+├── appendices/
+│   ├── code-style-reviewer-2025-10-16T14-23-45.md
+│   ├── code-principles-reviewer-2025-10-16T14-23-45.md
+│   ├── test-healer-2025-10-16T14-23-45.md
+│   ├── code-style-reviewer-2025-10-16T09-15-30.md
+│   └── ...
+│
+├── metadata/
+│   ├── review-metadata-2025-10-16T14-23-45.json
+│   ├── review-metadata-2025-10-16T09-15-30.json
+│   └── ...
+│
+└── archive/
+    ├── 2025-09/                                    (Archived by month)
+    │   ├── review-report-2025-09-15T10-00-00.md.gz
+    │   ├── review-report-2025-09-20T14-30-00.md.gz
+    │   └── appendices/
+    │       └── ...
+    └── 2025-08/
+        └── ...
+```
+
+**Directory Rules**:
+
+1. **Main directory** (`Docs/reviews/`):
+   - Keep only 5 most recent reports
+   - Master reports and traceability matrices
+   - index.json always present
+
+2. **Appendices subdirectory** (`appendices/`):
+   - Per-reviewer detailed reports
+   - Same retention policy (5 most recent sets)
+   - Cleaned up with main reports
+
+3. **Metadata subdirectory** (`metadata/`):
+   - JSON files for programmatic access
+   - Never deleted (small files, valuable for analytics)
+   - Compressed in archive/
+
+4. **Archive subdirectory** (`archive/`):
+   - Organized by YYYY-MM/ subdirectories
+   - All files compressed with gzip
+   - No automatic deletion (manual cleanup)
+
+---
+
+## Report Versioning System
+
+### Version Metadata Interface
+
+```typescript
+interface ReportVersion {
+  version: number;              // Incremental version for same file set
+  timestamp: Date;              // When this report was generated
+  filesReviewed: string[];      // Files included in this review
+  issueCount: number;           // Total issues found
+  criticalCount: number;        // P0 issues count
+  previousVersion?: string;     // Link to previous report for comparison
+  previousTimestamp?: Date;     // When previous version was generated
+  changesSincePrevious?: {      // Comparison metrics
+    issuesAdded: number;
+    issuesResolved: number;
+    issuesChanged: number;
+    netChange: number;          // Positive = more issues, negative = fewer
+  };
+}
+```
+
+---
+
+### Versioning Algorithm
+
+```typescript
+function createVersionedReport(
+  files: string[],
+  issues: ConsolidatedIssue[]
+): ReportVersion {
+  // 1. Find previous report for same file set
+  const previousReport = findPreviousReport(files);
+
+  // 2. Increment version or start at 1
+  const version = previousReport ? previousReport.version + 1 : 1;
+
+  // 3. Calculate change metrics if previous exists
+  const changesSincePrevious = previousReport
+    ? calculateChanges(previousReport.issues, issues)
+    : undefined;
+
+  // 4. Count critical issues
+  const criticalCount = issues.filter(i => i.priority === 'P0').length;
+
+  return {
+    version,
+    timestamp: new Date(),
+    filesReviewed: files,
+    issueCount: issues.length,
+    criticalCount,
+    previousVersion: previousReport?.filename,
+    previousTimestamp: previousReport?.timestamp,
+    changesSincePrevious
+  };
+}
+```
+
+---
+
+### Finding Previous Reports
+
+```typescript
+interface IndexEntry {
+  filename: string;
+  timestamp: Date;
+  version: number;
+  filesReviewed: string[];
+  issueCount: number;
+  criticalCount: number;
+}
+
+function findPreviousReport(currentFiles: string[]): IndexEntry | null {
+  // 1. Load index.json
+  const index: IndexEntry[] = JSON.parse(
+    readFile('Docs/reviews/index.json')
+  );
+
+  // 2. Sort by timestamp descending (most recent first)
+  const sortedReports = index.sort((a, b) =>
+    b.timestamp.getTime() - a.timestamp.getTime()
+  );
+
+  // 3. Find most recent report with same file set
+  const normalizedCurrent = normalizeFilePaths(currentFiles);
+
+  for (const report of sortedReports) {
+    const normalizedReport = normalizeFilePaths(report.filesReviewed);
+
+    if (arraysEqual(normalizedCurrent, normalizedReport)) {
+      return report;
+    }
+  }
+
+  return null; // No previous report for this file set
+}
+
+function normalizeFilePaths(files: string[]): string[] {
+  // Sort and normalize to handle different orderings
+  return files
+    .map(f => f.replace(/\\/g, '/').toLowerCase())
+    .sort();
+}
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((val, idx) => val === b[idx]);
+}
+```
+
+**Example**:
+
+```typescript
+// Current review
+const currentFiles = [
+  'src/Orchestra.Core/Services/AuthService.cs',
+  'src/Orchestra.Core/Interfaces/IAuthService.cs',
+  'src/Orchestra.Tests/Services/AuthServiceTests.cs'
+];
+
+// Index contains:
+// Version 1: 2025-10-15T10:00:00, same files, 42 issues
+// Version 2: 2025-10-16T09:00:00, same files, 38 issues
+// Version 1: 2025-10-16T11:00:00, different files, 15 issues
+
+// findPreviousReport(currentFiles) returns:
+// Version 2 from 2025-10-16T09:00:00 (most recent with same files)
+
+// New report will be Version 3 with comparison to Version 2
+```
+
+---
+
+### Change Calculation
+
+```typescript
+interface IssueChange {
+  issuesAdded: number;      // New issues not in previous report
+  issuesResolved: number;   // Issues from previous not in current
+  issuesChanged: number;    // Issues with different severity/confidence
+  netChange: number;        // issuesAdded - issuesResolved
+}
+
+function calculateChanges(
+  previousIssues: ConsolidatedIssue[],
+  currentIssues: ConsolidatedIssue[]
+): IssueChange {
+  // 1. Create normalized issue keys for comparison
+  const previousKeys = new Set(
+    previousIssues.map(i => createIssueKey(i))
+  );
+  const currentKeys = new Set(
+    currentIssues.map(i => createIssueKey(i))
+  );
+
+  // 2. Find added issues (in current, not in previous)
+  const added = currentIssues.filter(i =>
+    !previousKeys.has(createIssueKey(i))
+  );
+
+  // 3. Find resolved issues (in previous, not in current)
+  const resolved = previousIssues.filter(i =>
+    !currentKeys.has(createIssueKey(i))
+  );
+
+  // 4. Find changed issues (same key, different priority/confidence)
+  const changed = currentIssues.filter(curr => {
+    const prev = previousIssues.find(p =>
+      createIssueKey(p) === createIssueKey(curr)
+    );
+    return prev && (
+      prev.priority !== curr.priority ||
+      Math.abs(prev.confidence - curr.confidence) > 0.05
+    );
+  });
+
+  return {
+    issuesAdded: added.length,
+    issuesResolved: resolved.length,
+    issuesChanged: changed.length,
+    netChange: added.length - resolved.length
+  };
+}
+
+function createIssueKey(issue: ConsolidatedIssue): string {
+  // Normalize file path, location, and rule for comparison
+  return `${issue.file}:${issue.line}:${issue.rule}`.toLowerCase();
+}
+```
+
+**Example Output**:
+
+```markdown
+## Report Metadata
+
+**Version**: 3 (Previous: Version 2 from 2025-10-16T09:00:00)
+**Files Reviewed**: 3 files (AuthService.cs, IAuthService.cs, AuthServiceTests.cs)
+**Total Issues**: 35 issues (down from 38)
+
+**Changes Since Previous**:
+- 5 new issues added
+- 8 issues resolved ✅
+- 2 issues changed severity
+- Net change: -3 issues (improvement)
+
+**Previous Report**: [review-report-2025-10-16T09-00-00.md](./review-report-2025-10-16T09-00-00.md)
+```
+
+---
+
+## Report Archival Strategy
+
+### Archival Policy
+
+**Goals**:
+- Prevent directory clutter (limit to 5 most recent reports)
+- Preserve historical data (archive old reports, never delete)
+- Enable comparisons (maintain index for all reports)
+- Optimize storage (compress archived reports)
+
+**Rules**:
+
+1. **Retention in Main Directory**:
+   - Keep only 5 most recent report sets
+   - "Report set" = master report + appendices + traceability + metadata
+   - Count by timestamp, not by file set
+
+2. **Automatic Archival**:
+   - Trigger on each new report generation
+   - Archive reports older than 30 days
+   - Archive when >5 reports exist (keep newest 5)
+
+3. **Archive Structure**:
+   - Organize by year-month: `archive/YYYY-MM/`
+   - Compress all files with gzip (.md.gz, .json.gz)
+   - Preserve directory structure (appendices/, metadata/)
+
+4. **Index Maintenance**:
+   - Update index.json on every report generation
+   - Index includes both active and archived reports
+   - Mark archived reports with `archived: true` and `archivePath`
+
+---
+
+### Archival Algorithm
+
+```typescript
+interface ArchivalPolicy {
+  maxRecentReports: number;      // Keep this many in main directory
+  archiveAfterDays: number;      // Archive reports older than this
+  compressionEnabled: boolean;   // Compress archived files
+  archiveBasePath: string;       // Base path for archive
+}
+
+const DEFAULT_POLICY: ArchivalPolicy = {
+  maxRecentReports: 5,
+  archiveAfterDays: 30,
+  compressionEnabled: true,
+  archiveBasePath: 'Docs/reviews/archive'
+};
+
+async function enforceArchivalPolicy(
+  policy: ArchivalPolicy = DEFAULT_POLICY
+): Promise<ArchivalResult> {
+  // 1. Load current index
+  const index: IndexEntry[] = JSON.parse(
+    await readFile('Docs/reviews/index.json')
+  );
+
+  // 2. Filter active reports (not already archived)
+  const activeReports = index.filter(r => !r.archived);
+
+  // 3. Sort by timestamp descending
+  const sorted = activeReports.sort((a, b) =>
+    b.timestamp.getTime() - a.timestamp.getTime()
+  );
+
+  // 4. Identify reports to archive
+  const now = new Date();
+  const reportsToArchive = sorted.filter((report, idx) => {
+    const ageInDays = (now.getTime() - report.timestamp.getTime()) / (1000 * 60 * 60 * 24);
+    const isTooOld = ageInDays > policy.archiveAfterDays;
+    const isBeyondLimit = idx >= policy.maxRecentReports;
+
+    return isTooOld || isBeyondLimit;
+  });
+
+  // 5. Archive each report
+  const results: ArchivalResult = {
+    archivedCount: 0,
+    compressedBytes: 0,
+    errors: []
+  };
+
+  for (const report of reportsToArchive) {
+    try {
+      const result = await archiveReport(report, policy);
+      results.archivedCount++;
+      results.compressedBytes += result.compressedSize;
+    } catch (error) {
+      results.errors.push({ report: report.filename, error: error.message });
+    }
+  }
+
+  // 6. Update index with archive information
+  await updateIndexWithArchivalInfo(reportsToArchive);
+
+  return results;
+}
+```
+
+---
+
+### Archive Report Function
+
+```typescript
+interface ArchiveResult {
+  originalPath: string;
+  archivePath: string;
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: number;
+}
+
+async function archiveReport(
+  report: IndexEntry,
+  policy: ArchivalPolicy
+): Promise<ArchiveResult> {
+  // 1. Determine archive directory (YYYY-MM)
+  const yearMonth = report.timestamp.toISOString().slice(0, 7); // "2025-10"
+  const archiveDir = `${policy.archiveBasePath}/${yearMonth}`;
+
+  // 2. Create archive directory if needed
+  await ensureDirectory(archiveDir);
+  await ensureDirectory(`${archiveDir}/appendices`);
+  await ensureDirectory(`${archiveDir}/metadata`);
+
+  // 3. Archive master report
+  const masterResult = await archiveFile(
+    report.masterReport,
+    `${archiveDir}/${path.basename(report.masterReport)}`,
+    policy.compressionEnabled
+  );
+
+  // 4. Archive appendices
+  for (const appendix of report.appendices) {
+    await archiveFile(
+      appendix,
+      `${archiveDir}/appendices/${path.basename(appendix)}`,
+      policy.compressionEnabled
+    );
+  }
+
+  // 5. Archive traceability matrix
+  await archiveFile(
+    report.traceability,
+    `${archiveDir}/${path.basename(report.traceability)}`,
+    policy.compressionEnabled
+  );
+
+  // 6. Archive metadata
+  await archiveFile(
+    report.metadata,
+    `${archiveDir}/metadata/${path.basename(report.metadata)}`,
+    policy.compressionEnabled
+  );
+
+  // 7. Delete original files
+  await deleteFiles([
+    report.masterReport,
+    ...report.appendices,
+    report.traceability,
+    report.metadata
+  ]);
+
+  return masterResult;
+}
+
+async function archiveFile(
+  sourcePath: string,
+  destPath: string,
+  compress: boolean
+): Promise<ArchiveResult> {
+  const content = await readFile(sourcePath);
+  const originalSize = content.length;
+
+  if (compress) {
+    const compressed = await gzipCompress(content);
+    await writeFile(`${destPath}.gz`, compressed);
+
+    return {
+      originalPath: sourcePath,
+      archivePath: `${destPath}.gz`,
+      originalSize,
+      compressedSize: compressed.length,
+      compressionRatio: compressed.length / originalSize
+    };
+  } else {
+    await writeFile(destPath, content);
+
+    return {
+      originalPath: sourcePath,
+      archivePath: destPath,
+      originalSize,
+      compressedSize: originalSize,
+      compressionRatio: 1.0
+    };
+  }
+}
+```
+
+---
+
+### Index Update
+
+```typescript
+interface IndexEntry {
+  filename: string;
+  timestamp: Date;
+  version: number;
+  filesReviewed: string[];
+  issueCount: number;
+  criticalCount: number;
+  archived?: boolean;           // True if archived
+  archivePath?: string;         // Path in archive/
+  archivedAt?: Date;            // When archived
+  compressedSize?: number;      // Size after compression
+}
+
+async function updateIndexWithArchivalInfo(
+  archivedReports: IndexEntry[]
+): Promise<void> {
+  // 1. Load current index
+  const index: IndexEntry[] = JSON.parse(
+    await readFile('Docs/reviews/index.json')
+  );
+
+  // 2. Update archived reports
+  for (const archived of archivedReports) {
+    const indexEntry = index.find(e => e.filename === archived.filename);
+
+    if (indexEntry) {
+      const yearMonth = archived.timestamp.toISOString().slice(0, 7);
+
+      indexEntry.archived = true;
+      indexEntry.archivePath = `archive/${yearMonth}/${path.basename(archived.filename)}.gz`;
+      indexEntry.archivedAt = new Date();
+    }
+  }
+
+  // 3. Save updated index
+  await writeFile(
+    'Docs/reviews/index.json',
+    JSON.stringify(index, null, 2)
+  );
+}
+```
+
+**Example index.json**:
+
+```json
+[
+  {
+    "filename": "review-report-2025-10-16T14-23-45.md",
+    "timestamp": "2025-10-16T14:23:45Z",
+    "version": 3,
+    "filesReviewed": ["src/Orchestra.Core/Services/AuthService.cs"],
+    "issueCount": 35,
+    "criticalCount": 2,
+    "archived": false
+  },
+  {
+    "filename": "review-report-2025-09-15T10-00-00.md",
+    "timestamp": "2025-09-15T10:00:00Z",
+    "version": 2,
+    "filesReviewed": ["src/Orchestra.Core/Services/AuthService.cs"],
+    "issueCount": 38,
+    "criticalCount": 3,
+    "archived": true,
+    "archivePath": "archive/2025-09/review-report-2025-09-15T10-00-00.md.gz",
+    "archivedAt": "2025-10-16T14:25:00Z",
+    "compressedSize": 12543
+  }
+]
+```
+
+---
+
+### Cleanup Execution
+
+```typescript
+async function cleanupOldReports(): Promise<void> {
+  console.log('Enforcing archival policy...');
+
+  const result = await enforceArchivalPolicy({
+    maxRecentReports: 5,
+    archiveAfterDays: 30,
+    compressionEnabled: true,
+    archiveBasePath: 'Docs/reviews/archive'
+  });
+
+  if (result.archivedCount > 0) {
+    const compressionPercent = (1 - result.compressedBytes / result.originalBytes) * 100;
+
+    console.log(`✅ Archived ${result.archivedCount} report(s)`);
+    console.log(`   Compression: ${compressionPercent.toFixed(1)}% size reduction`);
+    console.log(`   Location: Docs/reviews/archive/`);
+  }
+
+  if (result.errors.length > 0) {
+    console.error(`⚠️  ${result.errors.length} archival error(s):`);
+    result.errors.forEach(e => console.error(`   - ${e.report}: ${e.error}`));
+  }
+}
+```
+
+**Console Output Example**:
+
+```
+Enforcing archival policy...
+✅ Archived 3 report(s)
+   Compression: 73.2% size reduction
+   Location: Docs/reviews/archive/
+```
+
+---
+
+## Report Distribution Mechanism
+
+### Distribution Options
+
+```typescript
+interface ReportDistribution {
+  saveToFile: boolean;          // Always true (primary output)
+  printToConsole: boolean;      // Print executive summary
+  notifyUser: boolean;          // Notify if P0 issues found
+  openInEditor: boolean;        // Open in default markdown editor (optional)
+  webhookUrl?: string;          // POST report to webhook (future)
+}
+
+const DEFAULT_DISTRIBUTION: ReportDistribution = {
+  saveToFile: true,
+  printToConsole: true,
+  notifyUser: true,
+  openInEditor: false
+};
+```
+
+---
+
+### Distribution Algorithm
+
+```typescript
+async function distributeReport(
+  report: string,
+  files: OutputFiles,
+  options: ReportDistribution = DEFAULT_DISTRIBUTION
+): Promise<void> {
+  // 1. ALWAYS save to file (primary output)
+  if (options.saveToFile) {
+    await saveReportFiles(report, files);
+    console.log(`\n📄 Report saved: ${files.masterReport}`);
+    console.log(`   Appendices: ${files.appendices.length} files in appendices/`);
+    console.log(`   Traceability: ${files.traceability}`);
+    console.log(`   Metadata: ${files.metadata}`);
+  }
+
+  // 2. Print executive summary to console
+  if (options.printToConsole) {
+    const summary = extractExecutiveSummary(report);
+    console.log('\n' + summary);
+  }
+
+  // 3. Notify user if critical issues found
+  if (options.notifyUser) {
+    const criticalIssues = countCriticalIssues(report);
+
+    if (criticalIssues > 0) {
+      console.log(`\n⚠️  CRITICAL: ${criticalIssues} P0 issue(s) found - review immediately!`);
+      console.log(`   Open report: ${files.masterReport}`);
+    } else {
+      console.log('\n✅ No critical issues found');
+    }
+  }
+
+  // 4. Optional: Open in default editor
+  if (options.openInEditor) {
+    await openInDefaultEditor(files.masterReport);
+    console.log(`\n📝 Opened in editor: ${files.masterReport}`);
+  }
+
+  // 5. Future: Webhook notification
+  if (options.webhookUrl) {
+    await postToWebhook(options.webhookUrl, {
+      report: files.masterReport,
+      criticalCount: countCriticalIssues(report),
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+```
+
+---
+
+### Executive Summary Extraction
+
+```typescript
+function extractExecutiveSummary(report: string): string {
+  // Extract key sections from master report
+  const lines = report.split('\n');
+  const summary: string[] = [];
+
+  // 1. Find executive summary section
+  let inSummary = false;
+  let summaryLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.includes('## Executive Summary')) {
+      inSummary = true;
+      continue;
+    }
+
+    if (inSummary) {
+      if (line.startsWith('##')) {
+        break; // End of summary section
+      }
+      summaryLines.push(line);
+    }
+  }
+
+  // 2. Extract review metadata
+  const metadata = extractMetadataSection(report);
+
+  // 3. Build console output
+  summary.push('═══════════════════════════════════════════════════════');
+  summary.push('             REVIEW CONSOLIDATION REPORT');
+  summary.push('═══════════════════════════════════════════════════════');
+  summary.push('');
+  summary.push(metadata);
+  summary.push('');
+  summary.push(...summaryLines);
+  summary.push('');
+  summary.push('═══════════════════════════════════════════════════════');
+
+  return summary.join('\n');
+}
+
+function extractMetadataSection(report: string): string {
+  const lines = report.split('\n');
+  const metadata: string[] = [];
+
+  // Find metadata section
+  let inMetadata = false;
+
+  for (const line of lines) {
+    if (line.includes('## Review Metadata')) {
+      inMetadata = true;
+      continue;
+    }
+
+    if (inMetadata) {
+      if (line.startsWith('##')) break;
+
+      // Extract key metrics
+      if (line.includes('**Total Files**:')) metadata.push(line);
+      if (line.includes('**Total Issues**:')) metadata.push(line);
+      if (line.includes('**Critical Issues (P0)**:')) metadata.push(line);
+      if (line.includes('**Review Duration**:')) metadata.push(line);
+    }
+  }
+
+  return metadata.join('\n');
+}
+```
+
+**Example Console Output**:
+
+```
+═══════════════════════════════════════════════════════
+             REVIEW CONSOLIDATION REPORT
+═══════════════════════════════════════════════════════
+
+**Total Files**: 3
+**Total Issues**: 35 (reduced from 127 original)
+**Critical Issues (P0)**: 2
+**Review Duration**: 4m 23s
+
+### Overall Assessment
+
+This review identified 35 consolidated issues across 3 files, with 2 critical
+issues requiring immediate attention. The codebase demonstrates good adherence
+to SOLID principles (92% compliance) but has significant style inconsistencies
+(23 violations) and test coverage gaps (10 missing test scenarios).
+
+### Priority Breakdown
+
+- **P0 (Critical)**: 2 issues - Service Locator anti-pattern, async/await misuse
+- **P1 (Important)**: 15 issues - Style violations, test gaps, minor principle issues
+- **P2 (Optional)**: 18 issues - Suggestions for improvement
+
+### Recommended Actions
+
+1. [CRITICAL] Refactor ServiceLocator to use dependency injection (Est: 2-3 hours)
+2. [CRITICAL] Fix async/await usage in AuthService.ValidateAsync (Est: 30 min)
+3. [HIGH] Address 23 style violations with automated formatter (Est: 15 min)
+4. [MEDIUM] Add 10 missing test scenarios for edge cases (Est: 3-4 hours)
+
+═══════════════════════════════════════════════════════
+
+⚠️  CRITICAL: 2 P0 issue(s) found - review immediately!
+   Open report: Docs/reviews/review-report-2025-10-16T14-23-45.md
+```
+
+---
+
+### Critical Issue Counting
+
+```typescript
+function countCriticalIssues(report: string): number {
+  const lines = report.split('\n');
+  let criticalCount = 0;
+
+  // Find "Critical Issues (P0)" section
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.includes('## Critical Issues (P0)')) {
+      // Next line should be count: "**Total**: 2 issues"
+      const nextLine = lines[i + 2];
+      const match = nextLine.match(/\*\*Total\*\*:\s*(\d+)/);
+
+      if (match) {
+        criticalCount = parseInt(match[1], 10);
+      }
+      break;
+    }
+  }
+
+  return criticalCount;
+}
+```
+
+---
+
+### Editor Integration
+
+```typescript
+async function openInDefaultEditor(filepath: string): Promise<void> {
+  const platform = process.platform;
+
+  try {
+    if (platform === 'win32') {
+      // Windows: Use 'start' command
+      await exec(`start "" "${filepath}"`);
+    } else if (platform === 'darwin') {
+      // macOS: Use 'open' command
+      await exec(`open "${filepath}"`);
+    } else {
+      // Linux: Use 'xdg-open'
+      await exec(`xdg-open "${filepath}"`);
+    }
+  } catch (error) {
+    console.warn(`⚠️  Could not open editor: ${error.message}`);
+    console.log(`   Manually open: ${filepath}`);
+  }
+}
+```
+
+---
+
+### Complete Distribution Example
+
+```typescript
+async function generateAndDistributeReport(
+  consolidationResult: ConsolidationResult
+): Promise<void> {
+  // 1. Generate all report components
+  const masterReport = await generateMasterReport(consolidationResult);
+  const appendices = await generateAppendices(consolidationResult);
+  const traceability = await generateTraceabilityMatrix(consolidationResult);
+  const metadata = await generateMetadataJson(consolidationResult);
+
+  // 2. Create output filenames
+  const timestamp = new Date();
+  const reviewers = consolidationResult.reviewers.map(r => r.id);
+  const files = generateOutputFilenames(timestamp, reviewers);
+
+  // 3. Save all files
+  await writeFile(files.masterReport, masterReport);
+
+  for (let i = 0; i < appendices.length; i++) {
+    await writeFile(files.appendices[i], appendices[i]);
+  }
+
+  await writeFile(files.traceability, traceability);
+  await writeFile(files.metadata, JSON.stringify(metadata, null, 2));
+
+  // 4. Update index
+  await updateIndex({
+    filename: files.masterReport,
+    timestamp,
+    version: metadata.version,
+    filesReviewed: consolidationResult.filesReviewed,
+    issueCount: consolidationResult.issues.length,
+    criticalCount: consolidationResult.issues.filter(i => i.priority === 'P0').length
+  });
+
+  // 5. Enforce archival policy
+  await cleanupOldReports();
+
+  // 6. Distribute report
+  await distributeReport(masterReport, files, {
+    saveToFile: true,
+    printToConsole: true,
+    notifyUser: true,
+    openInEditor: false
+  });
+
+  console.log('\n✅ Review consolidation complete!');
+}
+```
+
+**Complete Console Output**:
+
+```
+Generating master report...
+Generating appendices (3 reviewers)...
+Generating traceability matrix...
+Creating metadata...
+
+📄 Report saved: Docs/reviews/review-report-2025-10-16T14-23-45.md
+   Appendices: 3 files in appendices/
+   Traceability: Docs/reviews/review-traceability-2025-10-16T14-23-45.md
+   Metadata: Docs/reviews/metadata/review-metadata-2025-10-16T14-23-45.json
+
+Enforcing archival policy...
+✅ Archived 2 report(s)
+   Compression: 71.5% size reduction
+   Location: Docs/reviews/archive/
+
+═══════════════════════════════════════════════════════
+             REVIEW CONSOLIDATION REPORT
+═══════════════════════════════════════════════════════
+
+**Total Files**: 3
+**Total Issues**: 35 (reduced from 127 original)
+**Critical Issues (P0)**: 2
+**Review Duration**: 4m 23s
+
+[Executive summary content...]
+
+═══════════════════════════════════════════════════════
+
+⚠️  CRITICAL: 2 P0 issue(s) found - review immediately!
+   Open report: Docs/reviews/review-report-2025-10-16T14-23-45.md
+
+✅ Review consolidation complete!
+```
+
+---
+
+## Integration Checklist
+
+Before finalizing output management, verify all components:
+
+**File Operations**:
+- [ ] ISO 8601 colon-safe timestamp formatting implemented
+- [ ] generateOutputFilenames() creates all 4 file types
+- [ ] Directory structure created (reviews/, appendices/, metadata/, archive/)
+- [ ] File paths use cross-platform separators
+
+**Versioning System**:
+- [ ] findPreviousReport() correctly identifies same file sets
+- [ ] Version numbers increment properly
+- [ ] Change calculation compares issues accurately
+- [ ] Previous version links added to reports
+
+**Archival Policy**:
+- [ ] Retention policy enforced (5 most recent)
+- [ ] Age-based archival works (>30 days)
+- [ ] Archive directory structure preserved
+- [ ] Compression reduces file sizes by 60-80%
+- [ ] Index updated with archive information
+
+**Distribution Mechanism**:
+- [ ] Files saved to correct locations
+- [ ] Executive summary extracted and printed
+- [ ] P0 notification triggers correctly
+- [ ] Editor integration works on Windows/macOS/Linux
+- [ ] Console output formatted clearly
+
+**Index Management**:
+- [ ] index.json created if missing
+- [ ] New reports added to index
+- [ ] Archived reports marked correctly
+- [ ] Index remains valid JSON after updates
+
+---
+
+## Validation Tests
+
+### Test Case 1: First Report Generation
+
+**Scenario**: Generate first report for a file set
+
+**Expected**:
+- Version = 1
+- No previous version link
+- All 4 output files created
+- Index.json created with 1 entry
+- Console shows executive summary
+- No archival triggered (only 1 report)
+
+---
+
+### Test Case 2: Incremental Version
+
+**Scenario**: Generate second report for same files
+
+**Expected**:
+- Version = 2
+- Previous version linked
+- Change metrics calculated
+- Index.json updated with 2 entries
+- Console shows improvement/regression
+- No archival (only 2 reports)
+
+---
+
+### Test Case 3: Archival Trigger
+
+**Scenario**: Generate 6th report (exceeds limit of 5)
+
+**Expected**:
+- Oldest report archived to archive/YYYY-MM/
+- Main directory contains only 5 most recent
+- Archived files compressed (.md.gz)
+- Index shows 6 entries (5 active + 1 archived)
+- Console shows archival summary
+
+---
+
+### Test Case 4: Critical Issue Alert
+
+**Scenario**: Report contains 3 P0 issues
+
+**Expected**:
+- Console shows "⚠️ CRITICAL: 3 P0 issue(s)"
+- Executive summary highlights P0 count
+- Master report opens in editor (if enabled)
+- User notified immediately
+
+---
+
+### Test Case 5: Age-Based Archival
+
+**Scenario**: Report >30 days old exists
+
+**Expected**:
+- Old report archived even if <5 reports total
+- Archive path uses correct YYYY-MM
+- Index marks report as archived
+- Console shows archival reason (age vs count)
+
+---
+
+**Master Report Generator Status**: ACTIVE
+**Phase**: 4.3 - Output Management and Integration ✅ COMPLETE
+**Dependencies**: Tasks 4.1 (Master Report), 4.2 (Appendices)
+**Next**: Phase 5 (Cycle Protection & Integration)
+
+---
+
+**Prompt Version**: 1.1
 **Last Updated**: 2025-10-16
 **Compatibility**: Claude Opus 4.1, Claude Sonnet 3.7+
 **Related Documentation**:
 - Agent Specification: `.cursor/agents/review-consolidator/agent.md`
 - Consolidation Algorithm: `.cursor/agents/review-consolidator/consolidation-algorithm.md`
-- Implementation Plan: `Docs/plans/Review-Consolidator-Implementation-Plan/phase-1-foundation.md`
+- Implementation Plan: `Docs/plans/Review-Consolidator-Implementation-Plan.md`
