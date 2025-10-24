@@ -9260,6 +9260,902 @@ Before finalizing traceability matrix, verify:
 
 ---
 
+## Cycle Tracking System
+
+**Phase**: 5.1A - Review Cycle Management
+**Purpose**: Prevent infinite review-fix loops through cycle tracking, escalation triggers, and improvement monitoring
+
+### Overview
+
+The Cycle Tracking System monitors review-fix iterations to ensure progress and prevent infinite loops. It enforces a maximum of 2 complete cycles (initial review + one re-review after fixes) before escalating to user intervention.
+
+**Key Components**:
+1. **ReviewCycle Interface** - Complete cycle state representation
+2. **CycleTracker Class** - Cycle lifecycle management
+3. **Issue Tracking** - Cross-cycle comparison and metrics
+4. **Escalation Logic** - Automatic escalation triggers
+5. **Integration Points** - Handoff between review-consolidator and plan-task-executor
+
+---
+
+### ReviewCycle Interface
+
+Complete data structure representing one review-fix cycle iteration.
+
+```typescript
+interface ReviewCycle {
+  // Identification
+  cycleId: string; // Format: "consolidator-executor-{timestamp}"
+  iteration: number; // 1-based iteration counter (max 2)
+  startTime: Date;
+  endTime?: Date;
+
+  // Issue tracking
+  issuesFoundInCycle: number; // Total issues found in this cycle
+  issuesFixedFromPrevious: number; // Issues resolved since previous cycle
+  issuesStillPresent: number; // Issues that persist from previous cycle
+  newIssuesIntroduced: number; // New issues introduced by fixes in previous cycle
+
+  // Improvement metrics
+  improvementRate: number; // 0-1 scale, calculated as: fixed / previousTotal
+  netImprovement: number; // fixed - newIntroduced (can be negative)
+
+  // Cycle status
+  status: 'in_progress' | 'completed' | 'escalated';
+  escalationReason?: string; // Set when status = 'escalated'
+
+  // Files affected
+  filesReviewed: string[]; // All files reviewed in this cycle
+  filesModified: string[]; // Files modified by plan-task-executor (if iteration > 1)
+
+  // Previous cycle reference
+  previousCycleId?: string; // Link to previous cycle for tracking
+}
+```
+
+**Field Descriptions**:
+
+**cycleId**:
+- Format: `consolidator-executor-{timestamp}`
+- Example: `consolidator-executor-1697123456789`
+- Purpose: Unique identifier passed between review-consolidator and plan-task-executor
+- Usage: Enables cycle continuity across agent transitions
+
+**iteration**:
+- Range: 1-2 (MAX_CYCLES = 2)
+- Iteration 1: Initial review (no previous fixes)
+- Iteration 2: Re-review after plan-task-executor fixes
+- Calculated from previousCycleId chain
+
+**issuesFoundInCycle**:
+- Count of all issues found in current review pass
+- Iteration 1: All original issues
+- Iteration 2: Remaining + new issues after fixes
+
+**issuesFixedFromPrevious**:
+- Issues that existed in previous cycle but not in current
+- Only calculated for iteration > 1
+- Used to compute improvementRate
+
+**issuesStillPresent**:
+- Issues from previous cycle that remain unresolved
+- Only tracked for iteration > 1
+- Key metric for escalation decisions
+
+**newIssuesIntroduced**:
+- Issues that did NOT exist in previous cycle
+- Indicates regressions caused by fixes
+- High count triggers escalation (negative net improvement)
+
+**improvementRate**:
+- Formula: `issuesFixedFromPrevious / previousCycleIssueCount`
+- Range: 0.0 (no improvement) to 1.0 (all issues fixed)
+- Threshold: <0.5 triggers escalation (low improvement)
+
+**netImprovement**:
+- Formula: `issuesFixedFromPrevious - newIssuesIntroduced`
+- Positive: Overall progress (more fixes than regressions)
+- Negative: Regression (fixes created more issues)
+- Zero: No net progress
+- Threshold: <0 triggers immediate escalation
+
+**Example Cycle Objects**:
+
+```typescript
+// Cycle 1: Initial Review (Iteration 1)
+const cycle1: ReviewCycle = {
+  cycleId: "consolidator-executor-1697123456789",
+  iteration: 1,
+  startTime: new Date("2025-10-16T14:00:00Z"),
+  endTime: new Date("2025-10-16T14:05:23Z"),
+
+  // Issue tracking
+  issuesFoundInCycle: 12,
+  issuesFixedFromPrevious: 0, // No previous cycle
+  issuesStillPresent: 0, // No previous cycle
+  newIssuesIntroduced: 0, // No previous cycle
+
+  // Improvement metrics
+  improvementRate: 0, // N/A for first cycle
+  netImprovement: 0, // N/A for first cycle
+
+  // Cycle status
+  status: 'completed',
+
+  // Files affected
+  filesReviewed: [
+    "src/Orchestra.API/Controllers/AuthController.cs",
+    "src/Orchestra.Core/Services/UserService.cs",
+    "src/Orchestra.Tests/Controllers/AuthControllerTests.cs"
+  ],
+  filesModified: [], // No fixes yet (iteration 1)
+
+  // Previous cycle reference
+  previousCycleId: undefined
+};
+
+// Cycle 2: Re-review After Fixes (Iteration 2)
+const cycle2: ReviewCycle = {
+  cycleId: "consolidator-executor-1697127890123",
+  iteration: 2,
+  startTime: new Date("2025-10-16T14:30:00Z"),
+  endTime: new Date("2025-10-16T14:34:15Z"),
+
+  // Issue tracking
+  issuesFoundInCycle: 5, // 5 issues remain
+  issuesFixedFromPrevious: 7, // 7 out of 12 fixed
+  issuesStillPresent: 5, // 5 issues persist
+  newIssuesIntroduced: 0, // No regressions (good!)
+
+  // Improvement metrics
+  improvementRate: 0.58, // 7/12 = 58% improvement
+  netImprovement: 7, // 7 fixed - 0 new = +7 (positive!)
+
+  // Cycle status
+  status: 'escalated', // Escalated due to P0 issues persisting
+  escalationReason: 'Critical issues persist after max cycles',
+
+  // Files affected
+  filesReviewed: [
+    "src/Orchestra.API/Controllers/AuthController.cs",
+    "src/Orchestra.Core/Services/UserService.cs",
+    "src/Orchestra.Tests/Controllers/AuthControllerTests.cs"
+  ],
+  filesModified: [
+    "src/Orchestra.API/Controllers/AuthController.cs", // Modified by executor
+    "src/Orchestra.Core/Services/UserService.cs" // Modified by executor
+  ],
+
+  // Previous cycle reference
+  previousCycleId: "consolidator-executor-1697123456789"
+};
+```
+
+---
+
+### CycleTracker Class
+
+Manages cycle lifecycle, iteration counting, and escalation decisions.
+
+```typescript
+class CycleTracker {
+  private cycles = new Map<string, ReviewCycle>();
+  private readonly MAX_CYCLES = 2; // Maximum review-fix iterations
+
+  /**
+   * Start a new review cycle
+   * @param files Files to be reviewed in this cycle
+   * @param previousCycleId Optional reference to previous cycle
+   * @returns Newly created ReviewCycle object
+   */
+  startNewCycle(files: string[], previousCycleId?: string): ReviewCycle {
+    const cycle: ReviewCycle = {
+      cycleId: `consolidator-executor-${Date.now()}`,
+      iteration: this.calculateIteration(previousCycleId),
+      startTime: new Date(),
+      issuesFoundInCycle: 0, // Will be set after review completes
+      issuesFixedFromPrevious: 0,
+      issuesStillPresent: 0,
+      newIssuesIntroduced: 0,
+      improvementRate: 0,
+      netImprovement: 0,
+      status: 'in_progress',
+      filesReviewed: files,
+      filesModified: [],
+      previousCycleId
+    };
+
+    this.cycles.set(cycle.cycleId, cycle);
+    return cycle;
+  }
+
+  /**
+   * Calculate iteration number based on previous cycle chain
+   * @param previousCycleId Optional ID of previous cycle
+   * @returns Iteration number (1 for first cycle, incremented for subsequent)
+   */
+  private calculateIteration(previousCycleId?: string): number {
+    if (!previousCycleId) {
+      return 1; // First cycle
+    }
+
+    const previousCycle = this.cycles.get(previousCycleId);
+    if (!previousCycle) {
+      console.warn(`Previous cycle ${previousCycleId} not found, defaulting to iteration 1`);
+      return 1;
+    }
+
+    return previousCycle.iteration + 1;
+  }
+
+  /**
+   * Update cycle with issue tracking results
+   * @param cycleId Cycle to update
+   * @param metrics Issue tracking metrics from comparison
+   */
+  updateCycleMetrics(cycleId: string, metrics: CycleComparison): void {
+    const cycle = this.cycles.get(cycleId);
+    if (!cycle) {
+      throw new Error(`Cycle ${cycleId} not found`);
+    }
+
+    cycle.issuesFoundInCycle = metrics.issuesStillPresent.length + metrics.newIssuesIntroduced.length;
+    cycle.issuesFixedFromPrevious = metrics.issuesFixed.length;
+    cycle.issuesStillPresent = metrics.issuesStillPresent.length;
+    cycle.newIssuesIntroduced = metrics.newIssuesIntroduced.length;
+    cycle.improvementRate = metrics.improvementRate;
+    cycle.netImprovement = metrics.netImprovement;
+  }
+
+  /**
+   * Mark cycle as complete
+   * @param cycleId Cycle to complete
+   */
+  completeCycle(cycleId: string): void {
+    const cycle = this.cycles.get(cycleId);
+    if (!cycle) {
+      throw new Error(`Cycle ${cycleId} not found`);
+    }
+
+    cycle.endTime = new Date();
+    cycle.status = 'completed';
+  }
+
+  /**
+   * Check if cycle should be escalated to user
+   * @param cycleId Cycle to check
+   * @returns true if escalation required, false otherwise
+   */
+  shouldEscalate(cycleId: string): boolean {
+    const cycle = this.cycles.get(cycleId);
+    if (!cycle) {
+      throw new Error(`Cycle ${cycleId} not found`);
+    }
+
+    // Trigger 1: Maximum cycles reached
+    if (cycle.iteration >= this.MAX_CYCLES) {
+      cycle.escalationReason = 'Maximum cycles reached (iteration >= 2)';
+      return true;
+    }
+
+    // Trigger 2: Low improvement rate (<50%)
+    // Only check for iteration > 1 (need previous cycle to compare)
+    if (cycle.iteration > 1 && cycle.improvementRate < 0.5) {
+      cycle.escalationReason = `Low improvement rate (${(cycle.improvementRate * 100).toFixed(1)}% < 50%)`;
+      return true;
+    }
+
+    // Trigger 3: Negative net improvement (fixes created more issues than resolved)
+    if (cycle.iteration > 1 && cycle.netImprovement < 0) {
+      cycle.escalationReason = `Negative net improvement (${cycle.netImprovement} - fixes created more issues)`;
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Mark cycle as escalated
+   * @param cycleId Cycle to escalate
+   * @param reason Escalation reason (auto-detected or custom)
+   */
+  escalateCycle(cycleId: string, reason?: string): void {
+    const cycle = this.cycles.get(cycleId);
+    if (!cycle) {
+      throw new Error(`Cycle ${cycleId} not found`);
+    }
+
+    cycle.status = 'escalated';
+    cycle.endTime = new Date();
+
+    if (reason) {
+      cycle.escalationReason = reason;
+    } else if (!cycle.escalationReason) {
+      // Set default reason if not already set
+      cycle.escalationReason = 'Manual escalation';
+    }
+  }
+
+  /**
+   * Get cycle by ID
+   * @param cycleId Cycle ID to retrieve
+   * @returns ReviewCycle or undefined if not found
+   */
+  getCycle(cycleId: string): ReviewCycle | undefined {
+    return this.cycles.get(cycleId);
+  }
+
+  /**
+   * Get entire cycle history chain for a given cycle
+   * @param cycleId Final cycle ID in chain
+   * @returns Array of cycles from first to specified cycle
+   */
+  getCycleHistory(cycleId: string): ReviewCycle[] {
+    const history: ReviewCycle[] = [];
+    let currentId: string | undefined = cycleId;
+
+    while (currentId) {
+      const cycle = this.cycles.get(currentId);
+      if (!cycle) break;
+
+      history.unshift(cycle); // Add to beginning (oldest first)
+      currentId = cycle.previousCycleId;
+    }
+
+    return history;
+  }
+
+  /**
+   * Get all cycles (for debugging/testing)
+   * @returns All tracked cycles
+   */
+  getAllCycles(): ReviewCycle[] {
+    return Array.from(this.cycles.values());
+  }
+
+  /**
+   * Clear cycle history (for testing)
+   */
+  clearHistory(): void {
+    this.cycles.clear();
+  }
+}
+```
+
+**Method Usage Examples**:
+
+```typescript
+// Example 1: First cycle (initial review)
+const tracker = new CycleTracker();
+const files = [
+  "src/Orchestra.API/Controllers/AuthController.cs",
+  "src/Orchestra.Core/Services/UserService.cs"
+];
+
+const cycle1 = tracker.startNewCycle(files);
+console.log(cycle1.cycleId); // "consolidator-executor-1697123456789"
+console.log(cycle1.iteration); // 1
+
+// ... review completes, 12 issues found ...
+cycle1.issuesFoundInCycle = 12;
+tracker.completeCycle(cycle1.cycleId);
+
+// Check escalation (should be false - first cycle)
+const shouldEscalate1 = tracker.shouldEscalate(cycle1.cycleId);
+console.log(shouldEscalate1); // false
+
+// Example 2: Second cycle (re-review after fixes)
+const cycle2 = tracker.startNewCycle(files, cycle1.cycleId);
+console.log(cycle2.iteration); // 2
+console.log(cycle2.previousCycleId); // "consolidator-executor-1697123456789"
+
+// ... compare issues between cycles ...
+const comparison: CycleComparison = {
+  issuesFixed: [], // 7 issues fixed
+  issuesStillPresent: [], // 5 issues remain
+  newIssuesIntroduced: [], // 0 new issues
+  improvementRate: 0.58,
+  netImprovement: 7
+};
+tracker.updateCycleMetrics(cycle2.cycleId, comparison);
+
+// Check escalation (should be true - max cycles reached)
+const shouldEscalate2 = tracker.shouldEscalate(cycle2.cycleId);
+console.log(shouldEscalate2); // true
+console.log(cycle2.escalationReason); // "Maximum cycles reached (iteration >= 2)"
+
+// Example 3: Low improvement rate escalation
+const cycle3 = tracker.startNewCycle(files, cycle2.cycleId);
+const lowImprovementComparison: CycleComparison = {
+  issuesFixed: [], // Only 2 out of 12 fixed
+  issuesStillPresent: [], // 10 remain
+  newIssuesIntroduced: [], // 0 new
+  improvementRate: 0.17, // 17% < 50%
+  netImprovement: 2
+};
+tracker.updateCycleMetrics(cycle3.cycleId, lowImprovementComparison);
+
+const shouldEscalate3 = tracker.shouldEscalate(cycle3.cycleId);
+console.log(shouldEscalate3); // true
+console.log(cycle3.escalationReason); // "Low improvement rate (17.0% < 50%)"
+
+// Example 4: Negative net improvement escalation
+const cycle4 = tracker.startNewCycle(files, cycle3.cycleId);
+const negativeComparison: CycleComparison = {
+  issuesFixed: [], // 5 issues fixed
+  issuesStillPresent: [], // 7 remain
+  newIssuesIntroduced: [], // 8 new issues introduced!
+  improvementRate: 0.42,
+  netImprovement: -3 // 5 - 8 = -3 (regression!)
+};
+tracker.updateCycleMetrics(cycle4.cycleId, negativeComparison);
+
+const shouldEscalate4 = tracker.shouldEscalate(cycle4.cycleId);
+console.log(shouldEscalate4); // true
+console.log(cycle4.escalationReason); // "Negative net improvement (-3 - fixes created more issues)"
+```
+
+---
+
+### Cycle ID Format
+
+The cycle ID uniquely identifies each review-fix iteration and enables tracking across agent transitions.
+
+**Format Convention**:
+```
+consolidator-executor-{timestamp}
+```
+
+**Components**:
+- `consolidator-executor`: Agent pair identifier
+- `{timestamp}`: Unix millisecond timestamp (ensures uniqueness)
+
+**Examples**:
+```typescript
+// Cycle 1: Initial review
+"consolidator-executor-1697123456789"
+
+// Cycle 2: Re-review after fixes (different timestamp)
+"consolidator-executor-1697127890123"
+
+// Cycle 3: Would be generated but MAX_CYCLES prevents this
+"consolidator-executor-1697131234567" // Never created due to MAX_CYCLES = 2
+```
+
+**Generation Logic**:
+```typescript
+function generateCycleId(): string {
+  const timestamp = Date.now(); // Unix milliseconds
+  return `consolidator-executor-${timestamp}`;
+}
+
+// Example usage
+const id1 = generateCycleId(); // "consolidator-executor-1697123456789"
+await delay(100); // Wait to ensure different timestamp
+const id2 = generateCycleId(); // "consolidator-executor-1697123556790"
+```
+
+**Cycle ID Usage Flow**:
+
+```markdown
+## Agent Handoff with Cycle ID
+
+### Step 1: review-consolidator creates cycle
+```typescript
+const cycle = cycleTracker.startNewCycle(filesToReview);
+console.log(`Starting ${cycle.cycleId}, iteration ${cycle.iteration}`);
+// Output: "Starting consolidator-executor-1697123456789, iteration 1"
+```
+
+### Step 2: review-consolidator passes cycle ID to plan-task-executor
+```markdown
+Recommendation: plan-task-executor
+Parameters:
+  cycleId: "consolidator-executor-1697123456789"
+  iteration: 1
+  issuesFile: "Docs/reviews/consolidated-report-v1.md"
+```
+
+### Step 3: plan-task-executor fixes issues
+```typescript
+// Executor receives cycleId and uses it for tracking
+function executeFixing(cycleId: string, issuesFile: string) {
+  console.log(`Executing fixes for cycle ${cycleId}`);
+  // ... fix issues ...
+  return {
+    cycleId: cycleId, // Return same cycle ID
+    filesModified: ["AuthController.cs", "UserService.cs"]
+  };
+}
+```
+
+### Step 4: plan-task-executor returns to review-consolidator
+```markdown
+Recommendation: review-consolidator
+Parameters:
+  cycleId: "consolidator-executor-1697123456789" (same ID!)
+  iteration: 1 (completed)
+  filesModified: ["AuthController.cs", "UserService.cs"]
+  action: "re-review"
+```
+
+### Step 5: review-consolidator starts Cycle 2
+```typescript
+const previousCycleId = "consolidator-executor-1697123456789";
+const cycle2 = cycleTracker.startNewCycle(filesToReview, previousCycleId);
+console.log(`Starting ${cycle2.cycleId}, iteration ${cycle2.iteration}`);
+// Output: "Starting consolidator-executor-1697127890123, iteration 2"
+
+// Cycle 2 links back to Cycle 1
+console.log(cycle2.previousCycleId); // "consolidator-executor-1697123456789"
+```
+```
+
+**Cycle ID Validation**:
+```typescript
+function isValidCycleId(cycleId: string): boolean {
+  const pattern = /^consolidator-executor-\d{13}$/;
+  return pattern.test(cycleId);
+}
+
+// Valid examples
+isValidCycleId("consolidator-executor-1697123456789"); // true
+isValidCycleId("consolidator-executor-1234567890123"); // true
+
+// Invalid examples
+isValidCycleId("consolidator-1697123456789"); // false (missing "executor")
+isValidCycleId("consolidator-executor-123"); // false (timestamp too short)
+isValidCycleId("random-string"); // false (wrong format)
+```
+
+---
+
+### Issue Tracking Between Cycles
+
+Compares issues between consecutive cycles to calculate improvement metrics.
+
+```typescript
+interface CycleComparison {
+  issuesFixed: ConsolidatedIssue[]; // Issues resolved since previous cycle
+  issuesStillPresent: ConsolidatedIssue[]; // Issues that persist
+  newIssuesIntroduced: ConsolidatedIssue[]; // New issues caused by fixes
+  improvementRate: number; // 0-1 scale (fixed / previous total)
+  netImprovement: number; // fixed - newIntroduced (can be negative)
+}
+
+/**
+ * Compare issues between two cycles to track improvements
+ * @param previousIssues Issues from previous cycle (Cycle N-1)
+ * @param currentIssues Issues from current cycle (Cycle N)
+ * @returns Comparison metrics
+ */
+function trackIssuesAcrossCycles(
+  previousIssues: ConsolidatedIssue[],
+  currentIssues: ConsolidatedIssue[]
+): CycleComparison {
+  // Create sets for efficient lookup
+  const prevIssueSet = new Set(previousIssues.map(i => i.id));
+  const currIssueSet = new Set(currentIssues.map(i => i.id));
+
+  // Fixed: Issues that existed in previous cycle but not in current
+  const fixed = previousIssues.filter(i => !currIssueSet.has(i.id));
+
+  // Still present: Issues that exist in both cycles
+  const stillPresent = previousIssues.filter(i => currIssueSet.has(i.id));
+
+  // New issues: Issues that exist in current cycle but not in previous
+  const newIssues = currentIssues.filter(i => !prevIssueSet.has(i.id));
+
+  // Calculate improvement metrics
+  const improvementRate = previousIssues.length > 0
+    ? fixed.length / previousIssues.length
+    : 0;
+
+  const netImprovement = fixed.length - newIssues.length;
+
+  return {
+    issuesFixed: fixed,
+    issuesStillPresent: stillPresent,
+    newIssuesIntroduced: newIssues,
+    improvementRate,
+    netImprovement
+  };
+}
+```
+
+**Example 1: Good Progress (58% improvement)**
+
+```typescript
+// Cycle 1: Initial review found 12 issues
+const cycle1Issues: ConsolidatedIssue[] = [
+  { id: "C1", priority: "P0", description: "Null reference in AuthController.cs:42", file: "AuthController.cs", line: 42, category: "null-safety" },
+  { id: "C2", priority: "P0", description: "DI registration missing for IUserService", file: "Program.cs", line: 15, category: "di-config" },
+  { id: "C3", priority: "P0", description: "Test timeout in AuthenticationTests", file: "AuthenticationTests.cs", line: 78, category: "testing" },
+  { id: "C4", priority: "P1", description: "Missing null check in UserService.cs:23", file: "UserService.cs", line: 23, category: "null-safety" },
+  { id: "C5", priority: "P1", description: "Unused using statement in LoginController.cs", file: "LoginController.cs", line: 5, category: "code-style" },
+  { id: "C6", priority: "P1", description: "Variable naming inconsistent", file: "AuthController.cs", line: 18, category: "code-style" },
+  { id: "C7", priority: "P1", description: "Method too long (>50 lines)", file: "UserService.cs", line: 45, category: "complexity" },
+  { id: "C8", priority: "P1", description: "Missing XML documentation", file: "IAuthService.cs", line: 10, category: "documentation" },
+  { id: "C9", priority: "P2", description: "Magic number should be constant", file: "AuthController.cs", line: 30, category: "code-quality" },
+  { id: "C10", priority: "P2", description: "Consider using pattern matching", file: "UserService.cs", line: 60, category: "code-quality" },
+  { id: "C11", priority: "P2", description: "Redundant type cast", file: "LoginController.cs", line: 22, category: "code-quality" },
+  { id: "C12", priority: "P2", description: "Consider using string interpolation", file: "AuthController.cs", line: 55, category: "code-quality" }
+];
+
+// plan-task-executor fixes issues...
+
+// Cycle 2: Re-review after fixes found 5 issues
+const cycle2Issues: ConsolidatedIssue[] = [
+  { id: "C1", priority: "P0", description: "Null reference in AuthController.cs:42", file: "AuthController.cs", line: 42, category: "null-safety" }, // PERSISTS
+  { id: "C2", priority: "P0", description: "DI registration missing for IUserService", file: "Program.cs", line: 15, category: "di-config" }, // PERSISTS
+  { id: "C3", priority: "P0", description: "Test timeout in AuthenticationTests", file: "AuthenticationTests.cs", line: 78, category: "testing" }, // PERSISTS
+  { id: "C7", priority: "P1", description: "Method too long (>50 lines)", file: "UserService.cs", line: 45, category: "complexity" }, // PERSISTS
+  { id: "C8", priority: "P1", description: "Missing XML documentation", file: "IAuthService.cs", line: 10, category: "documentation" } // PERSISTS
+  // C4, C5, C6, C9, C10, C11, C12 were FIXED!
+];
+
+// Compare cycles
+const comparison = trackIssuesAcrossCycles(cycle1Issues, cycle2Issues);
+
+console.log("Issues Fixed:", comparison.issuesFixed.length); // 7
+console.log("Issues Still Present:", comparison.issuesStillPresent.length); // 5
+console.log("New Issues Introduced:", comparison.newIssuesIntroduced.length); // 0
+console.log("Improvement Rate:", comparison.improvementRate); // 0.583 (58.3%)
+console.log("Net Improvement:", comparison.netImprovement); // +7
+
+// Fixed issues details
+comparison.issuesFixed.forEach(issue => {
+  console.log(`✅ Fixed: ${issue.id} - ${issue.description}`);
+});
+// Output:
+// ✅ Fixed: C4 - Missing null check in UserService.cs:23
+// ✅ Fixed: C5 - Unused using statement in LoginController.cs
+// ✅ Fixed: C6 - Variable naming inconsistent
+// ✅ Fixed: C9 - Magic number should be constant
+// ✅ Fixed: C10 - Consider using pattern matching
+// ✅ Fixed: C11 - Redundant type cast
+// ✅ Fixed: C12 - Consider using string interpolation
+```
+
+**Example 2: Poor Progress (Regression - New Issues Introduced)**
+
+```typescript
+// Cycle 1: Initial review found 8 issues
+const cycle1Issues: ConsolidatedIssue[] = [
+  { id: "C1", priority: "P0", description: "Null reference in PaymentController.cs:30", file: "PaymentController.cs", line: 30, category: "null-safety" },
+  { id: "C2", priority: "P0", description: "SQL injection vulnerability", file: "PaymentService.cs", line: 45, category: "security" },
+  { id: "C3", priority: "P1", description: "Missing error handling", file: "PaymentController.cs", line: 50, category: "error-handling" },
+  { id: "C4", priority: "P1", description: "Unused variable", file: "PaymentService.cs", line: 20, category: "code-quality" },
+  { id: "C5", priority: "P1", description: "Method naming inconsistent", file: "PaymentController.cs", line: 10, category: "code-style" },
+  { id: "C6", priority: "P2", description: "Consider extracting method", file: "PaymentService.cs", line: 60, category: "complexity" },
+  { id: "C7", priority: "P2", description: "Magic string should be constant", file: "PaymentController.cs", line: 25, category: "code-quality" },
+  { id: "C8", priority: "P2", description: "Consider using LINQ", file: "PaymentService.cs", line: 80, category: "code-quality" }
+];
+
+// plan-task-executor attempts fixes but introduces regressions...
+
+// Cycle 2: Re-review after fixes found 10 issues (MORE than before!)
+const cycle2Issues: ConsolidatedIssue[] = [
+  { id: "C1", priority: "P0", description: "Null reference in PaymentController.cs:30", file: "PaymentController.cs", line: 30, category: "null-safety" }, // PERSISTS
+  { id: "C2", priority: "P0", description: "SQL injection vulnerability", file: "PaymentService.cs", line: 45, category: "security" }, // PERSISTS
+  { id: "C3", priority: "P1", description: "Missing error handling", file: "PaymentController.cs", line: 50, category: "error-handling" }, // PERSISTS
+  { id: "C6", priority: "P2", description: "Consider extracting method", file: "PaymentService.cs", line: 60, category: "complexity" }, // PERSISTS
+  // NEW ISSUES INTRODUCED BY FIXES:
+  { id: "C13", priority: "P0", description: "Introduced null reference in PaymentController.cs:35", file: "PaymentController.cs", line: 35, category: "null-safety" }, // NEW!
+  { id: "C14", priority: "P1", description: "Broke unit test PaymentTests.ProcessPayment_Success", file: "PaymentTests.cs", line: 42, category: "testing" }, // NEW!
+  { id: "C15", priority: "P1", description: "Method signature changed without updating callers", file: "PaymentService.cs", line: 20, category: "breaking-change" }, // NEW!
+  { id: "C16", priority: "P1", description: "Unused parameter after refactoring", file: "PaymentController.cs", line: 10, category: "code-quality" }, // NEW!
+  { id: "C17", priority: "P2", description: "Inconsistent exception handling", file: "PaymentService.cs", line: 75, category: "error-handling" }, // NEW!
+  { id: "C18", priority: "P2", description: "Duplicated validation logic", file: "PaymentController.cs", line: 40, category: "duplication" } // NEW!
+  // C4, C5, C7, C8 were FIXED
+];
+
+// Compare cycles
+const comparison = trackIssuesAcrossCycles(cycle1Issues, cycle2Issues);
+
+console.log("Issues Fixed:", comparison.issuesFixed.length); // 4 (C4, C5, C7, C8)
+console.log("Issues Still Present:", comparison.issuesStillPresent.length); // 4 (C1, C2, C3, C6)
+console.log("New Issues Introduced:", comparison.newIssuesIntroduced.length); // 6 (C13-C18)
+console.log("Improvement Rate:", comparison.improvementRate); // 0.50 (50%)
+console.log("Net Improvement:", comparison.netImprovement); // -2 (4 fixed - 6 new = REGRESSION!)
+
+// This would trigger ESCALATION due to negative net improvement
+```
+
+**Example 3: Low Improvement Rate (<50%)**
+
+```typescript
+// Cycle 1: 10 issues found
+const cycle1Issues: ConsolidatedIssue[] = [
+  { id: "C1", priority: "P0", description: "Critical bug in OrderService.cs:15", file: "OrderService.cs", line: 15, category: "logic-error" },
+  { id: "C2", priority: "P0", description: "Memory leak in CartController.cs:42", file: "CartController.cs", line: 42, category: "resource-management" },
+  { id: "C3", priority: "P0", description: "Race condition in PaymentProcessor.cs:30", file: "PaymentProcessor.cs", line: 30, category: "concurrency" },
+  { id: "C4", priority: "P1", description: "Missing validation", file: "OrderService.cs", line: 25, category: "validation" },
+  { id: "C5", priority: "P1", description: "Error not logged", file: "CartController.cs", line: 50, category: "logging" },
+  { id: "C6", priority: "P1", description: "Timeout too short", file: "PaymentProcessor.cs", line: 60, category: "configuration" },
+  { id: "C7", priority: "P1", description: "Exception not caught", file: "OrderService.cs", line: 70, category: "error-handling" },
+  { id: "C8", priority: "P2", description: "Unused import", file: "CartController.cs", line: 5, category: "code-style" },
+  { id: "C9", priority: "P2", description: "Variable naming", file: "PaymentProcessor.cs", line: 12, category: "code-style" },
+  { id: "C10", priority: "P2", description: "Magic number", file: "OrderService.cs", line: 40, category: "code-quality" }
+];
+
+// plan-task-executor only fixes easy P2 issues...
+
+// Cycle 2: 8 issues remain (only 2 P2 issues fixed)
+const cycle2Issues: ConsolidatedIssue[] = [
+  { id: "C1", priority: "P0", description: "Critical bug in OrderService.cs:15", file: "OrderService.cs", line: 15, category: "logic-error" }, // PERSISTS
+  { id: "C2", priority: "P0", description: "Memory leak in CartController.cs:42", file: "CartController.cs", line: 42, category: "resource-management" }, // PERSISTS
+  { id: "C3", priority: "P0", description: "Race condition in PaymentProcessor.cs:30", file: "PaymentProcessor.cs", line: 30, category: "concurrency" }, // PERSISTS
+  { id: "C4", priority: "P1", description: "Missing validation", file: "OrderService.cs", line: 25, category: "validation" }, // PERSISTS
+  { id: "C5", priority: "P1", description: "Error not logged", file: "CartController.cs", line: 50, category: "logging" }, // PERSISTS
+  { id: "C6", priority: "P1", description: "Timeout too short", file: "PaymentProcessor.cs", line: 60, category: "configuration" }, // PERSISTS
+  { id: "C7", priority: "P1", description: "Exception not caught", file: "OrderService.cs", line: 70, category: "error-handling" }, // PERSISTS
+  { id: "C9", priority: "P2", description: "Variable naming", file: "PaymentProcessor.cs", line: 12, category: "code-style" } // PERSISTS
+  // Only C8 and C10 fixed (both P2)
+];
+
+// Compare cycles
+const comparison = trackIssuesAcrossCycles(cycle1Issues, cycle2Issues);
+
+console.log("Issues Fixed:", comparison.issuesFixed.length); // 2 (only C8, C10)
+console.log("Issues Still Present:", comparison.issuesStillPresent.length); // 8
+console.log("New Issues Introduced:", comparison.newIssuesIntroduced.length); // 0
+console.log("Improvement Rate:", comparison.improvementRate); // 0.20 (20% - TOO LOW!)
+console.log("Net Improvement:", comparison.netImprovement); // +2
+
+// This would trigger ESCALATION due to improvementRate < 0.5
+// All critical P0 issues remain unresolved!
+```
+
+**Helper Functions**:
+
+```typescript
+/**
+ * Group issues by category for analysis
+ */
+function groupIssuesByCategory(issues: ConsolidatedIssue[]): Map<string, ConsolidatedIssue[]> {
+  const grouped = new Map<string, ConsolidatedIssue[]>();
+
+  for (const issue of issues) {
+    const category = issue.category || 'uncategorized';
+    if (!grouped.has(category)) {
+      grouped.set(category, []);
+    }
+    grouped.get(category)!.push(issue);
+  }
+
+  return grouped;
+}
+
+/**
+ * Identify most problematic categories (highest issue count)
+ */
+function identifyProblematicCategories(issues: ConsolidatedIssue[], threshold: number = 3): string[] {
+  const grouped = groupIssuesByCategory(issues);
+  const problematic: string[] = [];
+
+  for (const [category, categoryIssues] of grouped.entries()) {
+    if (categoryIssues.length >= threshold) {
+      problematic.push(category);
+    }
+  }
+
+  return problematic.sort((a, b) => {
+    const countA = grouped.get(a)!.length;
+    const countB = grouped.get(b)!.length;
+    return countB - countA; // Descending order
+  });
+}
+
+/**
+ * Calculate improvement per priority level
+ */
+function calculatePriorityImprovements(
+  comparison: CycleComparison
+): Map<string, { fixed: number; persists: number; new: number }> {
+  const improvements = new Map<string, { fixed: number; persists: number; new: number }>();
+
+  // Initialize for all priorities
+  ['P0', 'P1', 'P2'].forEach(p => {
+    improvements.set(p, { fixed: 0, persists: 0, new: 0 });
+  });
+
+  // Count fixed by priority
+  comparison.issuesFixed.forEach(issue => {
+    const stats = improvements.get(issue.priority)!;
+    stats.fixed++;
+  });
+
+  // Count persisting by priority
+  comparison.issuesStillPresent.forEach(issue => {
+    const stats = improvements.get(issue.priority)!;
+    stats.persists++;
+  });
+
+  // Count new by priority
+  comparison.newIssuesIntroduced.forEach(issue => {
+    const stats = improvements.get(issue.priority)!;
+    stats.new++;
+  });
+
+  return improvements;
+}
+```
+
+---
+
+### Validation Checklist
+
+**Cycle Tracking System Validation**:
+- [ ] Cycle ID format correctly generated (`consolidator-executor-{timestamp}`)
+- [ ] Cycle ID uniqueness guaranteed (timestamp-based)
+- [ ] Iteration counter tracks accurately (1-based, max 2)
+- [ ] ReviewCycle interface complete with all required fields
+- [ ] CycleTracker class implements all required methods
+
+**Issue Tracking Validation**:
+- [ ] `trackIssuesAcrossCycles()` correctly identifies fixed issues
+- [ ] `trackIssuesAcrossCycles()` correctly identifies persisting issues
+- [ ] `trackIssuesAcrossCycles()` correctly identifies new issues
+- [ ] Improvement rate calculated correctly (0-1 scale)
+- [ ] Net improvement calculated correctly (can be negative)
+
+**Escalation Logic Validation**:
+- [ ] Trigger 1: MAX_CYCLES = 2 enforced (iteration >= 2)
+- [ ] Trigger 2: Low improvement rate detected (<50%)
+- [ ] Trigger 3: Negative net improvement detected (<0)
+- [ ] `shouldEscalate()` returns true for all trigger conditions
+- [ ] `escalationReason` set correctly for each trigger type
+
+**Cycle Lifecycle Validation**:
+- [ ] `startNewCycle()` creates valid ReviewCycle object
+- [ ] `updateCycleMetrics()` updates cycle with comparison results
+- [ ] `completeCycle()` marks cycle as completed with endTime
+- [ ] `escalateCycle()` marks cycle as escalated with reason
+- [ ] `getCycleHistory()` returns complete cycle chain
+
+**Integration Validation**:
+- [ ] Cycle ID passed from review-consolidator to plan-task-executor
+- [ ] Cycle ID returned from plan-task-executor to review-consolidator
+- [ ] Previous cycle ID linked correctly in Cycle 2
+- [ ] Files tracked correctly (filesReviewed, filesModified)
+- [ ] Metrics available for escalation report generation
+
+---
+
+### Integration Points
+
+**With Task 5.1B (Escalation Mechanism)**:
+- Cycle tracking system provides:
+  - `cycleId` for escalation report
+  - `iteration` number for escalation context
+  - `escalationReason` for escalation report
+  - Improvement metrics for root cause analysis
+  - Cycle history for trend analysis
+
+**With Task 5.1C (Cycle Visualization)**:
+- Cycle tracking system provides:
+  - Issue counts per cycle for progress display
+  - Improvement rate for percentage calculations
+  - Priority-level changes for emoji indicators
+  - Net improvement for trend visualization
+
+**With Task 5.2 (Agent Transitions)**:
+- Cycle tracking system provides:
+  - `cycleId` for agent handoff
+  - `shouldEscalate()` for transition decisions
+  - Cycle status for flow control
+  - Files modified for re-review targeting
+
+---
+
+**Cycle Tracking System Status**: ACTIVE
+**Phase**: 5.1A - Review Cycle Management ✅ COMPLETE
+**Dependencies**: Phase 4 (Report Generation) ✅ COMPLETE
+**Next**: Task 5.1B (Escalation Mechanism), Task 5.1C (Cycle Visualization)
+
+---
+
 **Algorithm Status**: ACTIVE
 **Owner**: Development Team
 **Last Updated**: 2025-10-16

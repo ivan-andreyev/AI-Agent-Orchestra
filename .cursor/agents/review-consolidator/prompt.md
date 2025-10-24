@@ -7726,8 +7726,3181 @@ Before finalizing output management, verify all components:
 
 ---
 
-**Prompt Version**: 1.1
-**Last Updated**: 2025-10-16
+## Cycle Protection & Escalation
+
+**Phase**: 5.1B/5.1C - Review Cycle Management
+**Purpose**: Implement escalation mechanism and cycle visualization to prevent infinite review-fix loops
+
+### Overview
+
+The Cycle Protection system ensures that review-fix iterations make meaningful progress and escalate to user intervention when:
+1. Maximum cycles reached (2 complete iterations)
+2. Improvement rate too low (<50%)
+3. Negative net improvement (regressions)
+4. Critical P0 issues persist after all cycles
+
+**Integration with Cycle Tracking System**:
+- Uses `ReviewCycle` interface from consolidation-algorithm.md
+- Uses `CycleTracker` class for cycle management
+- Uses `shouldEscalate()` logic for trigger detection
+- Generates escalation reports when triggers fire
+
+---
+
+### Escalation Conditions
+
+The review-consolidator agent automatically escalates to user intervention when any of these triggers fire:
+
+#### Trigger 1: Maximum Cycles Reached
+
+**Condition**: `iteration >= 2`
+
+**Reason**: The agent has completed 2 full review-fix cycles (initial review + one re-review after fixes). Further automated attempts are unlikely to resolve remaining issues without human intervention.
+
+**Detection Logic**:
+```typescript
+if (currentCycle.iteration >= MAX_CYCLES) {
+  // MAX_CYCLES = 2
+  escalate("Maximum cycles reached");
+}
+```
+
+**Example Scenario**:
+```
+Cycle 1: Review finds 12 issues
+plan-task-executor: Fixes 7 issues
+Cycle 2: Re-review finds 5 remaining issues
+→ ESCALATE: Iteration 2 reached, automatic escalation triggered
+```
+
+**Why Escalate**:
+- Automated fixes have had 2 attempts to resolve issues
+- Remaining issues likely require:
+  - Architectural changes
+  - Manual debugging
+  - Domain knowledge
+  - User decisions on design trade-offs
+- Further automated cycles risk introducing regressions
+
+---
+
+#### Trigger 2: Low Improvement Rate
+
+**Condition**: `iteration > 1 AND improvementRate < 0.5`
+
+**Reason**: If less than 50% of issues are fixed in a cycle, the automated fix process is ineffective and likely struggling with complex issues.
+
+**Detection Logic**:
+```typescript
+if (currentCycle.iteration > 1 && currentCycle.improvementRate < 0.5) {
+  const percentageFixed = (currentCycle.improvementRate * 100).toFixed(1);
+  escalate(`Low improvement rate (${percentageFixed}% < 50%)`);
+}
+```
+
+**Improvement Rate Calculation**:
+```typescript
+improvementRate = issuesFixedFromPrevious / previousCycleIssueCount
+
+// Example: 12 issues in Cycle 1, only 4 fixed in Cycle 2
+improvementRate = 4 / 12 = 0.33 = 33% → ESCALATE (< 50%)
+```
+
+**Example Scenario**:
+```
+Cycle 1: 10 issues found
+plan-task-executor: Attempts to fix issues
+Cycle 2: Only 3 issues fixed (30% improvement rate)
+→ ESCALATE: Low improvement rate (30.0% < 50%)
+```
+
+**Why Escalate**:
+- Majority of issues (>50%) remain unresolved
+- plan-task-executor is likely:
+  - Unable to understand issue root causes
+  - Lacking required context or dependencies
+  - Facing issues outside its capability scope
+- Manual intervention needed to unblock progress
+
+---
+
+#### Trigger 3: Negative Net Improvement
+
+**Condition**: `iteration > 1 AND netImprovement < 0`
+
+**Reason**: Fixes introduced MORE new issues than they resolved, indicating regressions and potential systematic problems.
+
+**Detection Logic**:
+```typescript
+if (currentCycle.iteration > 1 && currentCycle.netImprovement < 0) {
+  escalate(`Negative net improvement (${currentCycle.netImprovement})`);
+}
+```
+
+**Net Improvement Calculation**:
+```typescript
+netImprovement = issuesFixedFromPrevious - newIssuesIntroduced
+
+// Example: 5 issues fixed, but 8 new issues introduced
+netImprovement = 5 - 8 = -3 → ESCALATE (negative)
+```
+
+**Example Scenario**:
+```
+Cycle 1: 8 issues found
+plan-task-executor: Fixes 5 issues
+Cycle 2: 4 original issues persist + 7 new issues = 11 total
+Net improvement: 5 - 7 = -2
+→ ESCALATE: Negative net improvement (-2 - fixes created more issues)
+```
+
+**Why Escalate**:
+- Code quality is DEGRADING, not improving
+- Fixes are causing:
+  - Breaking changes
+  - New bugs
+  - Test failures
+  - Unintended side effects
+- Immediate manual review required to prevent further damage
+
+---
+
+#### Trigger 4: Critical Issues Persist
+
+**Condition**: `P0 issues still present after iteration >= 2`
+
+**Reason**: Critical (P0) issues pose serious risks (security, data loss, crashes) and must not remain unresolved after maximum cycles.
+
+**Detection Logic**:
+```typescript
+if (currentCycle.iteration >= MAX_CYCLES) {
+  const persistentP0Issues = currentCycle.issues.filter(i => i.priority === 'P0');
+
+  if (persistentP0Issues.length > 0) {
+    escalate(`Critical issues persist (${persistentP0Issues.length} P0 issues after ${currentCycle.iteration} cycles)`);
+  }
+}
+```
+
+**Example Scenario**:
+```
+Cycle 1: 3 P0 issues + 7 P1/P2 issues = 10 total
+plan-task-executor: Fixes all P1/P2 issues
+Cycle 2: 3 P0 issues still present (0 fixed)
+→ ESCALATE: Critical issues persist (3 P0 issues after 2 cycles)
+```
+
+**Why Escalate**:
+- P0 issues are CRITICAL priority:
+  - Security vulnerabilities
+  - Null reference exceptions (crashes)
+  - Data corruption risks
+  - Test failures blocking deployment
+- Cannot proceed with remaining P0 issues
+- Manual intervention REQUIRED before code can be merged/deployed
+
+---
+
+### Escalation Report Generation
+
+When escalation is triggered, the review-consolidator generates a comprehensive report to guide manual intervention.
+
+#### EscalationReport Interface
+
+Complete data structure for escalation reports.
+
+```typescript
+interface EscalationReport {
+  // Identification
+  cycleId: string; // ID of final cycle that triggered escalation
+  iteration: number; // Final iteration number (typically 2)
+  escalationReason: EscalationReason; // Primary reason for escalation
+
+  // Unresolved issues
+  unresolvedIssues: ConsolidatedIssue[]; // All issues remaining after all cycles
+  persistentP0Issues: ConsolidatedIssue[]; // Critical issues that persisted through all cycles
+
+  // Root cause analysis
+  rootCauses: RootCause[]; // Identified root causes for persistent issues
+  blockers: string[]; // Specific blockers preventing automated resolution
+
+  // Manual intervention recommendations
+  recommendations: string[]; // Step-by-step actions for user to take
+  alternativeApproaches: string[]; // Different strategies to resolve issues
+
+  // Cycle history
+  cycleHistory: ReviewCycle[]; // Complete history of all cycles
+  improvementTrend: number[]; // Improvement rates per cycle [cycle1, cycle2, ...]
+}
+
+enum EscalationReason {
+  MAX_CYCLES_REACHED = "Maximum cycles reached",
+  LOW_IMPROVEMENT_RATE = "Low improvement rate",
+  NEGATIVE_NET_IMPROVEMENT = "Negative net improvement",
+  CRITICAL_ISSUES_PERSIST = "Critical issues persist"
+}
+
+interface RootCause {
+  category: string; // Issue category (e.g., "dependency-injection", "testing")
+  type: 'systematic' | 'recurring' | 'complex' | 'blocking'; // Root cause classification
+  description: string; // Detailed explanation of root cause
+  affectedFiles: string[]; // Files impacted by this root cause
+  recommendation: string; // How to address this root cause
+  estimatedEffort?: string; // Time estimate to resolve (e.g., "4-6 hours")
+}
+```
+
+**Field Descriptions**:
+
+**escalationReason**:
+- Primary trigger that caused escalation
+- One of: MAX_CYCLES_REACHED, LOW_IMPROVEMENT_RATE, NEGATIVE_NET_IMPROVEMENT, CRITICAL_ISSUES_PERSIST
+- Used in report title and summary
+
+**unresolvedIssues**:
+- All consolidated issues that remain after final cycle
+- Includes both persistent issues from Cycle 1 and newly introduced issues
+- Sorted by priority (P0, P1, P2)
+
+**persistentP0Issues**:
+- Subset of unresolvedIssues with priority = P0
+- Highlighted separately due to critical nature
+- Requires immediate attention
+
+**rootCauses**:
+- Identified patterns explaining why issues persist
+- Categories: systematic (affects many files), recurring (same pattern multiple times), complex (requires architectural change), blocking (depends on external factors)
+- Each includes recommendation for resolution
+
+**blockers**:
+- Specific reasons automated fixes failed
+- Examples: "Missing dependency", "Architectural decision needed", "External API unavailable"
+- Helps user understand what prevents further automated progress
+
+**recommendations**:
+- Actionable steps for user to take
+- Prioritized: immediate actions, short-term actions, long-term actions
+- Specific (not generic advice)
+
+**alternativeApproaches**:
+- Different strategies to resolve issues
+- Options with trade-offs (pros/cons)
+- Recommended approach highlighted
+
+---
+
+#### generateEscalationReport Function
+
+Generates a complete escalation report when triggers fire.
+
+```typescript
+/**
+ * Generate comprehensive escalation report for manual intervention
+ * @param cycleTracker CycleTracker instance with all cycle history
+ * @param currentCycle Final cycle that triggered escalation
+ * @param consolidatedIssues All consolidated issues from current cycle
+ * @returns Complete escalation report
+ */
+function generateEscalationReport(
+  cycleTracker: CycleTracker,
+  currentCycle: ReviewCycle,
+  consolidatedIssues: ConsolidatedIssue[]
+): EscalationReport {
+  // Identify unresolved issues
+  const unresolved = consolidatedIssues; // All issues in final cycle are unresolved
+  const persistentP0 = unresolved.filter(i => i.priority === 'P0');
+
+  // Analyze root causes
+  const rootCauses = analyzeRootCauses(unresolved, cycleTracker, currentCycle);
+
+  // Identify blockers
+  const blockers = identifyBlockers(currentCycle, rootCauses);
+
+  // Generate recommendations
+  const recommendations = generateManualRecommendations(unresolved, rootCauses, blockers);
+
+  // Suggest alternative approaches
+  const alternativeApproaches = suggestAlternatives(rootCauses, unresolved);
+
+  // Get cycle history
+  const cycleHistory = cycleTracker.getCycleHistory(currentCycle.cycleId);
+
+  // Calculate improvement trend
+  const improvementTrend = calculateImprovementTrend(cycleHistory);
+
+  return {
+    cycleId: currentCycle.cycleId,
+    iteration: currentCycle.iteration,
+    escalationReason: determineEscalationReason(currentCycle),
+    unresolvedIssues: unresolved,
+    persistentP0Issues: persistentP0,
+    rootCauses,
+    blockers,
+    recommendations,
+    alternativeApproaches,
+    cycleHistory,
+    improvementTrend
+  };
+}
+
+/**
+ * Determine primary escalation reason from cycle state
+ */
+function determineEscalationReason(cycle: ReviewCycle): EscalationReason {
+  // Priority order: Critical issues > Negative improvement > Max cycles > Low improvement
+  const hasP0 = cycle.issues?.some(i => i.priority === 'P0') || false;
+
+  if (cycle.iteration >= 2 && hasP0) {
+    return EscalationReason.CRITICAL_ISSUES_PERSIST;
+  }
+
+  if (cycle.iteration > 1 && cycle.netImprovement < 0) {
+    return EscalationReason.NEGATIVE_NET_IMPROVEMENT;
+  }
+
+  if (cycle.iteration >= 2) {
+    return EscalationReason.MAX_CYCLES_REACHED;
+  }
+
+  if (cycle.iteration > 1 && cycle.improvementRate < 0.5) {
+    return EscalationReason.LOW_IMPROVEMENT_RATE;
+  }
+
+  // Fallback (should not reach here)
+  return EscalationReason.MAX_CYCLES_REACHED;
+}
+```
+
+---
+
+#### analyzeRootCauses Function
+
+Identifies systematic patterns explaining why issues persist.
+
+```typescript
+/**
+ * Analyze unresolved issues to identify root causes
+ * @param issues Unresolved consolidated issues
+ * @param cycleTracker CycleTracker with cycle history
+ * @param currentCycle Current cycle
+ * @returns Array of identified root causes
+ */
+function analyzeRootCauses(
+  issues: ConsolidatedIssue[],
+  cycleTracker: CycleTracker,
+  currentCycle: ReviewCycle
+): RootCause[] {
+  const causes: RootCause[] = [];
+
+  // Analysis 1: Systematic issues (same category, many files)
+  const byCategory = groupBy(issues, 'category');
+
+  for (const [category, categoryIssues] of byCategory) {
+    // If >5 issues in same category, likely systematic problem
+    if (categoryIssues.length > 5) {
+      const affectedFiles = unique(categoryIssues.map(i => i.file));
+
+      causes.push({
+        category,
+        type: 'systematic',
+        description: `${categoryIssues.length} issues in ${category} across ${affectedFiles.length} files suggest systematic problem`,
+        affectedFiles,
+        recommendation: `Review ${category} patterns across entire codebase and establish consistent approach`,
+        estimatedEffort: estimateEffort(categoryIssues.length, affectedFiles.length)
+      });
+    }
+  }
+
+  // Analysis 2: Recurring patterns (same issue in multiple locations)
+  const patterns = findRecurringPatterns(issues);
+  for (const pattern of patterns) {
+    if (pattern.occurrences >= 3) {
+      causes.push({
+        category: pattern.category,
+        type: 'recurring',
+        description: `${pattern.description} occurs ${pattern.occurrences} times`,
+        affectedFiles: pattern.files,
+        recommendation: pattern.suggestedFix,
+        estimatedEffort: estimateEffort(pattern.occurrences, pattern.files.length)
+      });
+    }
+  }
+
+  // Analysis 3: Complex architectural issues (P0 issues that persist >1 cycle)
+  const cycleHistory = cycleTracker.getCycleHistory(currentCycle.cycleId);
+  if (cycleHistory.length > 1) {
+    const cycle1Issues = extractIssuesFromCycle(cycleHistory[0]);
+    const persistentP0 = issues.filter(i =>
+      i.priority === 'P0' &&
+      cycle1Issues.some(c1 => c1.id === i.id)
+    );
+
+    if (persistentP0.length > 0) {
+      const affectedFiles = unique(persistentP0.map(i => i.file));
+
+      causes.push({
+        category: 'architecture',
+        type: 'complex',
+        description: `${persistentP0.length} P0 issues persisted through ${cycleHistory.length} cycles, indicating complex architectural problems`,
+        affectedFiles,
+        recommendation: `Requires architectural refactoring or design decisions beyond automated fixes`,
+        estimatedEffort: estimateEffort(persistentP0.length * 3, affectedFiles.length * 2) // Complex issues take 3x longer
+      });
+    }
+  }
+
+  // Analysis 4: Blocking dependencies
+  const dependencyIssues = issues.filter(i =>
+    i.category === 'dependency-injection' ||
+    i.category === 'missing-dependency' ||
+    i.category === 'configuration'
+  );
+
+  if (dependencyIssues.length > 0) {
+    const affectedFiles = unique(dependencyIssues.map(i => i.file));
+
+    causes.push({
+      category: 'dependencies',
+      type: 'blocking',
+      description: `${dependencyIssues.length} dependency-related issues blocking automated fixes`,
+      affectedFiles,
+      recommendation: `Resolve dependency configuration and service registration issues manually`,
+      estimatedEffort: estimateEffort(dependencyIssues.length, affectedFiles.length)
+    });
+  }
+
+  return causes;
+}
+
+/**
+ * Estimate effort required to resolve issues
+ * @param issueCount Number of issues
+ * @param fileCount Number of affected files
+ * @returns Human-readable effort estimate
+ */
+function estimateEffort(issueCount: number, fileCount: number): string {
+  const totalComplexity = issueCount + fileCount;
+
+  if (totalComplexity <= 3) return "1-2 hours";
+  if (totalComplexity <= 6) return "2-4 hours";
+  if (totalComplexity <= 10) return "4-6 hours";
+  if (totalComplexity <= 15) return "6-8 hours";
+  if (totalComplexity <= 25) return "1-2 days";
+  return "2-3 days";
+}
+
+/**
+ * Find recurring patterns in issues
+ */
+function findRecurringPatterns(issues: ConsolidatedIssue[]): RecurringPattern[] {
+  const patterns: Map<string, RecurringPattern> = new Map();
+
+  for (const issue of issues) {
+    // Extract pattern key (category + description pattern)
+    const patternKey = `${issue.category}:${extractDescriptionPattern(issue.description)}`;
+
+    if (!patterns.has(patternKey)) {
+      patterns.set(patternKey, {
+        category: issue.category,
+        description: extractDescriptionPattern(issue.description),
+        occurrences: 0,
+        files: [],
+        suggestedFix: generateSuggestedFix(issue.category, issue.description)
+      });
+    }
+
+    const pattern = patterns.get(patternKey)!;
+    pattern.occurrences++;
+    pattern.files.push(issue.file);
+  }
+
+  return Array.from(patterns.values()).filter(p => p.occurrences >= 3);
+}
+
+/**
+ * Extract description pattern (remove file-specific details)
+ */
+function extractDescriptionPattern(description: string): string {
+  // Remove file names and line numbers
+  return description
+    .replace(/\b[A-Z][a-zA-Z0-9]*\.(cs|ts|js|py)\b/g, '[FILE]')
+    .replace(/:\d+/g, '')
+    .replace(/\bline \d+\b/g, 'line [N]')
+    .trim();
+}
+
+/**
+ * Generate suggested fix based on category and description
+ */
+function generateSuggestedFix(category: string, description: string): string {
+  const fixes: Record<string, string> = {
+    'null-safety': 'Add null checks or use nullable reference types',
+    'dependency-injection': 'Register services in DI container',
+    'testing': 'Implement proper test infrastructure and mocking',
+    'code-style': 'Apply consistent code formatting and naming conventions',
+    'documentation': 'Add XML documentation to all public APIs',
+    'error-handling': 'Implement try-catch blocks and proper error logging',
+    'validation': 'Add input validation at API boundaries',
+    'configuration': 'Add required configuration keys to appsettings.json'
+  };
+
+  return fixes[category] || `Review and fix ${category} issues systematically`;
+}
+
+interface RecurringPattern {
+  category: string;
+  description: string;
+  occurrences: number;
+  files: string[];
+  suggestedFix: string;
+}
+```
+
+---
+
+#### identifyBlockers Function
+
+Identifies specific reasons automated fixes cannot proceed.
+
+```typescript
+/**
+ * Identify blockers preventing automated resolution
+ * @param cycle Current cycle
+ * @param rootCauses Identified root causes
+ * @returns Array of blocker descriptions
+ */
+function identifyBlockers(cycle: ReviewCycle, rootCauses: RootCause[]): string[] {
+  const blockers: string[] = [];
+
+  // Blocker 1: Architectural decisions required
+  const architecturalCauses = rootCauses.filter(c => c.type === 'complex');
+  if (architecturalCauses.length > 0) {
+    blockers.push(`Architectural Decision Required: ${architecturalCauses.length} complex issues require design decisions`);
+  }
+
+  // Blocker 2: Missing dependencies or configuration
+  const dependencyCauses = rootCauses.filter(c => c.type === 'blocking');
+  if (dependencyCauses.length > 0) {
+    blockers.push(`Missing Dependencies: ${dependencyCauses.length} dependency issues block automated fixes`);
+  }
+
+  // Blocker 3: Knowledge gaps (systematic issues)
+  const systematicCauses = rootCauses.filter(c => c.type === 'systematic');
+  if (systematicCauses.length > 0) {
+    blockers.push(`Knowledge Gap: ${systematicCauses.length} systematic issues require domain expertise`);
+  }
+
+  // Blocker 4: Low improvement rate indicates capability limitations
+  if (cycle.iteration > 1 && cycle.improvementRate < 0.5) {
+    blockers.push(`Low Improvement Rate: Automated fixes only resolved ${(cycle.improvementRate * 100).toFixed(0)}% of issues`);
+  }
+
+  // Blocker 5: Regressions indicate risky changes
+  if (cycle.iteration > 1 && cycle.newIssuesIntroduced > 0) {
+    blockers.push(`Regressions Detected: ${cycle.newIssuesIntroduced} new issues introduced by automated fixes`);
+  }
+
+  // Blocker 6: Time constraints (max cycles reached)
+  if (cycle.iteration >= 2) {
+    blockers.push(`Time Constraint: Maximum ${2} cycles reached, further automated attempts unlikely to succeed`);
+  }
+
+  return blockers;
+}
+```
+
+---
+
+#### generateManualRecommendations Function
+
+Generates actionable recommendations for user intervention.
+
+```typescript
+/**
+ * Generate prioritized recommendations for manual intervention
+ * @param unresolved Unresolved issues
+ * @param rootCauses Identified root causes
+ * @param blockers Identified blockers
+ * @returns Array of recommendations
+ */
+function generateManualRecommendations(
+  unresolved: ConsolidatedIssue[],
+  rootCauses: RootCause[],
+  blockers: string[]
+): string[] {
+  const recommendations: string[] = [];
+
+  // Section 1: Immediate Actions (P0 issues)
+  const p0Issues = unresolved.filter(i => i.priority === 'P0');
+  if (p0Issues.length > 0) {
+    recommendations.push("## Immediate Actions (Critical - Today)");
+
+    p0Issues.forEach((issue, idx) => {
+      const rootCause = rootCauses.find(rc => rc.affectedFiles.includes(issue.file));
+      const action = rootCause?.recommendation || `Manually fix: ${issue.description}`;
+      recommendations.push(`${idx + 1}. ${action} (${issue.file}:${issue.line})`);
+    });
+  }
+
+  // Section 2: Short-term Actions (P1 issues)
+  const p1Issues = unresolved.filter(i => i.priority === 'P1');
+  if (p1Issues.length > 0) {
+    recommendations.push("## Short-term Actions (This Week)");
+
+    // Group by root cause for efficiency
+    const byRootCause = groupIssuesByRootCause(p1Issues, rootCauses);
+    byRootCause.forEach((issues, rootCause) => {
+      if (rootCause) {
+        recommendations.push(`- ${rootCause.recommendation} (affects ${issues.length} issues in ${rootCause.affectedFiles.length} files)`);
+      } else {
+        // Issues without identified root cause
+        issues.forEach(issue => {
+          recommendations.push(`- Fix: ${issue.description} (${issue.file}:${issue.line})`);
+        });
+      }
+    });
+  }
+
+  // Section 3: Long-term Actions (P2 issues + systematic improvements)
+  const p2Issues = unresolved.filter(i => i.priority === 'P2');
+  const systematicCauses = rootCauses.filter(c => c.type === 'systematic');
+
+  if (p2Issues.length > 0 || systematicCauses.length > 0) {
+    recommendations.push("## Long-term Actions (This Sprint)");
+
+    systematicCauses.forEach(cause => {
+      recommendations.push(`- ${cause.recommendation} (estimated ${cause.estimatedEffort})`);
+    });
+
+    if (p2Issues.length > 0) {
+      recommendations.push(`- Address ${p2Issues.length} improvement suggestions for code quality`);
+    }
+  }
+
+  // Section 4: Process Improvements
+  recommendations.push("## Process Improvements");
+
+  if (blockers.some(b => b.includes("Knowledge Gap"))) {
+    recommendations.push("- Conduct training session on identified knowledge gaps");
+  }
+
+  if (blockers.some(b => b.includes("Architectural Decision"))) {
+    recommendations.push("- Schedule architectural review meeting");
+  }
+
+  if (rootCauses.some(c => c.type === 'recurring')) {
+    recommendations.push("- Establish coding standards to prevent recurring issues");
+    recommendations.push("- Add automated linting rules for common patterns");
+  }
+
+  return recommendations;
+}
+
+/**
+ * Group issues by their root cause for efficient fixing
+ */
+function groupIssuesByRootCause(
+  issues: ConsolidatedIssue[],
+  rootCauses: RootCause[]
+): Map<RootCause | null, ConsolidatedIssue[]> {
+  const grouped = new Map<RootCause | null, ConsolidatedIssue[]>();
+
+  for (const issue of issues) {
+    const rootCause = rootCauses.find(rc => rc.affectedFiles.includes(issue.file));
+
+    if (!grouped.has(rootCause || null)) {
+      grouped.set(rootCause || null, []);
+    }
+
+    grouped.get(rootCause || null)!.push(issue);
+  }
+
+  return grouped;
+}
+```
+
+---
+
+#### suggestAlternatives Function
+
+Suggests different strategies with trade-offs.
+
+```typescript
+/**
+ * Suggest alternative approaches to resolve issues
+ * @param rootCauses Identified root causes
+ * @param unresolved Unresolved issues
+ * @returns Array of alternative approaches
+ */
+function suggestAlternatives(
+  rootCauses: RootCause[],
+  unresolved: ConsolidatedIssue[]
+): string[] {
+  const alternatives: string[] = [];
+
+  // Option 1: Incremental Refactoring (low risk, gradual progress)
+  alternatives.push(`
+### Option 1: Incremental Refactoring
+- Fix P0 issues with minimal changes (temporary patches if needed)
+- Plan comprehensive fixes for next sprint
+- Continue development in parallel
+- **Pros**: Unblocks current work, minimal disruption
+- **Cons**: Technical debt accumulates, may need rework later
+- **Estimated Time**: ${estimateTotalEffort(unresolved.filter(i => i.priority === 'P0'))}
+  `.trim());
+
+  // Option 2: Full Architectural Overhaul (high risk, long-term solution)
+  const hasArchitecturalIssues = rootCauses.some(c => c.type === 'complex');
+  if (hasArchitecturalIssues) {
+    alternatives.push(`
+### Option 2: Full Architectural Overhaul
+- Stop current development
+- Implement proper architectural patterns (DI, repository pattern, etc.)
+- Refactor all affected components
+- Resume development after refactoring complete
+- **Pros**: Long-term solution, no technical debt
+- **Cons**: 2-3 day development freeze, high risk of regressions
+- **Estimated Time**: ${estimateTotalEffort(unresolved)}
+    `.trim());
+  }
+
+  // Option 3: Hybrid Approach (RECOMMENDED - balanced)
+  alternatives.push(`
+### Option 3: Hybrid Approach (RECOMMENDED)
+- Fix P0 issues with minimal changes immediately
+- Create architectural improvement plan for Phase 2
+- Implement improvements in parallel workstream
+- Migrate components incrementally to new architecture
+- **Pros**: Balanced risk and progress, no development freeze
+- **Cons**: Requires coordination between workstreams
+- **Estimated Time**: ${estimateTotalEffort(unresolved.filter(i => i.priority === 'P0'))} (P0 fixes) + ${estimateTotalEffort(unresolved.filter(i => i.priority === 'P1'))} (architecture work in parallel)
+  `.trim());
+
+  // Option 4: Accept Technical Debt (only if P0 count is low)
+  const p0Count = unresolved.filter(i => i.priority === 'P0').length;
+  if (p0Count <= 2) {
+    alternatives.push(`
+### Option 4: Accept Technical Debt
+- Document P0 issues as known limitations
+- Add TODO comments with issue tracking numbers
+- Plan comprehensive fixes for next major version
+- **Pros**: No immediate work required
+- **Cons**: Risk remains, may impact production
+- **Estimated Time**: 1-2 hours (documentation only)
+- **WARNING**: Only viable if P0 issues have low impact and workarounds exist
+    `.trim());
+  }
+
+  return alternatives;
+}
+
+/**
+ * Estimate total effort for a set of issues
+ */
+function estimateTotalEffort(issues: ConsolidatedIssue[]): string {
+  const fileCount = unique(issues.map(i => i.file)).length;
+  const complexity = issues.length + fileCount;
+
+  if (complexity <= 5) return "2-4 hours";
+  if (complexity <= 10) return "4-8 hours";
+  if (complexity <= 20) return "1-2 days";
+  if (complexity <= 35) return "2-3 days";
+  return "3-5 days";
+}
+```
+
+---
+
+#### calculateImprovementTrend Function
+
+Calculates improvement trend across all cycles.
+
+```typescript
+/**
+ * Calculate improvement trend across cycle history
+ * @param cycleHistory Array of cycles from first to last
+ * @returns Array of improvement rates per cycle
+ */
+function calculateImprovementTrend(cycleHistory: ReviewCycle[]): number[] {
+  const trend: number[] = [];
+
+  for (const cycle of cycleHistory) {
+    if (cycle.iteration === 1) {
+      // First cycle has no improvement rate (nothing to compare)
+      trend.push(0);
+    } else {
+      trend.push(cycle.improvementRate);
+    }
+  }
+
+  return trend;
+}
+```
+
+---
+
+### Escalation Report Template
+
+Complete markdown template with realistic example showing all sections.
+
+```markdown
+# Review Cycle Escalation Report
+
+## Summary
+- **Cycle ID**: consolidator-executor-1697127890123
+- **Iteration**: 2/2 (max reached)
+- **Escalation Reason**: Maximum cycles reached with unresolved critical issues
+- **Total Unresolved Issues**: 5 (3 P0, 2 P1, 0 P2)
+- **Improvement Rate**: 58.3% (7/12 issues fixed)
+- **Net Improvement**: +7 (no regressions)
+- **Status**: ⚠️ ESCALATION REQUIRED - Manual intervention needed
+
+---
+
+## Unresolved Critical Issues (P0)
+
+### 1. Null Reference in AuthController.cs:42
+**Issue ID**: C1
+**Category**: null-safety
+**Attempts to Fix**: 2 cycles
+**Why Not Resolved**: Fix requires architectural change (dependency injection pattern)
+**Manual Action Required**: Refactor AuthController to use constructor injection instead of property injection
+**Affected Code**:
+```csharp
+// Current problematic code
+public IUserService UserService { get; set; } // Can be null!
+public async Task<IActionResult> Login(LoginRequest request)
+{
+    var user = await UserService.ValidateCredentials(request); // NullReferenceException here
+    //...
+}
+```
+**Recommended Fix**:
+```csharp
+// Constructor injection (guarantees non-null)
+private readonly IUserService _userService;
+public AuthController(IUserService userService)
+{
+    _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+}
+public async Task<IActionResult> Login(LoginRequest request)
+{
+    var user = await _userService.ValidateCredentials(request); // Safe
+    //...
+}
+```
+**Estimated Effort**: 4-6 hours (includes updating all 5 controllers)
+
+---
+
+### 2. DI Registration Missing for IUserService
+**Issue ID**: C2
+**Category**: dependency-injection
+**Attempts to Fix**: 2 cycles
+**Why Not Resolved**: Service lifetime ambiguity (singleton vs scoped vs transient)
+**Manual Action Required**: Determine correct service lifetime and register in Program.cs
+**Affected Code**: Program.cs:15
+**Recommended Fix**:
+```csharp
+// Add to Program.cs ConfigureServices
+services.AddScoped<IUserService, UserService>(); // Scoped for EF Core DbContext
+```
+**Decision Required**:
+- **Singleton**: If service is stateless and thread-safe (NOT recommended for UserService with DbContext)
+- **Scoped**: If service uses DbContext or per-request data (RECOMMENDED)
+- **Transient**: If service is lightweight and stateless (overkill for UserService)
+**Estimated Effort**: 1-2 hours (includes registration + testing)
+
+---
+
+### 3. Test Timeout in AuthenticationTests
+**Issue ID**: C3
+**Category**: testing
+**Attempts to Fix**: 2 cycles
+**Why Not Resolved**: External dependency (database) not mockable in current architecture
+**Manual Action Required**: Implement repository pattern for database access to enable mocking
+**Affected Code**: AuthenticationTests.cs:78
+**Current Problem**:
+```csharp
+[Fact]
+public async Task Login_ValidCredentials_ReturnsToken()
+{
+    // Cannot mock UserService because it directly uses DbContext
+    var controller = new AuthController(new UserService(realDbContext)); // Times out!
+    //...
+}
+```
+**Recommended Fix**:
+1. Create IUserRepository interface
+2. Implement UserRepository with EF Core
+3. Inject IUserRepository into UserService
+4. Mock IUserRepository in tests
+```csharp
+[Fact]
+public async Task Login_ValidCredentials_ReturnsToken()
+{
+    var mockRepo = new Mock<IUserRepository>();
+    mockRepo.Setup(r => r.ValidateCredentials(It.IsAny<LoginRequest>()))
+            .ReturnsAsync(new User { Id = 1, Username = "test" });
+
+    var controller = new AuthController(new UserService(mockRepo.Object)); // Fast!
+    //...
+}
+```
+**Estimated Effort**: 6-8 hours (includes repository pattern implementation for all services)
+
+---
+
+## Root Cause Analysis
+
+### Cause 1: Architectural Gaps
+**Category**: Dependency Injection
+**Type**: Complex Architectural Issue
+**Affected Files**: 5 controllers, 3 services
+- AuthController.cs
+- LoginController.cs
+- UserController.cs
+- UserService.cs
+- AuthService.cs
+- RoleService.cs
+- Program.cs
+- Startup.cs
+
+**Description**: Missing proper dependency injection infrastructure for service registration and lifetime management. Property injection used instead of constructor injection, leading to null reference risks.
+
+**Recommendation**: Implement proper DI container configuration:
+1. Register all services in Program.cs with appropriate lifetimes
+2. Refactor all controllers to use constructor injection
+3. Add null checks or use nullable reference types
+4. Update tests to use DI container or mocking
+
+**Estimated Effort**: 1-2 days (includes refactoring all controllers and services)
+
+---
+
+### Cause 2: Test Infrastructure
+**Category**: Testing
+**Type**: Blocking Dependency Issue
+**Affected Files**: 3 test files
+- AuthenticationTests.cs
+- UserServiceTests.cs
+- AuthControllerTests.cs
+
+**Description**: External dependencies (database, APIs) not properly isolated in tests. Tests directly use real DbContext, causing timeouts and flaky tests.
+
+**Recommendation**: Introduce mocking framework (Moq) and repository pattern:
+1. Install Moq NuGet package: `dotnet add package Moq`
+2. Create repository interfaces (IUserRepository, IAuthRepository)
+3. Implement repositories with EF Core
+4. Inject repositories into services
+5. Mock repositories in tests
+
+**Estimated Effort**: 6-8 hours (includes Moq setup + repository pattern for all data access)
+
+---
+
+### Cause 3: Recurring Null-Safety Pattern
+**Category**: null-safety
+**Type**: Recurring Pattern (5 occurrences)
+**Affected Files**: 3 files
+- AuthController.cs (2 occurrences)
+- UserService.cs (2 occurrences)
+- LoginController.cs (1 occurrence)
+
+**Description**: Null reference checks missing for service properties and method parameters. Pattern repeats across controllers and services.
+
+**Recommendation**: Apply consistent null-safety approach:
+1. Enable nullable reference types in .csproj: `<Nullable>enable</Nullable>`
+2. Add null checks at method entry points
+3. Use `ArgumentNullException.ThrowIfNull()` (.NET 6+)
+4. Prefer constructor injection (guarantees non-null)
+
+**Estimated Effort**: 2-4 hours (includes enabling nullable reference types + fixing warnings)
+
+---
+
+## Blockers
+
+1. **Architectural Decision Required**: Choose service lifetimes (singleton vs scoped vs transient) for 8 services
+   - Decision Impact: Affects performance, memory usage, thread safety
+   - Stakeholder: Development Lead or Architect
+
+2. **Missing Dependencies**: Moq framework not installed in test project
+   - Action: Run `dotnet add package Moq` in test project
+   - Impact: Blocks test refactoring
+
+3. **Knowledge Gap**: Team unfamiliar with repository pattern and mocking
+   - Action: Training session or pair programming
+   - Impact: Slows down refactoring work
+
+4. **Time Constraint**: Maximum 2 cycles reached, further automated attempts unlikely to succeed
+   - Reason: Complex architectural issues require human design decisions
+   - Impact: Manual intervention required before automated reviews can continue
+
+5. **Low Improvement Rate**: Automated fixes only resolved 58% of issues
+   - Reason: Remaining issues (3 P0) are complex and require architectural changes
+   - Impact: plan-task-executor reached capability limit
+
+---
+
+## Recommendations for Manual Intervention
+
+### Immediate Actions (Critical - Today)
+
+1. **Add Moq NuGet package to test project**
+   ```bash
+   cd src/Orchestra.Tests
+   dotnet add package Moq
+   ```
+   *Estimated: 5 minutes*
+
+2. **Register IUserService as Scoped in Program.cs**
+   ```csharp
+   builder.Services.AddScoped<IUserService, UserService>();
+   ```
+   *Estimated: 10 minutes*
+
+3. **Add temporary null checks in AuthController as mitigation**
+   ```csharp
+   public async Task<IActionResult> Login(LoginRequest request)
+   {
+       if (UserService == null)
+       {
+           throw new InvalidOperationException("UserService not initialized");
+       }
+       //...
+   }
+   ```
+   *Estimated: 30 minutes (temporary fix only)*
+
+---
+
+### Short-term Actions (This Week)
+
+1. **Implement repository pattern for database access** (affects 3 test issues)
+   - Create IUserRepository, IAuthRepository interfaces
+   - Implement UserRepository, AuthRepository with EF Core
+   - Inject repositories into services
+   - Update all data access code
+   *Estimated: 6-8 hours*
+
+2. **Refactor controllers to use constructor injection** (affects 5 controllers)
+   - Replace property injection with constructor injection
+   - Update controller constructors
+   - Ensure all dependencies registered in DI
+   - Update controller tests
+   *Estimated: 4-6 hours*
+
+3. **Update all test files to use mocking** (affects 3 test files)
+   - Mock IUserRepository, IAuthRepository
+   - Remove direct DbContext usage
+   - Fix timeout issues
+   - Add more test coverage
+   *Estimated: 4-6 hours*
+
+---
+
+### Long-term Actions (This Sprint)
+
+1. **Enable nullable reference types project-wide**
+   - Add `<Nullable>enable</Nullable>` to .csproj
+   - Fix all nullable warnings
+   - Establish null-safety conventions
+   *Estimated: 1-2 days*
+
+2. **Conduct DI and repository pattern training session for team**
+   - Cover DI lifetimes (singleton/scoped/transient)
+   - Explain repository pattern benefits
+   - Show mocking examples
+   - Q&A session
+   *Estimated: 2 hours*
+
+3. **Establish DI conventions in coding standards**
+   - Document service lifetime guidelines
+   - Add DI registration examples
+   - Create service registration checklist
+   - Add to team wiki
+   *Estimated: 4 hours*
+
+4. **Add automated tests for DI configuration**
+   - Test all services can be resolved from DI
+   - Test service lifetimes are correct
+   - Test no circular dependencies
+   - Add to CI pipeline
+   *Estimated: 4 hours*
+
+---
+
+## Process Improvements
+
+- **Training**: Conduct training session on dependency injection patterns and mocking
+- **Architecture Review**: Schedule meeting to review and approve DI architecture changes
+- **Coding Standards**: Establish standards for null-safety and DI registration
+- **Automated Linting**: Add analyzer rules for null-safety and DI patterns
+
+---
+
+## Alternative Approaches
+
+### Option 1: Incremental Refactoring
+- Fix P0 issues with temporary patches (null checks, manual service creation)
+- Plan comprehensive architectural improvements for next sprint
+- Continue development in parallel
+- **Pros**: Unblocks current work, no development freeze
+- **Cons**: Technical debt accumulates, may need rework later
+- **Estimated Time**: 2-4 hours (P0 temporary fixes only)
+
+---
+
+### Option 2: Full Architectural Overhaul
+- Stop current development
+- Implement proper DI, repository pattern, and nullable reference types
+- Refactor all controllers, services, and tests
+- Resume development after refactoring complete
+- **Pros**: Long-term solution, no technical debt, high code quality
+- **Cons**: 2-3 day development freeze, high risk of regressions
+- **Estimated Time**: 2-3 days (full refactoring)
+
+---
+
+### Option 3: Hybrid Approach (RECOMMENDED)
+- **Phase 1 (Today)**: Fix P0 issues with minimal changes
+  - Add null checks in AuthController (30 min)
+  - Register IUserService in DI (10 min)
+  - Add Moq package (5 min)
+  - Total: ~1 hour
+- **Phase 2 (This Week)**: Implement improvements in parallel workstream
+  - Repository pattern implementation (6-8 hours)
+  - Controller refactoring (4-6 hours)
+  - Test updates (4-6 hours)
+  - Total: 14-20 hours (parallel with new development)
+- **Phase 3 (Next Sprint)**: Complete architectural improvements
+  - Nullable reference types (1-2 days)
+  - Training and documentation (6 hours)
+  - Automated tests (4 hours)
+
+- **Pros**: Balanced risk and progress, no development freeze, improvements in parallel
+- **Cons**: Requires coordination between workstreams, slightly longer total time
+- **Estimated Time**: 1 hour (immediate) + 2-3 days (parallel work)
+
+---
+
+### Option 4: Accept Technical Debt
+- Document P0 issues as known limitations
+- Add TODO comments with issue tracking numbers
+- Plan comprehensive fixes for next major version
+- **Pros**: No immediate work required
+- **Cons**: Risk remains, may impact production, 3 P0 issues unresolved
+- **Estimated Time**: 1-2 hours (documentation only)
+- **WARNING**: NOT RECOMMENDED - 3 P0 issues pose serious risks (crashes, security)
+
+---
+
+## Cycle History
+
+### Cycle 1: Initial Review
+- **Cycle ID**: consolidator-executor-1697123456789
+- **Started**: 2025-10-16 14:00:00
+- **Duration**: 5 minutes 23 seconds
+- **Files Reviewed**: 25
+- **Issues Found**: 12
+  - P0 (Critical): 3
+  - P1 (Warning): 5
+  - P2 (Improvement): 4
+- **Status**: ✅ Complete → Fixes Required
+- **Next Step**: plan-task-executor to fix issues
+
+---
+
+### Cycle 2: Re-review After Fixes
+- **Cycle ID**: consolidator-executor-1697127890123
+- **Started**: 2025-10-16 14:30:00
+- **Duration**: 4 minutes 15 seconds
+- **Files Reviewed**: 25
+- **Issues Found**: 5
+  - P0 (Critical): 3 (-0 from Cycle 1) 🔴
+  - P1 (Warning): 2 (-3 from Cycle 1) 🟢
+  - P2 (Improvement): 0 (-4 from Cycle 1) 🟢
+- **Issues Fixed**: 7 (58.3% improvement) 🟢
+- **Issues Persistent**: 5 (41.7% remain) 🟡
+- **New Issues**: 0 (no regressions) 🟢
+- **Net Improvement**: +7 🟢
+- **Status**: ⚠️ Escalation Required (P0 issues persist after max cycles)
+- **Next Step**: Manual intervention required
+
+---
+
+### Improvement Trend
+
+```
+Cycle 1 → Cycle 2: 58.3% improvement
+          +7 net improvement (no regressions)
+
+Issues by Priority:
+P0: 3 → 3 (0% improvement) 🔴 CRITICAL
+P1: 5 → 2 (60% improvement) 🟢
+P2: 4 → 0 (100% improvement) 🟢
+
+Overall: Good progress on P1/P2, but P0 issues require architectural changes
+```
+
+---
+
+## Next Steps
+
+1. **User Review Required**: Review this escalation report and choose approach (Option 1, 2, 3, or 4)
+2. **Decision Needed**: Approve service lifetime choices (singleton/scoped/transient)
+3. **Manual Fixes**: Implement recommended immediate actions (see "Immediate Actions" section)
+4. **Re-review**: After manual fixes complete, re-run review-consolidator to validate
+5. **Monitor**: Track if manual fixes resolve all P0 issues before merging to main branch
+
+---
+
+**Generated by**: review-consolidator cycle protection system
+**Escalated at**: 2025-10-16T14:34:15Z
+**Report Version**: 1.0
+**Cycle ID**: consolidator-executor-1697127890123
+**Contact**: Development Team Lead for questions or clarifications
+```
+
+---
+
+### Integration with Cycle Tracking System
+
+**Data Flow**:
+1. `CycleTracker` detects escalation trigger (`shouldEscalate()` returns true)
+2. `generateEscalationReport()` called with cycle context
+3. `analyzeRootCauses()` identifies patterns in unresolved issues
+4. `identifyBlockers()` extracts specific blockers
+5. `generateManualRecommendations()` creates actionable steps
+6. `suggestAlternatives()` provides strategy options
+7. Complete escalation report generated and saved
+8. User notified with report path and summary
+
+**Integration Points with Task 5.1A (Cycle Tracking)**:
+- Uses `ReviewCycle` interface for cycle data
+- Uses `CycleTracker.getCycleHistory()` for trend analysis
+- Uses `shouldEscalate()` triggers for escalation detection
+- Uses cycle metrics (improvementRate, netImprovement) for analysis
+
+**Integration Points with Task 5.1C (Visualization)**:
+- Escalation report includes cycle progress visualization
+- Shows improvement trend across cycles
+- Displays priority changes with emoji indicators
+- Includes cycle history summary
+
+**Integration Points with Task 5.2 (Agent Transitions)**:
+- Escalation triggers transition to user (not plan-task-executor)
+- Escalation report passed to main agent for user notification
+- After manual fixes, user can restart review-consolidator with fresh Cycle 1
+
+---
+
+**Escalation Mechanism Status**: ACTIVE
+**Phase**: 5.1B - Review Cycle Management ✅ COMPLETE
+**Dependencies**: Task 5.1A (Cycle Tracking System) ✅ COMPLETE
+**Next**: Task 5.1C (Cycle Visualization)
+
+---
+
+### Cycle Visualization System
+
+**Phase**: 5.1C - Review Cycle Management
+**Purpose**: Provide clear, visual feedback on cycle progress, improvement metrics, and trend analysis
+
+#### Overview
+
+The Cycle Visualization System displays cycle progress in a human-readable format with:
+- Cycle progress indicators (Cycle 1/2, 2/2)
+- Issue count breakdowns by priority
+- Improvement metrics with emoji indicators
+- Priority-level changes (delta visualization)
+- Net improvement and regression tracking
+- Visual status indicators for decision-making
+
+**Integration**:
+- Uses `ReviewCycle` data from CycleTracker
+- Uses `CycleComparison` metrics from issue tracking
+- Embedded in console output and escalation reports
+- Provides at-a-glance status for users and agents
+
+---
+
+#### Cycle Progress Display Templates
+
+Visual templates for displaying cycle progress in markdown format.
+
+**Cycle 1: Initial Review Template**
+
+```markdown
+📊 Cycle 1/2 Progress: Initial Review
+├─ Cycle ID: consolidator-executor-{timestamp}
+├─ Started: {YYYY-MM-DD HH:mm:ss}
+├─ Duration: {M}m {S}s
+├─ Files Reviewed: {count}
+├─ Issues Found: {total}
+│  ├─ P0 (Critical): {count}
+│  ├─ P1 (Warning): {count}
+│  └─ P2 (Improvement): {count}
+└─ Status: ✅ Complete → Fixes Required
+
+🔄 Next Step: plan-task-executor will fix issues
+   Cycle ID: {cycleId}
+   Expected fixes: P2 (easy) → P1 (moderate) → P0 (complex)
+```
+
+**Example - Cycle 1**:
+```markdown
+📊 Cycle 1/2 Progress: Initial Review
+├─ Cycle ID: consolidator-executor-1697123456789
+├─ Started: 2025-10-16 14:00:00
+├─ Duration: 5m 23s
+├─ Files Reviewed: 25
+├─ Issues Found: 12
+│  ├─ P0 (Critical): 3
+│  ├─ P1 (Warning): 5
+│  └─ P2 (Improvement): 4
+└─ Status: ✅ Complete → Fixes Required
+
+🔄 Next Step: plan-task-executor will fix issues
+   Cycle ID: consolidator-executor-1697123456789
+   Expected fixes: P2 (easy) → P1 (moderate) → P0 (complex)
+```
+
+---
+
+**Cycle 2: Re-review After Fixes Template**
+
+```markdown
+📊 Cycle 2/2 Progress: Re-review After Fixes
+├─ Cycle ID: consolidator-executor-{timestamp}
+├─ Previous Cycle: consolidator-executor-{previous-timestamp}
+├─ Started: {YYYY-MM-DD HH:mm:ss}
+├─ Duration: {M}m {S}s
+├─ Files Reviewed: {count}
+├─ Issues Found: {total}
+│  ├─ P0 (Critical): {count} ({delta} from Cycle 1) {emoji}
+│  ├─ P1 (Warning): {count} ({delta} from Cycle 1) {emoji}
+│  └─ P2 (Improvement): {count} ({delta} from Cycle 1) {emoji}
+│
+├─ Issues Fixed: {count} ({percentage}% improvement) {emoji}
+├─ Issues Persistent: {count} ({percentage}% remain) {emoji}
+├─ New Issues: {count} (regressions) {emoji}
+├─ Net Improvement: {+/-count} {emoji}
+│
+└─ Status: {emoji} {status}
+
+{next-step-recommendation}
+```
+
+**Example - Cycle 2 (Good Progress)**:
+```markdown
+📊 Cycle 2/2 Progress: Re-review After Fixes
+├─ Cycle ID: consolidator-executor-1697127890123
+├─ Previous Cycle: consolidator-executor-1697123456789
+├─ Started: 2025-10-16 14:30:00
+├─ Duration: 4m 15s
+├─ Files Reviewed: 25
+├─ Issues Found: 5
+│  ├─ P0 (Critical): 1 (-2 from Cycle 1) 🟢
+│  ├─ P1 (Warning): 2 (-3 from Cycle 1) 🟢
+│  └─ P2 (Improvement): 2 (-2 from Cycle 1) 🟢
+│
+├─ Issues Fixed: 7 (58.3% improvement) 🟢
+├─ Issues Persistent: 5 (41.7% remain) 🟡
+├─ New Issues: 0 (no regressions) 🟢
+├─ Net Improvement: +7 🟢
+│
+└─ Status: ✅ Success - All P0 issues resolved!
+
+✅ Next Step: Mark work as complete
+   Quality: High (no regressions, good improvement rate)
+   All critical issues resolved
+```
+
+**Example - Cycle 2 (Escalation Required)**:
+```markdown
+📊 Cycle 2/2 Progress: Re-review After Fixes
+├─ Cycle ID: consolidator-executor-1697127890123
+├─ Previous Cycle: consolidator-executor-1697123456789
+├─ Started: 2025-10-16 14:30:00
+├─ Duration: 4m 15s
+├─ Files Reviewed: 25
+├─ Issues Found: 5
+│  ├─ P0 (Critical): 3 (-0 from Cycle 1) 🔴
+│  ├─ P1 (Warning): 2 (-3 from Cycle 1) 🟢
+│  └─ P2 (Improvement): 0 (-4 from Cycle 1) 🟢
+│
+├─ Issues Fixed: 7 (58.3% improvement) 🟢
+├─ Issues Persistent: 5 (41.7% remain) 🟡
+├─ New Issues: 0 (no regressions) 🟢
+├─ Net Improvement: +7 🟢
+│
+└─ Status: ⚠️ Escalation Required - P0 issues persist
+
+⚠️ Next Step: Manual intervention required
+   Reason: 3 P0 issues remain after max cycles
+   Escalation report: Docs/reviews/escalation-report-{timestamp}.md
+   Action: Review escalation report and implement manual fixes
+```
+
+**Example - Cycle 2 (Regression Detected)**:
+```markdown
+📊 Cycle 2/2 Progress: Re-review After Fixes
+├─ Cycle ID: consolidator-executor-1697127890123
+├─ Previous Cycle: consolidator-executor-1697123456789
+├─ Started: 2025-10-16 14:30:00
+├─ Duration: 4m 15s
+├─ Files Reviewed: 25
+├─ Issues Found: 11
+│  ├─ P0 (Critical): 4 (+1 from Cycle 1) 🔴
+│  ├─ P1 (Warning): 4 (-1 from Cycle 1) 🟡
+│  └─ P2 (Improvement): 3 (-1 from Cycle 1) 🟡
+│
+├─ Issues Fixed: 5 (41.7% improvement) 🔴
+├─ Issues Persistent: 7 (58.3% remain) 🔴
+├─ New Issues: 6 (regressions detected!) 🔴
+├─ Net Improvement: -1 🔴
+│
+└─ Status: 🚨 CRITICAL - Negative net improvement (regressions)
+
+🚨 Next Step: IMMEDIATE escalation required
+   Reason: Fixes introduced more issues than resolved (-1 net improvement)
+   Escalation report: Docs/reviews/escalation-report-{timestamp}.md
+   Action: STOP further automated fixes, review escalation report immediately
+```
+
+---
+
+#### Cycle Visualization Functions
+
+TypeScript pseudo-code functions for generating cycle visualizations.
+
+**displayImprovementMetrics Function**
+
+Calculates and formats improvement summary with priority-level breakdowns.
+
+```typescript
+interface PriorityChange {
+  priority: string; // "P0", "P1", "P2"
+  before: number; // Count in previous cycle
+  after: number; // Count in current cycle
+  delta: number; // after - before (negative = improvement)
+  percentage: number; // (delta / before) * 100
+}
+
+/**
+ * Display comprehensive improvement metrics between two cycles
+ * @param cycle1 First cycle (initial review)
+ * @param cycle2 Second cycle (re-review after fixes)
+ * @returns Formatted markdown string with improvement summary
+ */
+function displayImprovementMetrics(
+  cycle1: ReviewCycle,
+  cycle2: ReviewCycle
+): string {
+  // Calculate overall metrics
+  const issuesFixed = cycle1.issuesFoundInCycle - cycle2.issuesStillPresent;
+  const improvementRate = (issuesFixed / cycle1.issuesFoundInCycle) * 100;
+  const netChange = cycle2.issuesFoundInCycle - cycle1.issuesFoundInCycle;
+
+  // Build output
+  let display = `
+## Improvement Summary
+
+### Overall Progress
+- **Issues in Cycle 1**: ${cycle1.issuesFoundInCycle}
+- **Issues in Cycle 2**: ${cycle2.issuesFoundInCycle}
+- **Issues Fixed**: ${issuesFixed} (${improvementRate.toFixed(1)}%)
+- **Net Change**: ${netChange >= 0 ? '+' : ''}${netChange} ${netChange > 0 ? '🔴 (regressions)' : netChange < 0 ? '🟢 (improvement)' : '⚪ (no change)'}
+
+### By Priority
+`;
+
+  // Calculate priority changes
+  const p0Change = calculatePriorityChange(cycle1, cycle2, 'P0');
+  const p1Change = calculatePriorityChange(cycle1, cycle2, 'P1');
+  const p2Change = calculatePriorityChange(cycle1, cycle2, 'P2');
+
+  // Format priority changes
+  display += formatPriorityChange('P0 (Critical)', p0Change);
+  display += formatPriorityChange('P1 (Warning)', p1Change);
+  display += formatPriorityChange('P2 (Improvement)', p2Change);
+
+  // Add interpretation
+  display += `\n### Interpretation\n`;
+
+  if (cycle2.netImprovement < 0) {
+    display += `🚨 **CRITICAL**: Negative net improvement (${cycle2.netImprovement}). Fixes introduced more issues than resolved.\n`;
+  } else if (cycle2.improvementRate < 0.5) {
+    display += `⚠️ **WARNING**: Low improvement rate (${(cycle2.improvementRate * 100).toFixed(1)}%). Less than 50% of issues fixed.\n`;
+  } else if (p0Change.after === 0) {
+    display += `✅ **SUCCESS**: All P0 critical issues resolved. Good progress on P1/P2 issues.\n`;
+  } else if (p0Change.after > 0) {
+    display += `⚠️ **PARTIAL**: ${p0Change.after} P0 critical issues remain unresolved. Manual intervention likely required.\n`;
+  } else {
+    display += `✅ **GOOD**: Positive progress across all priority levels.\n`;
+  }
+
+  return display;
+}
+
+/**
+ * Calculate priority-level change between two cycles
+ * @param cycle1 First cycle
+ * @param cycle2 Second cycle
+ * @param priority Priority level to analyze
+ * @returns PriorityChange object with metrics
+ */
+function calculatePriorityChange(
+  cycle1: ReviewCycle,
+  cycle2: ReviewCycle,
+  priority: string
+): PriorityChange {
+  // Extract issues by priority from cycles
+  const before = countIssuesByPriority(cycle1.issues || [], priority);
+  const after = countIssuesByPriority(cycle2.issues || [], priority);
+
+  const delta = after - before;
+  const percentage = before > 0 ? (delta / before) * 100 : 0;
+
+  return {
+    priority,
+    before,
+    after,
+    delta,
+    percentage
+  };
+}
+
+/**
+ * Count issues by priority level
+ */
+function countIssuesByPriority(issues: ConsolidatedIssue[], priority: string): number {
+  return issues.filter(i => i.priority === priority).length;
+}
+```
+
+---
+
+**formatPriorityChange Function**
+
+Formats priority changes with emoji indicators and arrows.
+
+```typescript
+/**
+ * Format priority change for display
+ * @param priorityLabel Human-readable priority label
+ * @param change PriorityChange object
+ * @returns Formatted markdown line
+ */
+function formatPriorityChange(
+  priorityLabel: string,
+  change: PriorityChange
+): string {
+  // Determine emoji based on change direction
+  let emoji: string;
+  if (change.delta < 0) {
+    emoji = '🟢'; // Green - improvement (fewer issues)
+  } else if (change.delta > 0) {
+    emoji = '🔴'; // Red - regression (more issues)
+  } else {
+    emoji = '⚪'; // White - no change
+  }
+
+  // Determine arrow
+  let arrow: string;
+  if (change.delta < 0) {
+    arrow = '↓'; // Down arrow - improvement
+  } else if (change.delta > 0) {
+    arrow = '↑'; // Up arrow - regression
+  } else {
+    arrow = '→'; // Right arrow - no change
+  }
+
+  // Format delta with sign
+  const deltaStr = change.delta >= 0 ? `+${change.delta}` : `${change.delta}`;
+
+  // Format percentage if meaningful
+  let percentageStr = '';
+  if (change.before > 0 && change.delta !== 0) {
+    const absPercentage = Math.abs(change.percentage).toFixed(0);
+    percentageStr = ` (${absPercentage}% ${change.delta < 0 ? 'improvement' : 'regression'})`;
+  }
+
+  return `- **${priorityLabel}**: ${change.before} ${arrow} ${change.after} (${deltaStr})${percentageStr} ${emoji}\n`;
+}
+```
+
+**Usage Examples**:
+
+```typescript
+// Example 1: Good progress (no regressions)
+const cycle1: ReviewCycle = {
+  cycleId: "consolidator-executor-1697123456789",
+  iteration: 1,
+  issuesFoundInCycle: 12,
+  issues: [
+    // 3 P0, 5 P1, 4 P2
+  ],
+  // ... other fields
+};
+
+const cycle2: ReviewCycle = {
+  cycleId: "consolidator-executor-1697127890123",
+  iteration: 2,
+  issuesFoundInCycle: 5,
+  issuesStillPresent: 5,
+  issuesFixedFromPrevious: 7,
+  newIssuesIntroduced: 0,
+  improvementRate: 0.583,
+  netImprovement: 7,
+  issues: [
+    // 1 P0, 2 P1, 2 P2
+  ],
+  // ... other fields
+};
+
+const summary = displayImprovementMetrics(cycle1, cycle2);
+console.log(summary);
+/*
+Output:
+
+## Improvement Summary
+
+### Overall Progress
+- **Issues in Cycle 1**: 12
+- **Issues in Cycle 2**: 5
+- **Issues Fixed**: 7 (58.3%)
+- **Net Change**: -7 🟢 (improvement)
+
+### By Priority
+- **P0 (Critical)**: 3 ↓ 1 (-2) (67% improvement) 🟢
+- **P1 (Warning)**: 5 ↓ 2 (-3) (60% improvement) 🟢
+- **P2 (Improvement)**: 4 ↓ 2 (-2) (50% improvement) 🟢
+
+### Interpretation
+✅ **GOOD**: Positive progress across all priority levels.
+*/
+
+// Example 2: Regression detected
+const cycle2Regression: ReviewCycle = {
+  cycleId: "consolidator-executor-1697127890123",
+  iteration: 2,
+  issuesFoundInCycle: 11,
+  issuesStillPresent: 7,
+  issuesFixedFromPrevious: 5,
+  newIssuesIntroduced: 6,
+  improvementRate: 0.417,
+  netImprovement: -1,
+  issues: [
+    // 4 P0, 4 P1, 3 P2
+  ],
+  // ... other fields
+};
+
+const summaryRegression = displayImprovementMetrics(cycle1, cycle2Regression);
+console.log(summaryRegression);
+/*
+Output:
+
+## Improvement Summary
+
+### Overall Progress
+- **Issues in Cycle 1**: 12
+- **Issues in Cycle 2**: 11
+- **Issues Fixed**: 5 (41.7%)
+- **Net Change**: -1 🔴 (regressions)
+
+### By Priority
+- **P0 (Critical)**: 3 ↑ 4 (+1) (33% regression) 🔴
+- **P1 (Warning)**: 5 ↓ 4 (-1) (20% improvement) 🟡
+- **P2 (Improvement)**: 4 ↓ 3 (-1) (25% improvement) 🟡
+
+### Interpretation
+🚨 **CRITICAL**: Negative net improvement (-1). Fixes introduced more issues than resolved.
+*/
+```
+
+---
+
+#### Cycle Comparison Visualization
+
+Complete visualization comparing two cycles side-by-side.
+
+```typescript
+/**
+ * Generate side-by-side cycle comparison
+ * @param cycle1 First cycle
+ * @param cycle2 Second cycle
+ * @returns Formatted markdown comparison
+ */
+function displayCycleComparison(
+  cycle1: ReviewCycle,
+  cycle2: ReviewCycle
+): string {
+  const comparison = `
+## Cycle Comparison: ${cycle1.cycleId} → ${cycle2.cycleId}
+
+| Metric | Cycle 1 | Cycle 2 | Change | Status |
+|--------|---------|---------|--------|--------|
+| **Total Issues** | ${cycle1.issuesFoundInCycle} | ${cycle2.issuesFoundInCycle} | ${formatDelta(cycle2.issuesFoundInCycle - cycle1.issuesFoundInCycle)} | ${getStatusEmoji(cycle2.issuesFoundInCycle - cycle1.issuesFoundInCycle)} |
+| **P0 (Critical)** | ${countByPriority(cycle1, 'P0')} | ${countByPriority(cycle2, 'P0')} | ${formatDelta(countByPriority(cycle2, 'P0') - countByPriority(cycle1, 'P0'))} | ${getStatusEmoji(countByPriority(cycle2, 'P0') - countByPriority(cycle1, 'P0'))} |
+| **P1 (Warning)** | ${countByPriority(cycle1, 'P1')} | ${countByPriority(cycle2, 'P1')} | ${formatDelta(countByPriority(cycle2, 'P1') - countByPriority(cycle1, 'P1'))} | ${getStatusEmoji(countByPriority(cycle2, 'P1') - countByPriority(cycle1, 'P1'))} |
+| **P2 (Improvement)** | ${countByPriority(cycle1, 'P2')} | ${countByPriority(cycle2, 'P2')} | ${formatDelta(countByPriority(cycle2, 'P2') - countByPriority(cycle1, 'P2'))} | ${getStatusEmoji(countByPriority(cycle2, 'P2') - countByPriority(cycle1, 'P2'))} |
+| **Duration** | ${formatDuration(cycle1)} | ${formatDuration(cycle2)} | ${formatDurationDelta(cycle1, cycle2)} | ⚪ |
+| **Files Reviewed** | ${cycle1.filesReviewed.length} | ${cycle2.filesReviewed.length} | ${formatDelta(cycle2.filesReviewed.length - cycle1.filesReviewed.length)} | ⚪ |
+
+### Key Metrics
+- **Issues Fixed**: ${cycle2.issuesFixedFromPrevious} (${(cycle2.improvementRate * 100).toFixed(1)}% improvement)
+- **Issues Persistent**: ${cycle2.issuesStillPresent} (${((cycle2.issuesStillPresent / cycle1.issuesFoundInCycle) * 100).toFixed(1)}% remain)
+- **New Issues**: ${cycle2.newIssuesIntroduced} (regressions)
+- **Net Improvement**: ${cycle2.netImprovement >= 0 ? '+' : ''}${cycle2.netImprovement}
+
+### Verdict
+${generateVerdict(cycle2)}
+  `;
+
+  return comparison;
+}
+
+/**
+ * Format delta with + or - sign
+ */
+function formatDelta(delta: number): string {
+  if (delta > 0) return `+${delta}`;
+  if (delta < 0) return `${delta}`;
+  return '0';
+}
+
+/**
+ * Get emoji based on delta (negative = good for issues)
+ */
+function getStatusEmoji(delta: number): string {
+  if (delta < 0) return '🟢'; // Fewer issues = good
+  if (delta > 0) return '🔴'; // More issues = bad
+  return '⚪'; // No change
+}
+
+/**
+ * Count issues by priority in cycle
+ */
+function countByPriority(cycle: ReviewCycle, priority: string): number {
+  return (cycle.issues || []).filter(i => i.priority === priority).length;
+}
+
+/**
+ * Format cycle duration
+ */
+function formatDuration(cycle: ReviewCycle): string {
+  if (!cycle.endTime) return 'In progress';
+
+  const durationMs = cycle.endTime.getTime() - cycle.startTime.getTime();
+  const minutes = Math.floor(durationMs / 60000);
+  const seconds = Math.floor((durationMs % 60000) / 1000);
+
+  return `${minutes}m ${seconds}s`;
+}
+
+/**
+ * Format duration difference
+ */
+function formatDurationDelta(cycle1: ReviewCycle, cycle2: ReviewCycle): string {
+  if (!cycle1.endTime || !cycle2.endTime) return 'N/A';
+
+  const duration1 = cycle1.endTime.getTime() - cycle1.startTime.getTime();
+  const duration2 = cycle2.endTime.getTime() - cycle2.startTime.getTime();
+  const delta = duration2 - duration1;
+
+  const deltaSeconds = Math.abs(Math.floor(delta / 1000));
+  const sign = delta >= 0 ? '+' : '-';
+
+  return `${sign}${deltaSeconds}s`;
+}
+
+/**
+ * Generate verdict based on cycle 2 metrics
+ */
+function generateVerdict(cycle: ReviewCycle): string {
+  const p0Count = countByPriority(cycle, 'P0');
+
+  if (cycle.netImprovement < 0) {
+    return '🚨 **CRITICAL REGRESSION**: Fixes introduced more issues than resolved. Immediate escalation required.';
+  } else if (cycle.improvementRate < 0.5) {
+    return '⚠️ **LOW IMPROVEMENT**: Less than 50% of issues fixed. Consider manual intervention.';
+  } else if (p0Count === 0) {
+    return '✅ **SUCCESS**: All critical issues resolved. Work ready for completion.';
+  } else if (cycle.iteration >= 2 && p0Count > 0) {
+    return `⚠️ **ESCALATION REQUIRED**: ${p0Count} P0 issue(s) remain after max cycles. Manual intervention needed.`;
+  } else {
+    return '🟢 **GOOD PROGRESS**: Positive improvement across priority levels. Continue automated cycle.';
+  }
+}
+```
+
+**Example Output**:
+
+```markdown
+## Cycle Comparison: consolidator-executor-1697123456789 → consolidator-executor-1697127890123
+
+| Metric | Cycle 1 | Cycle 2 | Change | Status |
+|--------|---------|---------|--------|--------|
+| **Total Issues** | 12 | 5 | -7 | 🟢 |
+| **P0 (Critical)** | 3 | 1 | -2 | 🟢 |
+| **P1 (Warning)** | 5 | 2 | -3 | 🟢 |
+| **P2 (Improvement)** | 4 | 2 | -2 | 🟢 |
+| **Duration** | 5m 23s | 4m 15s | -68s | ⚪ |
+| **Files Reviewed** | 25 | 25 | 0 | ⚪ |
+
+### Key Metrics
+- **Issues Fixed**: 7 (58.3% improvement)
+- **Issues Persistent**: 5 (41.7% remain)
+- **New Issues**: 0 (regressions)
+- **Net Improvement**: +7
+
+### Verdict
+🟢 **GOOD PROGRESS**: Positive improvement across priority levels. Continue automated cycle.
+```
+
+---
+
+#### Cycle Trend Visualization
+
+Visualize improvement trends across multiple cycles (if >2 cycles hypothetically exist).
+
+```typescript
+/**
+ * Display improvement trend graph (ASCII art)
+ * @param cycleHistory Array of cycles
+ * @returns ASCII trend visualization
+ */
+function displayImprovementTrend(cycleHistory: ReviewCycle[]): string {
+  const maxIssues = Math.max(...cycleHistory.map(c => c.issuesFoundInCycle));
+  const scale = 50 / maxIssues; // Scale to 50 chars width
+
+  let trend = `\n## Improvement Trend\n\n`;
+  trend += `Total Issues Per Cycle:\n\n`;
+
+  for (const cycle of cycleHistory) {
+    const barLength = Math.round(cycle.issuesFoundInCycle * scale);
+    const bar = '█'.repeat(barLength);
+    const emoji = cycle.status === 'escalated' ? '⚠️' : cycle.iteration === 1 ? '📊' : '✅';
+
+    trend += `Cycle ${cycle.iteration}: ${emoji} ${bar} ${cycle.issuesFoundInCycle} issues\n`;
+  }
+
+  // Add improvement rate progression
+  if (cycleHistory.length > 1) {
+    trend += `\nImprovement Rates:\n`;
+    for (let i = 1; i < cycleHistory.length; i++) {
+      const cycle = cycleHistory[i];
+      const rate = (cycle.improvementRate * 100).toFixed(1);
+      const emoji = cycle.improvementRate >= 0.5 ? '🟢' : cycle.improvementRate >= 0.3 ? '🟡' : '🔴';
+
+      trend += `Cycle ${i} → ${i + 1}: ${emoji} ${rate}% fixed\n`;
+    }
+  }
+
+  return trend;
+}
+```
+
+**Example Output**:
+
+```
+## Improvement Trend
+
+Total Issues Per Cycle:
+
+Cycle 1: 📊 █████████████████████████ 12 issues
+Cycle 2: ✅ ██████████ 5 issues
+
+Improvement Rates:
+Cycle 1 → 2: 🟢 58.3% fixed
+```
+
+---
+
+#### Validation Checklist
+
+**Cycle Visualization Validation**:
+- [ ] Cycle 1 template displays correctly with all fields
+- [ ] Cycle 2 template shows delta calculations for all priorities
+- [ ] Emoji indicators appropriate for improvement/regression
+- [ ] Priority changes formatted with arrows (↓, ↑, →)
+- [ ] Net improvement calculated and displayed correctly
+- [ ] Status emoji matches cycle outcome (✅, ⚠️, 🚨)
+
+**Improvement Metrics Validation**:
+- [ ] `displayImprovementMetrics()` calculates overall progress correctly
+- [ ] `calculatePriorityChange()` computes delta and percentage correctly
+- [ ] `formatPriorityChange()` uses correct emoji for change direction
+- [ ] Interpretation section provides actionable guidance
+- [ ] All percentages formatted to 1 decimal place
+
+**Cycle Comparison Validation**:
+- [ ] Table format displays correctly with all metrics
+- [ ] Delta calculations accurate for all rows
+- [ ] Status emoji matches delta direction
+- [ ] Key metrics section shows fixed/persistent/new counts
+- [ ] Verdict generated based on cycle 2 metrics
+
+**Trend Visualization Validation**:
+- [ ] ASCII bar chart scales correctly
+- [ ] Multiple cycles displayed in sequence
+- [ ] Improvement rates shown between cycles
+- [ ] Emoji indicators match improvement rates
+
+**Integration Validation**:
+- [ ] Console output includes cycle visualization
+- [ ] Escalation reports embed cycle comparison
+- [ ] Agent recommendations reference cycle metrics
+- [ ] User sees at-a-glance status
+
+---
+
+#### Integration Points
+
+**With Task 5.1A (Cycle Tracking System)**:
+- Uses `ReviewCycle` interface for all visualizations
+- Uses `CycleTracker.getCycleHistory()` for trend analysis
+- Uses issue counts and metrics for delta calculations
+- Uses cycle status for status emoji selection
+
+**With Task 5.1B (Escalation Mechanism)**:
+- Cycle visualizations embedded in escalation reports
+- Improvement metrics used in escalation decision context
+- Verdict generation aligns with escalation triggers
+- Cycle comparison table included in "Cycle History" section
+
+**With Task 5.2 (Agent Transitions)**:
+- Cycle progress displayed in agent recommendations
+- Next step guidance based on cycle status
+- Visual indicators for transition decisions (continue vs escalate)
+- Cycle ID included for agent handoff tracking
+
+**With Console Output**:
+- Cycle progress displayed after each consolidation
+- Real-time feedback during review-fix cycles
+- Clear visual indicators for user decision-making
+- At-a-glance status without reading full report
+
+---
+
+**Cycle Visualization Status**: ACTIVE
+**Phase**: 5.1C - Review Cycle Management ✅ COMPLETE
+**Dependencies**: Task 5.1A (Cycle Tracking), Task 5.1B (Escalation) ✅ COMPLETE
+**Next**: Task 5.2 (Agent Transitions & Integration)
+
+---
+
+---
+
+## Automatic Agent Transition Recommendations
+
+**Purpose**: Automatically generate recommendations for which agent to invoke next based on consolidated review results. This system implements priority-based routing to ensure critical issues are addressed before proceeding to validation or commit.
+
+**Design Philosophy**:
+- **Priority-driven**: P0 issues ALWAYS route to plan-task-executor (fixes required)
+- **Context-aware**: Different recommendations based on review context and results
+- **Explicit invocations**: Provide complete Task() examples for easy copy-paste
+- **Multiple recommendations**: Can recommend multiple agents with different priorities
+
+---
+
+### TransitionRecommendation Interface
+
+**Data Structure**: Represents a single agent transition recommendation.
+
+```typescript
+interface TransitionRecommendation {
+  /**
+   * Target agent to invoke
+   * Examples: 'plan-task-executor', 'pre-completion-validator', 'git-workflow-manager'
+   */
+  targetAgent: string;
+
+  /**
+   * Recommendation priority (determines display order and urgency)
+   * - CRITICAL: Must be invoked immediately (blocks all progress)
+   * - RECOMMENDED: Should be invoked for best practices (blocks completion)
+   * - OPTIONAL: User decides whether to invoke (no blocking)
+   */
+  priority: 'CRITICAL' | 'RECOMMENDED' | 'OPTIONAL';
+
+  /**
+   * Human-readable reason for recommendation
+   * Example: "3 critical (P0) issues must be fixed immediately"
+   */
+  reason: string;
+
+  /**
+   * Complete Task() invocation example (TypeScript pseudo-code)
+   * Includes all parameters, context, and prompt text
+   * User can copy-paste this directly into their workflow
+   */
+  invocationExample: string;
+
+  /**
+   * Structured parameters for programmatic invocation
+   * Mirrors the context object in invocationExample
+   */
+  parameters: Record<string, any>;
+
+  /**
+   * Optional condition that must be met for this recommendation
+   * Example: "After fixing P0 issues" for pre-completion-validator
+   */
+  condition?: string;
+
+  /**
+   * Emoji indicator for visual priority
+   * CRITICAL: 🚨, RECOMMENDED: ⚠️, OPTIONAL: 💡
+   */
+  emoji: string;
+}
+```
+
+**Example Recommendation Object**:
+```typescript
+{
+  targetAgent: 'plan-task-executor',
+  priority: 'CRITICAL',
+  reason: '3 critical (P0) issues must be fixed immediately',
+  invocationExample: `Task({
+  subagent_type: "plan-task-executor",
+  description: "Fix 3 critical issues from code review",
+  prompt: \`Fix Critical Issues from Code Review...
+  ...
+  \`,
+  context: { cycleId: "...", issuesToFix: [...] }
+})`,
+  parameters: {
+    cycleId: "consolidator-executor-1697123456789",
+    iteration: 1,
+    issuesToFix: [/* P0 issues */],
+    reReviewAfterFix: true
+  },
+  emoji: '🚨'
+}
+```
+
+---
+
+### generateTransitionRecommendations() - Main Routing Function
+
+**Purpose**: Analyze consolidated report and generate prioritized agent recommendations.
+
+**Algorithm**: Apply 3 routing rules in priority order.
+
+```typescript
+/**
+ * Generate agent transition recommendations based on review results
+ * @param report ConsolidatedReport with all review findings
+ * @returns Array of recommendations sorted by priority (CRITICAL first)
+ */
+function generateTransitionRecommendations(
+  report: ConsolidatedReport
+): TransitionRecommendation[] {
+  const recommendations: TransitionRecommendation[] = [];
+
+  // Extract priority counts
+  const p0Count = countIssuesByPriority(report, 'P0');
+  const p1Count = countIssuesByPriority(report, 'P1');
+  const p2Count = countIssuesByPriority(report, 'P2');
+
+  // RULE 1: P0 issues found → CRITICAL: plan-task-executor
+  // Condition: p0Count > 0
+  // Action: Fix critical issues immediately before proceeding
+  if (p0Count > 0) {
+    recommendations.push({
+      targetAgent: 'plan-task-executor',
+      priority: 'CRITICAL',
+      reason: `${p0Count} critical (P0) issue${p0Count > 1 ? 's' : ''} must be fixed immediately`,
+      invocationExample: generateExecutorInvocation(report),
+      parameters: {
+        cycleId: report.cycleId,
+        iteration: report.iteration,
+        issuesToFix: report.criticalIssues,
+        reReviewAfterFix: true,
+        reviewReport: report.filePath
+      },
+      emoji: '🚨'
+    });
+
+    // Early return: If P0 issues exist, ONLY recommend plan-task-executor
+    // Do NOT recommend pre-completion-validator or git-workflow-manager
+    // User must fix P0 issues first
+    return recommendations;
+  }
+
+  // RULE 2: No P0 issues → CRITICAL: pre-completion-validator
+  // Condition: p0Count === 0
+  // Action: Validate task completion requirements
+  if (p0Count === 0) {
+    recommendations.push({
+      targetAgent: 'pre-completion-validator',
+      priority: 'CRITICAL',
+      reason: 'No critical issues - validate task completion requirements',
+      invocationExample: generateValidatorInvocation(report),
+      parameters: {
+        reviewReport: report.filePath,
+        reviewPassed: true,
+        issuesFound: p1Count + p2Count,
+        criticalIssues: 0,
+        cycleId: report.cycleId
+      },
+      emoji: '⚠️'
+    });
+  }
+
+  // RULE 3: Clean or minor issues → OPTIONAL: git-workflow-manager
+  // Condition: p0Count === 0 AND p1Count <= 5
+  // Action: Commit code to version control (user decides)
+  if (p0Count === 0 && p1Count <= 5) {
+    recommendations.push({
+      targetAgent: 'git-workflow-manager',
+      priority: 'OPTIONAL',
+      reason: `Code quality sufficient for commit (${p1Count} warning${p1Count !== 1 ? 's' : ''}, ${p2Count} improvement${p2Count !== 1 ? 's' : ''})`,
+      invocationExample: generateGitInvocation(report),
+      parameters: {
+        reviewReport: report.filePath,
+        filesModified: report.filesModified,
+        reviewPassed: true,
+        reviewStatus: p1Count === 0 ? 'GREEN' : 'YELLOW'
+      },
+      condition: 'After pre-completion-validator approves task',
+      emoji: '💡'
+    });
+  }
+
+  // Sort by priority: CRITICAL > RECOMMENDED > OPTIONAL
+  return recommendations.sort((a, b) => {
+    const priorityOrder = { 'CRITICAL': 0, 'RECOMMENDED': 1, 'OPTIONAL': 2 };
+    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  });
+}
+
+/**
+ * Count issues by priority level
+ */
+function countIssuesByPriority(report: ConsolidatedReport, priority: 'P0' | 'P1' | 'P2'): number {
+  return report.consolidatedIssues.filter(issue => issue.priority === priority).length;
+}
+```
+
+**Routing Decision Tree**:
+```
+┌─────────────────────────────────────────────────────────────┐
+│         Consolidated Review Completed                      │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+                  Count P0 Issues
+                         │
+         ┌───────────────┴───────────────┐
+         │                               │
+    P0 > 0                           P0 == 0
+         │                               │
+         ▼                               ▼
+  🚨 CRITICAL:                   ⚠️ CRITICAL:
+  plan-task-executor             pre-completion-validator
+  (Fix P0 issues)                (Validate completion)
+         │                               │
+         │                               ├─────────────────┐
+         │                               │                 │
+         │                          P1 <= 5           P1 > 5
+         │                               │                 │
+         │                               ▼                 ▼
+         │                       💡 OPTIONAL:      (No git rec)
+         │                       git-workflow      (Too many
+         │                       (Commit code)     warnings)
+         │
+         ▼
+  RETURN ONLY executor
+  (No other recommendations)
+```
+
+**Key Behaviors**:
+1. **P0 issues are blocking**: If ANY P0 issues exist, ONLY recommend plan-task-executor
+   - Rationale: Critical issues must be fixed before ANY other action
+   - No pre-completion-validator, no git-workflow-manager
+   - Single-focus recommendation
+
+2. **No P0 → Always validate**: pre-completion-validator is CRITICAL when P0 = 0
+   - Rationale: Code quality passed, but must verify task requirements met
+   - Mandatory step before marking task complete
+
+3. **Git commit is optional**: git-workflow-manager is NEVER critical
+   - Rationale: User decides when to commit (may batch multiple tasks)
+   - Only recommended if clean (P0=0, P1≤5)
+   - Conditional on pre-completion-validator approval
+
+---
+
+### generateExecutorInvocation() - P0 Fix Invocation
+
+**Purpose**: Generate complete plan-task-executor invocation for fixing critical issues.
+
+```typescript
+/**
+ * Generate plan-task-executor invocation for P0 issue fixes
+ * @param report Consolidated report with P0 issues
+ * @returns Complete Task() invocation string
+ */
+function generateExecutorInvocation(report: ConsolidatedReport): string {
+  const p0Issues = report.consolidatedIssues.filter(i => i.priority === 'P0');
+  const p0Count = p0Issues.length;
+
+  // Generate issue list for prompt
+  const issuesList = p0Issues.map((issue, idx) => {
+    return `${idx + 1}. File: ${issue.file}:${issue.line}
+   Issue: ${issue.message}
+   Fix: ${issue.recommendation || 'See review report for details'}`;
+  }).join('\n\n');
+
+  // Generate invocation
+  return `Task({
+  subagent_type: "plan-task-executor",
+  description: "Fix ${p0Count} critical issue${p0Count > 1 ? 's' : ''} from code review",
+  prompt: \`Fix Critical Issues from Code Review
+
+Cycle Context:
+- Cycle ID: ${report.cycleId}
+- Iteration: ${report.iteration} (current)
+- Review Report: ${report.filePath}
+
+Critical Issues to Fix (P0):
+
+${issuesList}
+
+After fixes are complete:
+1. DO NOT mark task complete yet
+2. Re-invoke review-consolidator for re-review
+3. Use same cycle ID: ${report.cycleId}
+4. Increment iteration: ${report.iteration + 1}
+
+Expected Outcome: All P0 issues resolved, re-review passes with 0 P0 issues
+\`,
+  context: {
+    cycleId: "${report.cycleId}",
+    iteration: ${report.iteration},
+    issuesToFix: ${JSON.stringify(p0Issues, null, 2)},
+    reReviewAfterFix: true,
+    reviewReport: "${report.filePath}"
+  }
+})`;
+}
+```
+
+**Generated Invocation Example**:
+```typescript
+Task({
+  subagent_type: "plan-task-executor",
+  description: "Fix 3 critical issues from code review",
+  prompt: `Fix Critical Issues from Code Review
+
+Cycle Context:
+- Cycle ID: consolidator-executor-1697123456789
+- Iteration: 1 (current)
+- Review Report: C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md
+
+Critical Issues to Fix (P0):
+
+1. File: src/Orchestra.Core/Services/AuthenticationService.cs:42
+   Issue: Null reference exception risk in ValidateToken method
+   Fix: Add null check with ArgumentNullException
+
+2. File: src/Orchestra.Core/Services/AuthenticationService.cs:15
+   Issue: Missing DI registration for IAuthenticationService
+   Fix: Add registration in Program.cs: AddScoped<IAuthenticationService, AuthenticationService>()
+
+3. File: src/Orchestra.Tests/Services/AuthenticationServiceTests.cs:78
+   Issue: Test timeout in ValidateExpiredToken (exceeds 1s limit)
+   Fix: Add [Fact(Timeout = 5000)] attribute or optimize test
+
+After fixes are complete:
+1. DO NOT mark task complete yet
+2. Re-invoke review-consolidator for re-review
+3. Use same cycle ID: consolidator-executor-1697123456789
+4. Increment iteration: 2
+
+Expected Outcome: All P0 issues resolved, re-review passes with 0 P0 issues
+`,
+  context: {
+    cycleId: "consolidator-executor-1697123456789",
+    iteration: 1,
+    issuesToFix: [
+      {
+        file: "src/Orchestra.Core/Services/AuthenticationService.cs",
+        line: 42,
+        priority: "P0",
+        message: "Null reference exception risk in ValidateToken method",
+        recommendation: "Add null check with ArgumentNullException",
+        reviewers: ["code-principles-reviewer"]
+      },
+      {
+        file: "src/Orchestra.Core/Services/AuthenticationService.cs",
+        line: 15,
+        priority: "P0",
+        message: "Missing DI registration for IAuthenticationService",
+        recommendation: "Add registration in Program.cs",
+        reviewers: ["code-principles-reviewer"]
+      },
+      {
+        file: "src/Orchestra.Tests/Services/AuthenticationServiceTests.cs",
+        line: 78,
+        priority: "P0",
+        message: "Test timeout in ValidateExpiredToken",
+        recommendation: "Add [Fact(Timeout = 5000)] or optimize test",
+        reviewers: ["test-healer"]
+      }
+    ],
+    reReviewAfterFix: true,
+    reviewReport: "C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md"
+  }
+})
+```
+
+**Key Features**:
+- **Cycle ID preservation**: Same cycle ID passed for tracking
+- **Iteration increment**: Instructs to increment iteration for re-review
+- **Complete issue details**: File, line, message, recommendation
+- **Clear next steps**: Explicit instructions for after fixes
+- **Re-review mandate**: reReviewAfterFix flag ensures validation
+
+---
+
+### generateValidatorInvocation() - Completion Validation
+
+**Purpose**: Generate pre-completion-validator invocation for task validation.
+
+```typescript
+/**
+ * Generate pre-completion-validator invocation
+ * @param report Consolidated report (no P0 issues)
+ * @returns Complete Task() invocation string
+ */
+function generateValidatorInvocation(report: ConsolidatedReport): string {
+  const p1Count = countIssuesByPriority(report, 'P1');
+  const p2Count = countIssuesByPriority(report, 'P2');
+  const totalIssues = p1Count + p2Count;
+  const status = p1Count === 0 ? 'GREEN' : 'YELLOW';
+
+  return `Task({
+  subagent_type: "pre-completion-validator",
+  description: "Validate task completion after ${status === 'GREEN' ? 'successful' : 'acceptable'} code review",
+  prompt: \`Validate Task Completion
+
+Task Being Validated: ${report.taskDescription || '[Task description from plan]'}
+
+Code Quality Review Status:
+- Review Status: ${status} (${status === 'GREEN' ? 'no issues' : 'minor warnings'})
+- Critical Issues (P0): 0 ✅
+- Warnings (P1): ${p1Count} ${p1Count > 0 ? '(non-blocking)' : '✅'}
+- Improvements (P2): ${p2Count} ${p2Count > 0 ? '(optional)' : '✅'}
+- Review Report: ${report.filePath}
+
+Files Involved:
+${report.filesModified.map(f => \`- ${f}\`).join('\n')}
+
+Validation Requirements:
+1. Verify all task acceptance criteria met
+2. Verify all deliverables created
+3. Verify implementation matches task description
+4. Verify no scope creep or missing functionality
+
+Code review passed with ${totalIssues} non-critical issue${totalIssues !== 1 ? 's' : ''}.
+${totalIssues > 0 ? 'These issues do not block task completion but are documented for future reference.' : 'Code quality is excellent.'}
+
+Expected Output: Task completion approval ${totalIssues > 0 ? '(warnings can be addressed in follow-up)' : ''}
+\`,
+  context: {
+    reviewReport: "${report.filePath}",
+    reviewPassed: true,
+    issuesFound: ${totalIssues},
+    criticalIssues: 0,
+    cycleId: "${report.cycleId}",
+    taskDescription: "${report.taskDescription || 'See plan for details'}"
+  }
+})`;
+}
+```
+
+**Generated Invocation Example** (GREEN status):
+```typescript
+Task({
+  subagent_type: "pre-completion-validator",
+  description: "Validate task completion after successful code review",
+  prompt: `Validate Task Completion
+
+Task Being Validated: Create AuthenticationService with JWT token generation
+
+Code Quality Review Status:
+- Review Status: GREEN (no issues)
+- Critical Issues (P0): 0 ✅
+- Warnings (P1): 0 ✅
+- Improvements (P2): 0 ✅
+- Review Report: C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md
+
+Files Involved:
+- src/Orchestra.Core/Services/AuthenticationService.cs
+- src/Orchestra.Core/Interfaces/IAuthenticationService.cs
+- src/Orchestra.Tests/Services/AuthenticationServiceTests.cs
+
+Validation Requirements:
+1. Verify all task acceptance criteria met
+2. Verify all deliverables created
+3. Verify implementation matches task description
+4. Verify no scope creep or missing functionality
+
+Code review passed with 0 non-critical issues.
+Code quality is excellent.
+
+Expected Output: Task completion approval
+`,
+  context: {
+    reviewReport: "C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md",
+    reviewPassed: true,
+    issuesFound: 0,
+    criticalIssues: 0,
+    cycleId: "consolidator-executor-1697123456789",
+    taskDescription: "Create AuthenticationService with JWT token generation"
+  }
+})
+```
+
+**Generated Invocation Example** (YELLOW status with P1 warnings):
+```typescript
+Task({
+  subagent_type: "pre-completion-validator",
+  description: "Validate task completion after acceptable code review",
+  prompt: `Validate Task Completion
+
+Task Being Validated: Create AuthenticationService with JWT token generation
+
+Code Quality Review Status:
+- Review Status: YELLOW (minor warnings)
+- Critical Issues (P0): 0 ✅
+- Warnings (P1): 3 (non-blocking)
+- Improvements (P2): 5 (optional)
+- Review Report: C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md
+
+Files Involved:
+- src/Orchestra.Core/Services/AuthenticationService.cs
+- src/Orchestra.Core/Interfaces/IAuthenticationService.cs
+- src/Orchestra.Tests/Services/AuthenticationServiceTests.cs
+
+Validation Requirements:
+1. Verify all task acceptance criteria met
+2. Verify all deliverables created
+3. Verify implementation matches task description
+4. Verify no scope creep or missing functionality
+
+Code review passed with 8 non-critical issues.
+These issues do not block task completion but are documented for future reference.
+
+Expected Output: Task completion approval (warnings can be addressed in follow-up)
+`,
+  context: {
+    reviewReport: "C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md",
+    reviewPassed: true,
+    issuesFound: 8,
+    criticalIssues: 0,
+    cycleId: "consolidator-executor-1697123456789",
+    taskDescription: "Create AuthenticationService with JWT token generation"
+  }
+})
+```
+
+**Key Features**:
+- **Status-aware messaging**: GREEN (perfect) vs YELLOW (warnings) language
+- **Issue context**: P1/P2 counts for validator's decision context
+- **File list**: All modified files for validator to check
+- **Validation checklist**: Standard requirements for completion
+- **Review report reference**: Path for validator to review details
+
+---
+
+### generateGitInvocation() - Commit Recommendation
+
+**Purpose**: Generate git-workflow-manager invocation for commit.
+
+```typescript
+/**
+ * Generate git-workflow-manager invocation for commit
+ * @param report Consolidated report (P0=0, P1≤5)
+ * @returns Complete Task() invocation string
+ */
+function generateGitInvocation(report: ConsolidatedReport): string {
+  const p1Count = countIssuesByPriority(report, 'P1');
+  const p2Count = countIssuesByPriority(report, 'P2');
+  const status = p1Count === 0 ? 'GREEN' : 'YELLOW';
+
+  // Generate commit message suggestion
+  const commitMessageSuggestion = generateCommitMessage(report);
+
+  return `Task({
+  subagent_type: "git-workflow-manager",
+  description: "Commit reviewed code changes",
+  prompt: \`Create Commit for Reviewed Changes
+
+Task Context: ${report.taskDescription || '[Task description]'}
+
+Files Modified:
+${report.filesModified.map(f => \`- ${f}\`).join('\n')}
+
+Review Status:
+- Code Quality: ${status} (${status === 'GREEN' ? 'excellent' : 'minor warnings'})
+- Critical Issues: 0 ✅
+- Warnings: ${p1Count} ${p1Count > 0 ? '(minor, non-blocking)' : '✅'}
+- Improvements: ${p2Count} ${p2Count > 0 ? '(can be addressed later)' : '✅'}
+- Review Report: ${report.filePath}
+
+Commit Message Guidelines:
+- Summarize changes made
+- Reference task/issue number if applicable
+- Note that code passed review with ${p1Count + p2Count} non-critical issue${p1Count + p2Count !== 1 ? 's' : ''}
+
+Review report available for commit message reference.
+
+Expected Output: Git commit created with appropriate message
+
+Suggested commit message:
+${commitMessageSuggestion}
+\`,
+  context: {
+    reviewReport: "${report.filePath}",
+    filesModified: ${JSON.stringify(report.filesModified)},
+    reviewPassed: true,
+    reviewStatus: "${status}",
+    taskDescription: "${report.taskDescription || 'See plan'}"
+  }
+})`;
+}
+
+/**
+ * Generate suggested commit message from report
+ */
+function generateCommitMessage(report: ConsolidatedReport): string {
+  const p1Count = countIssuesByPriority(report, 'P1');
+  const p2Count = countIssuesByPriority(report, 'P2');
+  const status = p1Count === 0 ? 'GREEN' : 'YELLOW';
+
+  // Extract task type from description (feat, fix, refactor, etc.)
+  const taskType = extractTaskType(report.taskDescription || '');
+
+  let message = `${taskType}: ${report.taskDescription || 'Update code'}\n\n`;
+
+  // Add file summary
+  if (report.filesModified.length <= 3) {
+    message += report.filesModified.map(f => `- Add/Update ${f.split('/').pop()}`).join('\n');
+  } else {
+    message += `- Update ${report.filesModified.length} files`;
+  }
+
+  message += `\n\nCode review: ${status} status\n`;
+
+  if (p1Count > 0) {
+    message += `Note: ${p1Count} minor warning${p1Count > 1 ? 's' : ''} to be addressed in follow-up\n`;
+  }
+
+  return message;
+}
+
+/**
+ * Extract task type from description (feat, fix, refactor, docs, test, chore)
+ */
+function extractTaskType(description: string): string {
+  const lower = description.toLowerCase();
+
+  if (lower.includes('create') || lower.includes('add') || lower.includes('implement')) return 'feat';
+  if (lower.includes('fix') || lower.includes('resolve') || lower.includes('correct')) return 'fix';
+  if (lower.includes('refactor') || lower.includes('reorganize')) return 'refactor';
+  if (lower.includes('document') || lower.includes('readme')) return 'docs';
+  if (lower.includes('test')) return 'test';
+
+  return 'chore';
+}
+```
+
+**Generated Invocation Example** (APPROVED - clean):
+```typescript
+Task({
+  subagent_type: "git-workflow-manager",
+  description: "Commit reviewed code changes",
+  prompt: `Create Commit for Reviewed Changes
+
+Task Context: Create AuthenticationService with JWT token generation
+
+Files Modified:
+- src/Orchestra.Core/Services/AuthenticationService.cs
+- src/Orchestra.Core/Interfaces/IAuthenticationService.cs
+- src/Orchestra.Tests/Services/AuthenticationServiceTests.cs
+
+Review Status:
+- Code Quality: GREEN (excellent)
+- Critical Issues: 0 ✅
+- Warnings: 0 ✅
+- Improvements: 2 (can be addressed later)
+- Review Report: C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md
+
+Commit Message Guidelines:
+- Summarize changes made
+- Reference task/issue number if applicable
+- Note that code passed review with 2 non-critical issues
+
+Review report available for commit message reference.
+
+Expected Output: Git commit created with appropriate message
+
+Suggested commit message:
+feat: Create AuthenticationService with JWT token generation
+
+- Add/Update AuthenticationService.cs
+- Add/Update IAuthenticationService.cs
+- Add/Update AuthenticationServiceTests.cs
+
+Code review: GREEN status
+`,
+  context: {
+    reviewReport: "C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md",
+    filesModified: [
+      "src/Orchestra.Core/Services/AuthenticationService.cs",
+      "src/Orchestra.Core/Interfaces/IAuthenticationService.cs",
+      "src/Orchestra.Tests/Services/AuthenticationServiceTests.cs"
+    ],
+    reviewPassed: true,
+    reviewStatus: "GREEN",
+    taskDescription: "Create AuthenticationService with JWT token generation"
+  }
+})
+```
+
+**Generated Invocation Example** (ACCEPTABLE - minor warnings):
+```typescript
+Task({
+  subagent_type: "git-workflow-manager",
+  description: "Commit reviewed code changes",
+  prompt: `Create Commit for Reviewed Changes
+
+Task Context: Create AuthenticationService with JWT token generation
+
+Files Modified:
+- src/Orchestra.Core/Services/AuthenticationService.cs
+- src/Orchestra.Core/Interfaces/IAuthenticationService.cs
+- src/Orchestra.Tests/Services/AuthenticationServiceTests.cs
+
+Review Status:
+- Code Quality: YELLOW (minor warnings)
+- Critical Issues: 0 ✅
+- Warnings: 2 (minor, non-blocking)
+- Improvements: 3 (can be addressed later)
+- Review Report: C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md
+
+Commit Message Guidelines:
+- Summarize changes made
+- Reference task/issue number if applicable
+- Note that code passed review with 5 non-critical issues
+
+Review report available for commit message reference.
+
+Expected Output: Git commit created with appropriate message
+
+Suggested commit message:
+feat: Create AuthenticationService with JWT token generation
+
+- Add/Update AuthenticationService.cs
+- Add/Update IAuthenticationService.cs
+- Add/Update AuthenticationServiceTests.cs
+
+Code review: YELLOW status
+Note: 2 minor warnings to be addressed in follow-up
+`,
+  context: {
+    reviewReport: "C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md",
+    filesModified: [
+      "src/Orchestra.Core/Services/AuthenticationService.cs",
+      "src/Orchestra.Core/Interfaces/IAuthenticationService.cs",
+      "src/Orchestra.Tests/Services/AuthenticationServiceTests.cs"
+    ],
+    reviewPassed: true,
+    reviewStatus: "YELLOW",
+    taskDescription: "Create AuthenticationService with JWT token generation"
+  }
+})
+```
+
+**Key Features**:
+- **Commit message suggestion**: Auto-generated based on task type and files
+- **Review status in message**: GREEN or YELLOW noted for traceability
+- **Optional recommendation**: Emphasizes user decides when to commit
+- **Condition noted**: Should happen after pre-completion-validator
+
+---
+
+### displayTransitionRecommendations() - Display Format
+
+**Purpose**: Format recommendations for console output with emoji indicators.
+
+```typescript
+/**
+ * Display transition recommendations in console
+ * @param recommendations Array of recommendations from generateTransitionRecommendations()
+ * @returns Formatted markdown string for console output
+ */
+function displayTransitionRecommendations(
+  recommendations: TransitionRecommendation[]
+): string {
+  if (recommendations.length === 0) {
+    return `\n---\n\n## Automatic Transition Recommendations\n\nNo recommendations (unexpected state).\n`;
+  }
+
+  let output = `\n---\n\n## Automatic Transition Recommendations\n\n`;
+  output += `Based on review results, the following agent transitions are recommended:\n\n`;
+
+  // Group by priority
+  const critical = recommendations.filter(r => r.priority === 'CRITICAL');
+  const recommended = recommendations.filter(r => r.priority === 'RECOMMENDED');
+  const optional = recommendations.filter(r => r.priority === 'OPTIONAL');
+
+  // Display CRITICAL recommendations
+  if (critical.length > 0) {
+    output += `### ${critical[0].emoji} CRITICAL: ${critical[0].targetAgent}\n`;
+    output += `**Reason**: ${critical[0].reason}\n`;
+    if (critical[0].condition) {
+      output += `**Condition**: ${critical[0].condition}\n`;
+    }
+    output += `**Invocation**:\n\`\`\`typescript\n${critical[0].invocationExample}\n\`\`\`\n\n`;
+  }
+
+  // Display RECOMMENDED recommendations
+  if (recommended.length > 0) {
+    output += `---\n\n`;
+    output += `### ⚠️ RECOMMENDED: ${recommended.map(r => r.targetAgent).join(', ')}\n`;
+    for (const rec of recommended) {
+      output += `**${rec.targetAgent}**: ${rec.reason}\n`;
+      if (rec.condition) {
+        output += `**Condition**: ${rec.condition}\n`;
+      }
+      output += `**Invocation**:\n\`\`\`typescript\n${rec.invocationExample}\n\`\`\`\n\n`;
+    }
+  }
+
+  // Display OPTIONAL recommendations
+  if (optional.length > 0) {
+    output += `---\n\n`;
+    output += `### ${optional[0].emoji} OPTIONAL: ${optional[0].targetAgent}\n`;
+    output += `**Reason**: ${optional[0].reason}\n`;
+    if (optional[0].condition) {
+      output += `**Condition**: ${optional[0].condition}\n`;
+    }
+    output += `**Invocation**:\n\`\`\`typescript\n${optional[0].invocationExample}\n\`\`\`\n\n`;
+  }
+
+  return output;
+}
+```
+
+**Example Output** (P0 issues found):
+```markdown
+---
+
+## Automatic Transition Recommendations
+
+Based on review results, the following agent transitions are recommended:
+
+### 🚨 CRITICAL: plan-task-executor
+**Reason**: 3 critical (P0) issues must be fixed immediately
+**Invocation**:
+```typescript
+Task({
+  subagent_type: "plan-task-executor",
+  description: "Fix 3 critical issues from code review",
+  prompt: `Fix Critical Issues from Code Review
+
+Cycle Context:
+- Cycle ID: consolidator-executor-1697123456789
+- Iteration: 1 (current)
+- Review Report: C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md
+
+Critical Issues to Fix (P0):
+
+1. File: src/Orchestra.Core/Services/AuthenticationService.cs:42
+   Issue: Null reference exception risk in ValidateToken method
+   Fix: Add null check with ArgumentNullException
+
+2. File: src/Orchestra.Core/Services/AuthenticationService.cs:15
+   Issue: Missing DI registration for IAuthenticationService
+   Fix: Add registration in Program.cs
+
+3. File: src/Orchestra.Tests/Services/AuthenticationServiceTests.cs:78
+   Issue: Test timeout in ValidateExpiredToken
+   Fix: Add [Fact(Timeout = 5000)] or optimize test
+
+After fixes are complete:
+1. DO NOT mark task complete yet
+2. Re-invoke review-consolidator for re-review
+3. Use same cycle ID: consolidator-executor-1697123456789
+4. Increment iteration: 2
+
+Expected Outcome: All P0 issues resolved, re-review passes with 0 P0 issues
+`,
+  context: {
+    cycleId: "consolidator-executor-1697123456789",
+    iteration: 1,
+    issuesToFix: [/* ... */],
+    reReviewAfterFix: true,
+    reviewReport: "C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md"
+  }
+})
+```
+```
+
+**Example Output** (No P0, clean):
+```markdown
+---
+
+## Automatic Transition Recommendations
+
+Based on review results, the following agent transitions are recommended:
+
+### ⚠️ CRITICAL: pre-completion-validator
+**Reason**: No critical issues - validate task completion requirements
+**Invocation**:
+```typescript
+Task({
+  subagent_type: "pre-completion-validator",
+  description: "Validate task completion after successful code review",
+  prompt: `Validate Task Completion
+
+Task Being Validated: Create AuthenticationService with JWT token generation
+
+Code Quality Review Status:
+- Review Status: GREEN (no issues)
+- Critical Issues (P0): 0 ✅
+- Warnings (P1): 0 ✅
+- Improvements (P2): 0 ✅
+- Review Report: C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md
+
+Files Involved:
+- src/Orchestra.Core/Services/AuthenticationService.cs
+- src/Orchestra.Core/Interfaces/IAuthenticationService.cs
+- src/Orchestra.Tests/Services/AuthenticationServiceTests.cs
+
+Validation Requirements:
+1. Verify all task acceptance criteria met
+2. Verify all deliverables created
+3. Verify implementation matches task description
+4. Verify no scope creep or missing functionality
+
+Code review passed with 0 non-critical issues.
+Code quality is excellent.
+
+Expected Output: Task completion approval
+`,
+  context: {
+    reviewReport: "C:/Projects/AI-Agent-Orchestra/Docs/reviews/auth-task-consolidated-review.md",
+    reviewPassed: true,
+    issuesFound: 0,
+    criticalIssues: 0,
+    cycleId: "consolidator-executor-1697123456789",
+    taskDescription: "Create AuthenticationService with JWT token generation"
+  }
+})
+```
+
+---
+
+### 💡 OPTIONAL: git-workflow-manager
+**Reason**: Code quality sufficient for commit (0 warnings, 0 improvements)
+**Condition**: After pre-completion-validator approves task
+**Invocation**:
+```typescript
+Task({
+  subagent_type: "git-workflow-manager",
+  description: "Commit reviewed code changes",
+  prompt: `Create Commit for Reviewed Changes
+...
+`,
+  context: { /* ... */ }
+})
+```
+```
+
+---
+
+### Agent Transition Matrix
+
+**Purpose**: Central reference table for all agent transitions in the review-consolidator workflow.
+
+**Location**: This matrix should be added to `.claude/AGENTS_ARCHITECTURE.md` for system-wide reference.
+
+```markdown
+## Review-Consolidator Agent Transition Matrix
+
+This matrix defines all possible agent transitions involving review-consolidator, including upstream invocations and downstream recommendations.
+
+### Upstream Transitions (Who Invokes review-consolidator)
+
+| From Agent | Priority | When Invoked | Review Context | Typical File Count | Cycle ID Format |
+|------------|----------|--------------|----------------|-------------------|----------------|
+| plan-task-executor | P0 CRITICAL | After code changes | post-implementation | 1-10 files | consolidator-executor-{timestamp} |
+| plan-task-completer | P1 RECOMMENDED | Before task complete | pre-completion | 5-20 files | consolidator-completer-{timestamp} |
+| User (manual) | P2 OPTIONAL | On-demand | ad-hoc, technical-debt | 1-100 files | consolidator-adhoc-{timestamp} |
+
+**Upstream Integration Notes**:
+- **plan-task-executor**: Mandatory after writing code (ensures quality before completion)
+- **plan-task-completer**: Recommended for final validation (best practice)
+- **User manual**: Flexible for technical debt audits, pre-commit checks, spot reviews
+
+---
+
+### Downstream Transitions (Where review-consolidator Routes)
+
+| To Agent | Priority | Condition | Purpose | Blocking? | Cycle Behavior |
+|----------|----------|-----------|---------|-----------|----------------|
+| plan-task-executor | P0 CRITICAL | p0_count > 0 | Fix critical issues | YES (blocks completion) | Increment iteration, re-review |
+| pre-completion-validator | P0 CRITICAL | p0_count == 0 | Validate task requirements | YES (mandatory validation) | End review cycle |
+| git-workflow-manager | P2 OPTIONAL | p0_count == 0 AND p1_count ≤ 5 | Commit to version control | NO (user decides) | Optional post-validation |
+
+**Downstream Routing Rules**:
+1. **If P0 > 0**: ONLY recommend plan-task-executor (fix critical issues first)
+2. **If P0 == 0**: ALWAYS recommend pre-completion-validator (validate requirements)
+3. **If P0 == 0 AND P1 ≤ 5**: OPTIONALLY recommend git-workflow-manager (commit if ready)
+
+**Priority Hierarchy**:
+```
+P0 Issues Found?
+├─ YES → plan-task-executor (CRITICAL) → re-review (iteration++)
+└─ NO → pre-completion-validator (CRITICAL) → task completion
+         └─ If clean → git-workflow-manager (OPTIONAL) → commit
+```
+
+---
+
+### Parallel Reviewers (Invoked via Task tool)
+
+| Reviewer | Focus Area | Rules Applied | Output Format |
+|----------|-----------|---------------|---------------|
+| code-style-reviewer | Style, formatting, naming | `.cursor/rules/csharp-codestyle.mdc` | Issues with file:line |
+| code-principles-reviewer | SOLID, DRY, KISS | `.cursor/rules/main.mdc` | Principle violations |
+| test-healer | Test coverage, quality | `.cursor/rules/test-healing-principles.mdc` | Test issues, fixes |
+| architecture-documenter (future) | Architecture violations | `.cursor/rules/architecture.mdc` | Architecture issues |
+
+**Parallel Execution Pattern**:
+```typescript
+// Single message with multiple Task calls (parallel execution)
+[
+  Task({ subagent_type: "code-style-reviewer", ... }),
+  Task({ subagent_type: "code-principles-reviewer", ... }),
+  Task({ subagent_type: "test-healer", ... })
+]
+```
+
+**Performance**: 3-5x faster than sequential (5 minutes vs 15-20 minutes)
+
+---
+
+### Cycle Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                Review-Fix Cycle (Max 2 Iterations)          │
+└─────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────┐
+  │ plan-task-executor│
+  │  (Write code)    │
+  └────────┬─────────┘
+           │ (1) Code changes made
+           ▼
+  ┌─────────────────────┐
+  │ review-consolidator │
+  │   (Cycle 1, Iter 1) │
+  └────────┬────────────┘
+           │
+           │ (2) Review completed
+           ▼
+     ┌────┴────┐
+     │ P0 > 0? │
+     └────┬────┘
+          │
+     ┌────┴────────────────────────┐
+     │                             │
+    YES                           NO
+     │                             │
+     ▼                             ▼
+  ┌────────────────┐      ┌──────────────────────┐
+  │ plan-task-     │      │ pre-completion-      │
+  │ executor       │      │ validator            │
+  │ (Fix P0)       │      │ (Validate task)      │
+  └────┬───────────┘      └──────────┬───────────┘
+       │                             │
+       │ (3) Fixes applied           │ (5) Validation passed
+       ▼                             ▼
+  ┌─────────────────────┐      ┌──────────────┐
+  │ review-consolidator │      │ Task Complete│
+  │   (Cycle 1, Iter 2) │      └──────┬───────┘
+  └────────┬────────────┘             │
+           │                          │ (Optional)
+           │ (4) Re-review            ▼
+           ▼                    ┌──────────────────┐
+     ┌────┴────┐               │ git-workflow-    │
+     │ P0 > 0? │               │ manager (Commit) │
+     └────┬────┘               └──────────────────┘
+          │
+     ┌────┴────────────────────────┐
+     │                             │
+    YES                           NO
+     │                             │
+     ▼                             ▼
+  ┌────────────────┐      ┌──────────────────────┐
+  │ ESCALATE       │      │ pre-completion-      │
+  │ (Max cycles)   │      │ validator            │
+  │ User manual    │      │ (Validate task)      │
+  │ intervention   │      └──────────────────────┘
+  └────────────────┘
+
+Legend:
+- Boxes: Agent actions
+- Diamonds: Decision points
+- Arrows: Workflow direction
+- (N): Step number
+```
+
+**Cycle Protection Rules**:
+1. **Max 2 iterations**: Escalate if P0 issues persist after 2 cycles
+2. **Improvement tracking**: Monitor issues fixed/persistent/new between cycles
+3. **Escalation triggers**:
+   - Max cycles reached (iteration >= 2 with P0 > 0)
+   - Low improvement rate (<50% fixed)
+   - Negative net improvement (more new issues than fixed)
+
+**Escalation Output**:
+- Escalation report with root cause analysis
+- Manual intervention recommendations
+- Alternative approaches
+- Cycle history and metrics
+
+---
+
+### Integration Examples
+
+**Example 1: Happy Path (No Issues)**
+```
+plan-task-executor → review-consolidator (iter 1)
+  └─ P0=0, P1=0, P2=0
+     └─ pre-completion-validator → Task Complete
+        └─ git-workflow-manager (optional) → Commit
+```
+
+**Example 2: P0 Issues, Single Fix Cycle**
+```
+plan-task-executor → review-consolidator (iter 1)
+  └─ P0=3, P1=5, P2=2
+     └─ plan-task-executor (fix P0) → review-consolidator (iter 2)
+        └─ P0=0, P1=2, P2=3
+           └─ pre-completion-validator → Task Complete
+```
+
+**Example 3: P0 Persist, Escalation**
+```
+plan-task-executor → review-consolidator (iter 1)
+  └─ P0=2
+     └─ plan-task-executor (fix) → review-consolidator (iter 2)
+        └─ P0=1 (persistent)
+           └─ ESCALATE (max cycles) → User manual intervention
+```
+
+**Example 4: YELLOW Status (Warnings Acceptable)**
+```
+plan-task-completer → review-consolidator (iter 1)
+  └─ P0=0, P1=3, P2=7
+     └─ pre-completion-validator → Task Complete (warnings noted)
+        └─ git-workflow-manager (optional) → Commit with TODOs
+```
+
+---
+
+### Validation Checklist
+
+**Transition Matrix Validation**:
+- [ ] All upstream transitions documented with cycle ID formats
+- [ ] All downstream transitions have clear conditions
+- [ ] Parallel reviewers list complete with focus areas
+- [ ] Cycle flow diagram matches implementation
+- [ ] Escalation triggers defined
+- [ ] Integration examples cover all scenarios
+
+**Routing Logic Validation**:
+- [ ] P0 > 0 → ONLY plan-task-executor recommended
+- [ ] P0 == 0 → ALWAYS pre-completion-validator recommended
+- [ ] P0 == 0 AND P1 ≤ 5 → git-workflow-manager OPTIONAL
+- [ ] Priority hierarchy enforced (CRITICAL > RECOMMENDED > OPTIONAL)
+- [ ] Cycle ID preserved across iterations
+- [ ] Iteration counter increments correctly
+
+**Invocation Generation Validation**:
+- [ ] generateExecutorInvocation() includes all P0 issues
+- [ ] generateValidatorInvocation() includes review status
+- [ ] generateGitInvocation() includes commit message suggestion
+- [ ] All invocations have complete context objects
+- [ ] All invocations include cycle ID and iteration
+- [ ] All invocations formatted correctly (valid TypeScript)
+
+**Display Format Validation**:
+- [ ] displayTransitionRecommendations() groups by priority
+- [ ] Emoji indicators correct (🚨 CRITICAL, ⚠️ RECOMMENDED, 💡 OPTIONAL)
+- [ ] Invocation examples properly code-fenced
+- [ ] Condition field displayed when present
+- [ ] All recommendations have reason and invocation
+
+---
+
+### Integration with Task 5.1 (Cycle Management)
+
+**Dependencies from Task 5.1**:
+- **Cycle ID format**: Used in all invocations (`consolidator-executor-{timestamp}`)
+- **Iteration tracking**: Used to determine escalation and re-review logic
+- **Escalation triggers**: Referenced in routing rules (max cycles, low improvement)
+- **Cycle metrics**: Used in recommendation reasons (improvement rate, net improvement)
+
+**How Task 5.2 Uses Task 5.1 Outputs**:
+1. **Cycle ID**: Passed unchanged from initial review to re-review
+2. **Iteration counter**: Incremented in plan-task-executor recommendation
+3. **Escalation triggers**: Checked before generating recommendations
+4. **Improvement metrics**: Displayed in recommendation reasons
+
+**Example Integration**:
+```typescript
+// From Task 5.1: Cycle tracking
+const cycle: ReviewCycle = {
+  cycleId: "consolidator-executor-1697123456789",
+  iteration: 1,
+  issuesFoundInCycle: 3,
+  improvementRate: 0,
+  status: 'in_progress'
+};
+
+// Task 5.2: Generate recommendations using cycle data
+const recommendations = generateTransitionRecommendations({
+  cycleId: cycle.cycleId,
+  iteration: cycle.iteration,
+  criticalIssues: [/* P0 issues */],
+  // ... other report fields
+});
+
+// Result: plan-task-executor recommendation with:
+// - cycleId: "consolidator-executor-1697123456789" (unchanged)
+// - iteration: 1 (current)
+// - Re-review instruction: "Increment iteration: 2"
+```
+
+---
+
+**Prompt Version**: 1.2
+**Last Updated**: 2025-10-25
 **Compatibility**: Claude Opus 4.1, Claude Sonnet 3.7+
 **Related Documentation**:
 - Agent Specification: `.cursor/agents/review-consolidator/agent.md`
