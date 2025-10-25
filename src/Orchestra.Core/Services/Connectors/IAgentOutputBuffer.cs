@@ -8,10 +8,6 @@ namespace Orchestra.Core.Services.Connectors;
 /// IAgentOutputBuffer предоставляет потокобезопасный циркулярный буфер
 /// для хранения и чтения вывода внешних агентов.
 /// </para>
-/// <para>
-/// <b>NOTE:</b> Это stub-версия интерфейса для Task 1.2A.
-/// Полная реализация будет в Phase 1.4 (Output Buffer Implementation).
-/// </para>
 /// </remarks>
 public interface IAgentOutputBuffer
 {
@@ -54,6 +50,13 @@ public interface IAgentOutputBuffer
     /// </summary>
     event EventHandler<OutputLineAddedEventArgs>? LineAdded;
 }
+
+/// <summary>
+/// Строка вывода с временной меткой
+/// </summary>
+/// <param name="Content">Содержимое строки</param>
+/// <param name="Timestamp">Временная метка создания</param>
+public record OutputLine(string Content, DateTime Timestamp);
 
 /// <summary>
 /// Аргументы события добавления строки в буфер

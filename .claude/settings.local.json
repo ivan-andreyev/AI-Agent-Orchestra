@@ -80,7 +80,8 @@
       "Bash(do echo \"== $section ==\")",
       "Bash(Select-String -Pattern \"(FAIL|Expected|Actual|StackTrace)\" -Context 2)",
       "Bash(Select-String -Pattern \"(Passed|Failed|Total tests)\")",
-      "Bash(Select-Object -Last 5)"
+      "Bash(Select-Object -Last 5)",
+      "Bash(Select-String -Pattern \"error|Building|Build succeeded|Build FAILED\" -Context 0,2)"
     ],
     "deny": [],
     "ask": []
