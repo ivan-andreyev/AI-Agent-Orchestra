@@ -253,7 +253,7 @@ public class TerminalAgentConnector : IAgentConnector
     }
 
     /// <inheritdoc />
-    public Task<CommandResult> SendCommandAsync(
+    public async Task<CommandResult> SendCommandAsync(
         string command,
         CancellationToken cancellationToken = default)
     {
@@ -269,14 +269,65 @@ public class TerminalAgentConnector : IAgentConnector
             throw new InvalidOperationException("Not connected to any agent. Call ConnectAsync first.");
         }
 
-        // NOTE: Command sending implementation pending (Task 1.2C: Command Sending and Output Reading)
-        _logger.LogWarning(
-            "SendCommandAsync not yet implemented. " +
-            "Implementation pending for command sending and output reading");
+        if (_connectionStream == null)
+        {
+            throw new InvalidOperationException("Connection stream is null. Connection may have been closed.");
+        }
 
-        return Task.FromResult(CommandResult.CreateFailure(
-            command,
-            "Not implemented: SendCommandAsync stub. Implementation pending in Task 1.2C."));
+        try
+        {
+            _logger.LogDebug("Sending command to agent '{AgentId}': {Command}", _agentId, command);
+
+            // Write command to stream with UTF8 encoding
+            var commandBytes = System.Text.Encoding.UTF8.GetBytes(command + "\n");
+            await _connectionStream.WriteAsync(commandBytes, 0, commandBytes.Length, cancellationToken);
+
+            // Flush stream to ensure command is sent immediately
+            await _connectionStream.FlushAsync(cancellationToken);
+
+            // Update last activity timestamp
+            UpdateLastActivity();
+
+            _logger.LogDebug("Command sent successfully to agent '{AgentId}'", _agentId);
+
+            return CommandResult.CreateSuccess(command);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "IO error sending command to agent '{AgentId}'", _agentId);
+
+            // Update status to error
+            Status = ConnectionStatus.Error;
+            UpdateLastActivity();
+
+            return CommandResult.CreateFailure(
+                command,
+                $"IO error sending command: {ex.Message}");
+        }
+        catch (ObjectDisposedException ex)
+        {
+            _logger.LogError(ex, "Stream disposed while sending command to agent '{AgentId}'", _agentId);
+
+            // Update status to disconnected
+            Status = ConnectionStatus.Disconnected;
+            UpdateLastActivity();
+
+            return CommandResult.CreateFailure(
+                command,
+                $"Stream disposed: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error sending command to agent '{AgentId}'", _agentId);
+
+            // Update status to error
+            Status = ConnectionStatus.Error;
+            UpdateLastActivity();
+
+            return CommandResult.CreateFailure(
+                command,
+                $"Unexpected error: {ex.Message}");
+        }
     }
 
     /// <inheritdoc />
@@ -290,14 +341,20 @@ public class TerminalAgentConnector : IAgentConnector
             throw new InvalidOperationException("Not connected to any agent. Call ConnectAsync first.");
         }
 
-        // NOTE: Output reading implementation pending (Task 1.2C: Command Sending and Output Reading)
-        _logger.LogWarning(
-            "ReadOutputAsync not yet implemented. " +
-            "Implementation pending for output reading from connected agent");
+        _logger.LogDebug("Starting output streaming for agent '{AgentId}'", _agentId);
 
-        // Yield empty enumerable for now
-        await Task.CompletedTask;
-        yield break;
+        // Stream lines from output buffer
+        await foreach (var line in _outputBuffer.GetLinesAsync(regexFilter: null, cancellationToken))
+        {
+            // Update last activity on each read
+            UpdateLastActivity();
+
+            _logger.LogTrace("Yielding output line for agent '{AgentId}': {Line}", _agentId, line);
+
+            yield return line;
+        }
+
+        _logger.LogDebug("Output streaming completed for agent '{AgentId}'", _agentId);
     }
 
     /// <inheritdoc />
@@ -699,27 +756,81 @@ public class TerminalAgentConnector : IAgentConnector
     /// <param name="cancellationToken">Токен отмены операции</param>
     /// <returns>Task для фонового чтения</returns>
     /// <remarks>
-    /// NOTE: Stub implementation for Task 1.2C (Command Sending and Output Reading).
-    /// This method will be fully implemented in Task 1.2C.
-    /// Currently just keeps the task running until cancellation.
+    /// Этот метод работает в фоновом режиме, непрерывно читая строки из потока
+    /// и передавая их в IAgentOutputBuffer через AppendLineAsync.
+    /// Обновляет LastActivityAt при каждом чтении строки.
+    /// Завершается при получении сигнала отмены или окончании потока.
     /// </remarks>
     private async Task ReadOutputLoopAsync(Stream stream, CancellationToken cancellationToken)
     {
-        _logger.LogDebug("ReadOutputLoopAsync started (stub implementation)");
+        _logger.LogDebug("ReadOutputLoopAsync started for agent '{AgentId}'", _agentId);
 
         try
         {
-            // Stub: just wait for cancellation
-            // Real implementation in Task 1.2C will read from stream and push to _outputBuffer
-            await Task.Delay(Timeout.Infinite, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogDebug("ReadOutputLoopAsync cancelled");
+            // Create StreamReader with UTF8 encoding and leave stream open
+            using var reader = new StreamReader(stream, System.Text.Encoding.UTF8, leaveOpen: true);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    // Read line from stream
+                    var line = await reader.ReadLineAsync(cancellationToken);
+
+                    // Check if stream ended (null = end of stream)
+                    if (line == null)
+                    {
+                        _logger.LogInformation("Stream ended for agent '{AgentId}' (ReadLineAsync returned null)", _agentId);
+
+                        // Update status to disconnected
+                        Status = ConnectionStatus.Disconnected;
+                        break;
+                    }
+
+                    // Append line to output buffer
+                    await _outputBuffer.AppendLineAsync(line, cancellationToken);
+
+                    // Update last activity timestamp
+                    UpdateLastActivity();
+
+                    _logger.LogTrace("Read line from agent '{AgentId}': {Line}", _agentId, line);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Cancellation requested - exit loop gracefully
+                    _logger.LogDebug("ReadOutputLoopAsync cancelled for agent '{AgentId}'", _agentId);
+                    break;
+                }
+                catch (IOException ex)
+                {
+                    _logger.LogError(ex, "IO error reading from agent '{AgentId}'", _agentId);
+
+                    // Update status to error
+                    Status = ConnectionStatus.Error;
+                    break;
+                }
+                catch (ObjectDisposedException ex)
+                {
+                    _logger.LogWarning(ex, "Stream disposed while reading from agent '{AgentId}'", _agentId);
+
+                    // Update status to disconnected
+                    Status = ConnectionStatus.Disconnected;
+                    break;
+                }
+            }
+
+            _logger.LogInformation("ReadOutputLoopAsync completed for agent '{AgentId}'", _agentId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in ReadOutputLoopAsync");
+            _logger.LogError(ex, "Unexpected error in ReadOutputLoopAsync for agent '{AgentId}'", _agentId);
+
+            // Update status to error
+            Status = ConnectionStatus.Error;
+        }
+        finally
+        {
+            UpdateLastActivity();
         }
     }
 
