@@ -229,25 +229,61 @@ public class TerminalAgentConnector : IAgentConnector
             Status = ConnectionStatus.Error;
             UpdateLastActivity();
 
-            // Clean up partial connection
+            // Clean up partial connection resources
+            if (_cancellationTokenSource != null)
+            {
+                try
+                {
+                    if (!_cancellationTokenSource.IsCancellationRequested)
+                    {
+                        _cancellationTokenSource.Cancel();
+                    }
+                    _cancellationTokenSource.Dispose();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Already disposed, ignore
+                }
+                _cancellationTokenSource = null;
+            }
+
+            if (_outputReaderTask != null && !_outputReaderTask.IsCompleted)
+            {
+                try
+                {
+                    // Give the task a brief moment to complete after cancellation
+                    _outputReaderTask.Wait(TimeSpan.FromSeconds(2));
+                }
+                catch (AggregateException)
+                {
+                    // Task may have thrown, ignore during cleanup
+                }
+                _outputReaderTask = null;
+            }
+
             if (_connectionStream != null)
             {
-                _connectionStream.Dispose();
+                try
+                {
+                    _connectionStream.Dispose();
+                }
+                catch (Exception disposeEx)
+                {
+                    _logger.LogWarning(disposeEx, "Error disposing connection stream during cleanup");
+                }
                 _connectionStream = null;
             }
 
-            if (_cancellationTokenSource != null)
-            {
-                _cancellationTokenSource.Dispose();
-                _cancellationTokenSource = null;
-            }
+            // Clear agent ID
+            _agentId = null;
 
             return ConnectionResult.CreateFailure(
                 $"Connection failed: {ex.Message}",
                 new Dictionary<string, object>
                 {
                     { "exceptionType", ex.GetType().Name },
-                    { "agentId", agentId }
+                    { "agentId", agentId },
+                    { "timestamp", DateTime.UtcNow }
                 });
         }
     }
@@ -358,23 +394,133 @@ public class TerminalAgentConnector : IAgentConnector
     }
 
     /// <inheritdoc />
-    public Task<DisconnectionResult> DisconnectAsync(
+    public async Task<DisconnectionResult> DisconnectAsync(
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
-        if (!IsConnected && Status != ConnectionStatus.Error)
+        if (Status == ConnectionStatus.Disconnected)
         {
             throw new InvalidOperationException("Not connected to any agent.");
         }
 
-        // NOTE: Disconnection implementation pending (Task 1.2D: Integration and Error Handling)
-        _logger.LogWarning(
-            "DisconnectAsync not yet implemented. " +
-            "Implementation pending for proper disconnection and cleanup");
+        // Allow disconnect from: Connected, Connecting, Error, or Disconnecting states
+        // This provides idempotency and allows cleanup from any active state
 
-        return Task.FromResult(DisconnectionResult.CreateFailure(
-            "Not implemented: DisconnectAsync stub. Implementation pending in Task 1.2D."));
+        var disconnectingAgentId = _agentId ?? "unknown";
+        var wasError = Status == ConnectionStatus.Error;
+        var disconnectReason = wasError
+            ? "Connection error"
+            : "Normal disconnection";
+
+        _logger.LogInformation(
+            "Disconnecting from agent '{AgentId}' (Reason: {Reason})",
+            disconnectingAgentId,
+            disconnectReason);
+
+        try
+        {
+            // Update status to Disconnecting
+            Status = ConnectionStatus.Disconnecting;
+
+            // Cancel background output reader task
+            if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+            {
+                _logger.LogDebug("Cancelling background output reader task for agent '{AgentId}'", disconnectingAgentId);
+                _cancellationTokenSource.Cancel();
+            }
+
+            // Wait for output reader task to complete with timeout
+            if (_outputReaderTask != null && !_outputReaderTask.IsCompleted)
+            {
+                _logger.LogDebug("Waiting for output reader task to complete for agent '{AgentId}'", disconnectingAgentId);
+
+                var waitTask = _outputReaderTask;
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                var completedTask = await Task.WhenAny(waitTask, timeoutTask);
+
+                if (completedTask == timeoutTask)
+                {
+                    _logger.LogWarning(
+                        "Output reader task did not complete within timeout (5 seconds) for agent '{AgentId}'",
+                        disconnectingAgentId);
+                }
+                else
+                {
+                    _logger.LogDebug("Output reader task completed for agent '{AgentId}'", disconnectingAgentId);
+                }
+            }
+
+            // Close and dispose connection stream
+            if (_connectionStream != null)
+            {
+                _logger.LogDebug("Closing connection stream for agent '{AgentId}'", disconnectingAgentId);
+
+                try
+                {
+                    _connectionStream.Close();
+                    _connectionStream.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error closing connection stream for agent '{AgentId}'", disconnectingAgentId);
+                }
+
+                _connectionStream = null;
+            }
+
+            // Dispose cancellation token source
+            if (_cancellationTokenSource != null)
+            {
+                _cancellationTokenSource.Dispose();
+                _cancellationTokenSource = null;
+            }
+
+            // Clear output reader task reference
+            _outputReaderTask = null;
+
+            // Update status to Disconnected
+            Status = ConnectionStatus.Disconnected;
+
+            // Clear agent ID
+            var finalAgentId = _agentId;
+            _agentId = null;
+
+            UpdateLastActivity();
+
+            _logger.LogInformation("Successfully disconnected from agent '{AgentId}'", finalAgentId);
+
+            var reason = wasError
+                ? DisconnectionReason.Error
+                : DisconnectionReason.UserRequested;
+
+            return DisconnectionResult.CreateSuccess(
+                reason,
+                new Dictionary<string, object>
+                {
+                    { "agentId", finalAgentId ?? "unknown" },
+                    { "disconnectedAt", DateTime.UtcNow },
+                    { "disconnectReason", disconnectReason }
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during disconnection from agent '{AgentId}'", disconnectingAgentId);
+
+            // Ensure status is set to disconnected even on error
+            Status = ConnectionStatus.Disconnected;
+            _agentId = null;
+            UpdateLastActivity();
+
+            return DisconnectionResult.CreateFailure(
+                $"Disconnection completed with errors: {ex.Message}",
+                new Dictionary<string, object>
+                {
+                    { "agentId", disconnectingAgentId },
+                    { "exceptionType", ex.GetType().Name },
+                    { "disconnectedAt", DateTime.UtcNow }
+                });
+        }
     }
 
     /// <summary>
