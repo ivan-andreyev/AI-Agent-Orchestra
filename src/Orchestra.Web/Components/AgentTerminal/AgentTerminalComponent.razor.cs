@@ -266,15 +266,19 @@ namespace Orchestra.Web.Components.AgentTerminal
             StateHasChanged();
         }
 
+        /// <summary>
+        /// Отправляет команду подключенному агенту через SignalR hub.
+        /// </summary>
         private async Task SendCommandAsync()
         {
-            // NOTE: Command sending logic will be implemented in Task 3.2C
-            if (!IsConnected || string.IsNullOrWhiteSpace(_commandInput))
+            if (!IsConnected || string.IsNullOrWhiteSpace(_commandInput) || _hubConnection == null)
             {
                 return;
             }
 
             var command = _commandInput;
+
+            // Update UI immediately for responsiveness
             _commandHistory.Add(command);
             _historyIndex = _commandHistory.Count;
             _commandInput = string.Empty;
@@ -282,6 +286,22 @@ namespace Orchestra.Web.Components.AgentTerminal
             // Add command to output
             OutputLines.Add(new OutputLine($"$ {command}", DateTime.UtcNow, OutputLineType.Command));
             StateHasChanged();
+
+            try
+            {
+                // Send command to agent via SignalR hub
+                var request = new SendCommandRequest(_sessionId!, command);
+                var success = await _hubConnection.InvokeAsync<bool>("SendCommand", request);
+
+                if (!success)
+                {
+                    AddErrorLine("Failed to send command to agent");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddErrorLine($"Error sending command: {ex.Message}");
+            }
 
             // Notify parent component
             await OnCommandExecuted.InvokeAsync(command);
