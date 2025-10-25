@@ -10899,6 +10899,1817 @@ const recommendations = generateTransitionRecommendations({
 
 ---
 
+## Component Testing Specifications
+
+This section defines comprehensive test cases for validating the review-consolidator agent's core functionality. These specifications support Phase 6 (Testing & Documentation) of the implementation plan.
+
+---
+
+### Group A: Parallel Execution Tests
+
+These test cases validate the critical parallel execution pattern that reduces review time from 90-150 minutes (sequential) to 4-6 minutes (parallel).
+
+---
+
+#### TC1: Parallel Launch Verification
+
+**Purpose**: Verify that all reviewers are launched simultaneously in a single message, not sequentially.
+
+**Setup**:
+- **Mock Reviewers**: 3 reviewers configured
+  - `code-style-reviewer`: Returns 28 issues after 30 seconds
+  - `code-principles-reviewer`: Returns 15 issues after 30 seconds
+  - `test-healer`: Returns 12 issues after 30 seconds
+- **Test Files**: 15 C# files
+  - 10 regular source files (Services, Controllers, Repositories)
+  - 5 test files (xUnit test classes)
+- **Expected Behavior**: All reviewers complete in ~30-35 seconds total
+
+**Test Steps**:
+1. **Invoke review-consolidator** with all 15 files:
+   ```json
+   {
+     "review_context": "post-implementation",
+     "code_files": [
+       "src/Orchestra.Core/Services/AuthService.cs",
+       "src/Orchestra.Core/Services/UserService.cs",
+       "src/Orchestra.Core/Controllers/AuthController.cs",
+       "src/Orchestra.Core/Controllers/UserController.cs",
+       "src/Orchestra.Core/Repositories/AuthRepository.cs",
+       "src/Orchestra.Core/Repositories/UserRepository.cs",
+       "src/Orchestra.Core/Models/AuthToken.cs",
+       "src/Orchestra.Core/Models/User.cs",
+       "src/Orchestra.Core/Interfaces/IAuthService.cs",
+       "src/Orchestra.Core/Interfaces/IUserService.cs",
+       "src/Orchestra.Tests/Services/AuthServiceTests.cs",
+       "src/Orchestra.Tests/Services/UserServiceTests.cs",
+       "src/Orchestra.Tests/Controllers/AuthControllerTests.cs",
+       "src/Orchestra.Tests/Repositories/AuthRepositoryTests.cs",
+       "src/Orchestra.Tests/Repositories/UserRepositoryTests.cs"
+     ],
+     "review_types": ["code-style-reviewer", "code-principles-reviewer", "test-healer"],
+     "options": { "parallel": true, "timeout": 300000 }
+   }
+   ```
+
+2. **Monitor Task tool invocations**:
+   - Verify all 3 Task calls appear in the SAME response message
+   - Check that Task calls are NOT in separate sequential messages
+
+3. **Record execution timestamps**:
+   - T0: review-consolidator receives request
+   - T1: code-style-reviewer starts
+   - T2: code-principles-reviewer starts
+   - T3: test-healer starts
+   - T4: All reviewers complete
+   - T5: Consolidated report generated
+
+4. **Validate timing constraints**:
+   - Start time delta: max(T1, T2, T3) - min(T1, T2, T3) < 5 seconds
+   - Total execution time: T5 - T0 ≈ 30-35 seconds (not 90+ seconds)
+
+**Expected Results**:
+- ✅ **Parallel execution confirmed**: All 3 Task calls in single message block
+- ✅ **Start synchronization verified**: All reviewers start within 5 seconds of each other
+- ✅ **Total time meets parallel expectations**: 30-35 seconds total (proves parallel, not sequential)
+- ✅ **All results collected successfully**: 55 issues total (28 + 15 + 12)
+- ✅ **No sequential execution detected**: Time NOT ≥90 seconds
+
+**Failure Indicators**:
+- ❌ **Sequential execution detected**: Task calls in separate messages
+- ❌ **Delayed launches**: Start time delta >10 seconds between reviewers
+- ❌ **Sequential timing pattern**: Total time >60 seconds (indicates sequential execution)
+- ❌ **Missing results**: Any reviewer failed to return results
+- ❌ **Timeout errors**: Any reviewer timed out despite 5-minute window
+
+**Acceptance Criteria**:
+- [ ] All 3 Task tool calls appear in single message (proves parallel pattern)
+- [ ] Start time delta <5 seconds (proves simultaneous launch)
+- [ ] Total execution time 30-35 seconds (proves parallel completion)
+- [ ] All 55 issues collected and consolidated successfully
+
+**Validation Metrics**:
+- **Parallelism factor**: 3.0x (3 reviewers simultaneously)
+- **Time savings**: ~60-115 seconds (90-150s sequential - 30-35s parallel)
+- **Efficiency gain**: ~67-76% reduction in review time
+
+---
+
+#### TC2: Timeout Handling
+
+**Purpose**: Verify graceful handling of reviewer timeouts without blocking other reviewers or the consolidation process.
+
+**Setup**:
+- **Mock Reviewers with Variable Completion Times**:
+  - `code-style-reviewer`: Completes successfully in 45 seconds (48 issues)
+  - `code-principles-reviewer`: **TIMEOUT** at 300 seconds (5 minutes) - never completes
+  - `test-healer`: Completes successfully in 60 seconds (12 issues)
+- **Test Files**: 10 C# files (mixed source and test files)
+- **Timeout Configuration**: 300000ms (5 minutes) per reviewer
+- **Expected Behavior**: System proceeds with partial results after timeout
+
+**Test Steps**:
+1. **Launch parallel review** with 5-minute timeout:
+   ```json
+   {
+     "review_context": "post-implementation",
+     "code_files": [
+       "src/Orchestra.Core/Services/AuthService.cs",
+       "src/Orchestra.Core/Services/UserService.cs",
+       "src/Orchestra.Core/Controllers/AuthController.cs",
+       "src/Orchestra.Core/Controllers/UserController.cs",
+       "src/Orchestra.Tests/Services/AuthServiceTests.cs",
+       "src/Orchestra.Tests/Services/UserServiceTests.cs",
+       "src/Orchestra.Tests/Controllers/AuthControllerTests.cs",
+       "src/Orchestra.Tests/Controllers/UserControllerTests.cs",
+       "src/Orchestra.Core/Models/User.cs",
+       "src/Orchestra.Core/Interfaces/IAuthService.cs"
+     ],
+     "review_types": ["code-style-reviewer", "code-principles-reviewer", "test-healer"],
+     "options": { "parallel": true, "timeout": 300000 }
+   }
+   ```
+
+2. **Monitor reviewer status updates**:
+   - T=45s: code-style-reviewer completes with 48 issues
+   - T=60s: test-healer completes with 12 issues
+   - T=300s: code-principles-reviewer **TIMEOUT DETECTED**
+   - T=305s: Consolidation proceeds with partial results
+
+3. **Verify timeout detection**:
+   - Check that timeout error logged for code-principles-reviewer
+   - Verify no indefinite waiting or blocking behavior
+   - Confirm timeout error message includes reviewer name and duration
+
+4. **Validate partial result handling**:
+   - Verify consolidation runs with 2/3 reviewers (60 issues total)
+   - Check report metadata indicates partial results
+   - Confirm user warned about incomplete review coverage
+
+**Expected Results**:
+- ✅ **code-style-reviewer completes**: 48 issues returned in 45 seconds
+- ✅ **code-principles-reviewer times out**: Timeout detected at exactly 300 seconds
+- ✅ **test-healer completes**: 12 issues returned in 60 seconds
+- ✅ **Consolidation proceeds**: Report generated with 60 issues (48 + 12)
+- ✅ **Report metadata accurate**: Shows "2/3 reviewers completed" with timeout reason
+- ✅ **No blocking behavior**: Total time ≤305 seconds (timeout + 5s buffer for consolidation)
+
+**Failure Indicators**:
+- ❌ **Indefinite waiting**: System waits >310 seconds for timed-out reviewer
+- ❌ **Consolidation blocked**: Report not generated due to timeout
+- ❌ **Missing timeout indication**: Report doesn't indicate partial results
+- ❌ **Silent failure**: User not warned about incomplete coverage
+- ❌ **Data loss**: Issues from completed reviewers not included in report
+
+**Acceptance Criteria**:
+- [ ] Timeout detected correctly at 300 seconds (±5s tolerance)
+- [ ] Partial results handled gracefully (60 issues from 2 reviewers)
+- [ ] Report metadata clearly indicates timeout status
+- [ ] No blocking/hanging behavior detected (total time ≤305s)
+
+**Report Metadata Validation**:
+Expected metadata section should include:
+```markdown
+### Review Metadata
+- **Reviewers Invoked**: 3 (code-style-reviewer, code-principles-reviewer, test-healer)
+- **Reviewers Completed**: 2/3 (66.7% coverage)
+- **Timeout Warning**: code-principles-reviewer timed out after 300 seconds
+- **Review Duration**: 305 seconds
+- **Issues Found**: 60 (from 2 reviewers - partial coverage)
+```
+
+**User Notification Validation**:
+Expected warning message:
+```
+⚠️ PARTIAL REVIEW COVERAGE
+code-principles-reviewer timed out after 5 minutes. Report contains issues from 2/3 reviewers only.
+Recommendation: Re-run code-principles-reviewer separately or increase timeout.
+```
+
+---
+
+#### TC3: Partial Result Handling
+
+**Purpose**: Verify system resilience when a reviewer crashes or errors during execution.
+
+**Setup**:
+- **Mock Reviewers with Failure Scenario**:
+  - `code-style-reviewer`: **SUCCESS** - completes in 20 seconds (20 issues)
+  - `code-principles-reviewer`: **ERROR** - crashes after 10 seconds with exception
+  - `test-healer`: **SUCCESS** - completes in 25 seconds (8 issues)
+- **Test Files**: 8 C# files
+- **Expected Behavior**: Consolidation succeeds with 2/3 reviewers
+
+**Test Steps**:
+1. **Launch review** with error-prone reviewer:
+   ```json
+   {
+     "review_context": "ad-hoc",
+     "code_files": [
+       "src/Orchestra.Core/Services/AuthService.cs",
+       "src/Orchestra.Core/Controllers/AuthController.cs",
+       "src/Orchestra.Core/Repositories/AuthRepository.cs",
+       "src/Orchestra.Core/Models/User.cs",
+       "src/Orchestra.Tests/Services/AuthServiceTests.cs",
+       "src/Orchestra.Tests/Controllers/AuthControllerTests.cs",
+       "src/Orchestra.Core/Interfaces/IAuthService.cs",
+       "src/Orchestra.Core/Interfaces/IUserService.cs"
+     ],
+     "review_types": ["code-style-reviewer", "code-principles-reviewer", "test-healer"],
+     "options": { "parallel": true }
+   }
+   ```
+
+2. **Verify error handling**:
+   - T=10s: code-principles-reviewer throws exception (e.g., "Out of memory" or "File not found")
+   - Verify error caught and logged
+   - Confirm other reviewers continue execution unaffected
+
+3. **Validate consolidation with partial results**:
+   - Verify consolidation runs with 28 issues (20 + 8)
+   - Check error recorded in report metadata
+   - Confirm reviewer failure doesn't block report generation
+
+4. **Check user notification**:
+   - Verify user informed of reviewer failure
+   - Confirm partial coverage percentage displayed (66.7%)
+   - Validate recommendations generated from available data
+
+**Expected Results**:
+- ✅ **Consolidation completes**: Report generated with 28 issues from 2/3 reviewers
+- ✅ **Error logged**: code-principles-reviewer error captured with stack trace
+- ✅ **Report metadata accurate**: Shows "2/3 reviewers completed" with error reason
+- ✅ **Recommendations generated**: Action items created from available 28 issues
+- ✅ **User notification clear**: Warning about partial coverage and missing reviewer
+
+**Failure Indicators**:
+- ❌ **Consolidation blocked**: Error in one reviewer prevents report generation
+- ❌ **Silent error**: User not informed about reviewer failure
+- ❌ **Cascade failure**: Error in one reviewer causes others to fail
+- ❌ **Data loss**: Issues from successful reviewers not included
+- ❌ **Incomplete metadata**: Error not documented in report
+
+**Acceptance Criteria**:
+- [ ] Error handling functional (exception caught without crashing)
+- [ ] Consolidation proceeds with available results (28 issues)
+- [ ] Partial coverage indicated in report (2/3 = 66.7%)
+- [ ] User notification appropriate and actionable
+
+**Error Logging Validation**:
+Expected error log entry:
+```json
+{
+  "timestamp": "2025-10-25T14:32:18Z",
+  "reviewer": "code-principles-reviewer",
+  "status": "ERROR",
+  "error": "FileNotFoundException: Could not find file 'src/Orchestra.Core/Models/User.cs'",
+  "execution_time": 10.234,
+  "issues_found": 0
+}
+```
+
+**Report Metadata Validation**:
+```markdown
+### Review Metadata
+- **Reviewers Invoked**: 3
+- **Reviewers Completed**: 2/3 (66.7% coverage)
+- **Errors**: code-principles-reviewer failed after 10s (FileNotFoundException)
+- **Issues Found**: 28 (from 2 reviewers - partial coverage)
+```
+
+---
+
+### Group C: Report Generation Tests
+
+These test cases validate the master report generation logic, including structure completeness and edge case handling.
+
+---
+
+#### TC7: Report Structure Completeness
+
+**Purpose**: Verify that all 9 required report sections are generated with correct formatting and content.
+
+**Setup**:
+- **Consolidated Issues**: 50 issues after deduplication
+  - 5 P0 (Critical) issues
+  - 20 P1 (Warning) issues
+  - 25 P2 (Improvement) issues
+- **Reviewers**: 3 reviewers all completed successfully
+  - code-style-reviewer: 30 raw issues
+  - code-principles-reviewer: 25 raw issues
+  - test-healer: 15 raw issues
+  - Total: 70 raw issues → 50 consolidated (28.6% deduplication rate)
+- **Review Duration**: 245 seconds (4 minutes 5 seconds)
+- **Files Reviewed**: 18 files
+
+**Test Steps**:
+1. **Generate master report** with realistic data:
+   ```typescript
+   const consolidatedReport = generateMasterReport({
+     consolidatedIssues: [/* 50 issues */],
+     reviewerReports: [/* 3 reviewer reports */],
+     metadata: {
+       reviewDuration: 245,
+       filesReviewed: 18,
+       totalIssuesRaw: 70,
+       totalIssuesConsolidated: 50,
+       deduplicationRate: 0.286
+     }
+   });
+   ```
+
+2. **Validate all 9 sections present**:
+   - Section 1: Executive Summary
+   - Section 2: Critical Issues (P0)
+   - Section 3: Warnings (P1)
+   - Section 4: Improvements (P2)
+   - Section 5: Common Themes
+   - Section 6: Prioritized Action Items
+   - Section 7: Metadata Footer
+   - Section 8: Appendices (3 reviewer reports)
+   - Section 9: Traceability Matrix
+
+3. **Verify section order and formatting**:
+   - All sections in correct sequence (1-9)
+   - Proper markdown heading levels (##, ###, ####)
+   - Code snippets in fenced code blocks
+   - Tables properly formatted
+   - Cross-references functional (e.g., [See Appendix A](#appendix-a-code-style-reviewer))
+
+4. **Check Table of Contents (TOC)**:
+   - TOC generated automatically (>50 issues triggers TOC)
+   - All sections linked correctly
+   - Proper nesting (##, ###, ####)
+
+**Expected Results**:
+
+**Section 1: Executive Summary** (present, 2-3 paragraphs):
+```markdown
+## Executive Summary
+
+This review analyzed 18 files using 3 parallel reviewers (code-style-reviewer, code-principles-reviewer, test-healer), completing in 245 seconds. Found 70 raw issues, consolidated to 50 unique issues (28.6% deduplication rate).
+
+**Critical Findings**: 5 P0 issues require immediate attention before deployment.
+**Warnings**: 20 P1 issues should be addressed in current sprint.
+**Improvements**: 25 P2 issues recommended for technical debt backlog.
+```
+
+**Section 2: Critical Issues (P0)** - 5 issues formatted correctly:
+```markdown
+## Critical Issues (P0) - 5 Issues
+
+### P0-1: Null Reference Exception in AuthService.ValidateToken()
+- **File**: src/Orchestra.Core/Services/AuthService.cs:127
+- **Severity**: CRITICAL
+- **Confidence**: 92%
+- **Reported by**: code-principles-reviewer, code-style-reviewer (2/3 reviewers agree)
+- **Description**: Missing null check before accessing token.Claims...
+```
+
+**Section 3: Warnings (P1)** - 20 issues grouped by file:
+```markdown
+## Warnings (P1) - 20 Issues
+
+### File: src/Orchestra.Core/Controllers/AuthController.cs (5 issues)
+
+#### P1-1: Missing XML documentation on public method Login()
+...
+```
+
+**Section 4: Improvements (P2)** - 25 issues categorized:
+```markdown
+## Improvements (P2) - 25 Issues
+
+### Category: Code Style (12 issues)
+### Category: Test Coverage (8 issues)
+### Category: Performance (5 issues)
+```
+
+**Section 5: Common Themes** - Top 5 patterns identified:
+```markdown
+## Common Themes
+
+1. **Missing null checks** (8 occurrences across 5 files)
+2. **Insufficient XML documentation** (12 occurrences across 8 files)
+...
+```
+
+**Section 6: Prioritized Action Items** - Ordered by effort:
+```markdown
+## Prioritized Action Items
+
+### Quick Wins (<1 hour)
+- [ ] Add null checks to AuthService.cs (3 locations) - P0
+- [ ] Fix missing braces in UserController.cs - P1
+
+### Medium Effort (1-4 hours)
+- [ ] Add XML documentation to 12 public methods - P1
+...
+```
+
+**Section 7: Metadata Footer** - All statistics present:
+```markdown
+## Review Metadata
+
+- **Review Context**: post-implementation
+- **Files Reviewed**: 18
+- **Reviewers Invoked**: 3 (code-style-reviewer, code-principles-reviewer, test-healer)
+- **Review Duration**: 245 seconds (4m 5s)
+- **Issues Found**: 50 consolidated (70 raw, 28.6% deduplication)
+- **Priority Distribution**: 5 P0 (10%), 20 P1 (40%), 25 P2 (50%)
+```
+
+**Section 8: Appendices** - One per reviewer (3 total):
+```markdown
+## Appendix A: code-style-reviewer Report
+<Full original report from code-style-reviewer>
+
+## Appendix B: code-principles-reviewer Report
+<Full original report from code-principles-reviewer>
+
+## Appendix C: test-healer Report
+<Full original report from test-healer>
+```
+
+**Section 9: Traceability Matrix** - All issues mapped:
+```markdown
+## Traceability Matrix
+
+| Issue ID | Reviewers | Dedup Group | Priority | Confidence |
+|----------|-----------|-------------|----------|------------|
+| P0-1     | code-principles, code-style | exact-match-1 | P0 | 92% |
+| P0-2     | code-principles | unique-1 | P0 | 88% |
+...
+```
+
+**Acceptance Criteria**:
+- [ ] All 9 sections present in document
+- [ ] Section order correct (1→9 sequential)
+- [ ] Markdown formatting valid (no syntax errors)
+- [ ] Table of Contents generated (>50 issues)
+- [ ] Cross-references functional (all links resolve)
+- [ ] File size reasonable (<500KB for 50 issues)
+
+**Validation Checks**:
+- [ ] **Executive Summary**: 2-3 paragraphs, statistics accurate
+- [ ] **P0 Section**: All 5 critical issues present, confidence >80%
+- [ ] **P1 Section**: 20 warnings grouped by file
+- [ ] **P2 Section**: 25 improvements categorized by type
+- [ ] **Common Themes**: Top 5 patterns with occurrence counts
+- [ ] **Action Items**: Effort-based grouping (Quick/Medium/Large)
+- [ ] **Metadata**: All 7 statistics present and accurate
+- [ ] **Appendices**: 3 complete reviewer reports
+- [ ] **Traceability**: All 50 issues mapped to reviewers
+
+**Performance Validation**:
+- [ ] Report generation time <30 seconds (for 50 issues)
+- [ ] File size <500KB (compressed markdown)
+- [ ] No memory issues with large reports
+
+---
+
+#### TC8: Edge Case Handling
+
+**Purpose**: Verify correct report generation for edge cases: zero issues, single issue, and large reports.
+
+---
+
+##### Test 8A: Zero Issues
+
+**Setup**:
+- **Clean codebase**: No issues found by any reviewer
+- **Reviewers**: 3 reviewers all completed successfully
+  - code-style-reviewer: 0 issues
+  - code-principles-reviewer: 0 issues
+  - test-healer: 0 issues
+- **Files Reviewed**: 5 files
+
+**Expected Results**:
+- ✅ **Congratulations message displayed**:
+  ```markdown
+  ## Review Results
+
+  🎉 **EXCELLENT CODE QUALITY**
+
+  All 3 reviewers completed successfully with zero issues found. Your code meets all quality standards.
+  ```
+- ✅ **No issue sections rendered** (P0/P1/P2 sections omitted)
+- ✅ **Metadata section present** with zero issue counts
+- ✅ **Appendices included** (reviewer reports show "No issues found")
+
+**Acceptance Criteria**:
+- [ ] Congratulations message present and positive
+- [ ] No empty P0/P1/P2 sections rendered
+- [ ] Metadata shows 0 issues accurately
+- [ ] Report generated successfully (not error)
+
+---
+
+##### Test 8B: Single Issue
+
+**Setup**:
+- **Minimal issue set**: Only 1 P2 issue found
+- **Reviewers**: 1 reviewer found issue, 2 found nothing
+  - code-style-reviewer: 1 issue (variable naming)
+  - code-principles-reviewer: 0 issues
+  - test-healer: 0 issues
+- **Files Reviewed**: 3 files
+
+**Expected Results**:
+- ✅ **Complete report structure maintained**
+- ✅ **No Table of Contents** (only 1 issue, <50 threshold)
+- ✅ **Single P2 section** with 1 issue properly formatted:
+  ```markdown
+  ## Improvements (P2) - 1 Issue
+
+  ### P2-1: Variable name 'x' should be descriptive
+  - **File**: UserService.cs:42
+  - **Severity**: IMPROVEMENT
+  - **Confidence**: 75%
+  - **Reported by**: code-style-reviewer
+  ```
+- ✅ **Executive Summary** acknowledges minimal findings
+
+**Acceptance Criteria**:
+- [ ] Single issue formatted correctly
+- [ ] No TOC generated (below threshold)
+- [ ] Complete report structure maintained
+- [ ] All sections render without errors
+
+---
+
+##### Test 8C: Large Report (100+ Issues)
+
+**Setup**:
+- **Large issue set**: 127 consolidated issues
+  - 12 P0 issues
+  - 58 P1 issues
+  - 57 P2 issues
+- **Reviewers**: 3 reviewers, high issue count
+  - code-style-reviewer: 85 raw issues
+  - code-principles-reviewer: 72 raw issues
+  - test-healer: 48 raw issues
+  - Total: 205 raw → 127 consolidated (38% deduplication)
+- **Files Reviewed**: 42 files
+
+**Expected Results**:
+- ✅ **Table of Contents generated** (>50 issues)
+- ✅ **Sections properly paginated** (P1/P2 grouped by file/category)
+- ✅ **Performance acceptable**: <30 seconds for consolidation
+- ✅ **File size reasonable**: <2MB for 127 issues
+- ✅ **No memory issues** during generation
+
+**Acceptance Criteria**:
+- [ ] TOC generated with all sections
+- [ ] Large sections grouped/categorized
+- [ ] Performance <30s for consolidation
+- [ ] File size <2MB
+
+**Performance Validation**:
+```markdown
+Expected timing breakdown:
+- Parallel review: 4-6 minutes (3 reviewers)
+- Consolidation: 15-25 seconds (205 → 127 issues)
+- Report generation: 5-10 seconds (127 issues)
+- Total: ~5 minutes (acceptable)
+```
+
+---
+
+### Validation Checklist
+
+This checklist provides a comprehensive validation framework for all component test cases (TC1-TC8). Use this to verify that all test specifications are correctly implemented and validated.
+
+---
+
+#### Parallel Execution Tests (Group A)
+
+**TC1: Parallel Launch Verification**
+- [ ] All 3 Task tool calls appear in single message block (NOT sequential)
+- [ ] Start time delta <5 seconds between all reviewers
+- [ ] Total execution time 30-35 seconds (proves parallel execution)
+- [ ] All 55 issues collected successfully (28 + 15 + 12)
+- [ ] Parallelism factor verified: 3.0x speedup
+- [ ] Time savings calculated: ~60-115 seconds vs sequential
+- [ ] Efficiency gain measured: ~67-76% reduction
+
+**TC2: Timeout Handling**
+- [ ] code-style-reviewer completes in 45s with 48 issues
+- [ ] code-principles-reviewer timeout detected at exactly 300s
+- [ ] test-healer completes in 60s with 12 issues
+- [ ] Consolidation proceeds with partial results (60 issues)
+- [ ] Report metadata shows "2/3 reviewers completed"
+- [ ] Timeout warning clearly visible in report
+- [ ] User notification about partial coverage present
+- [ ] Total time ≤305s (no blocking/hanging)
+
+**TC3: Partial Result Handling**
+- [ ] code-style-reviewer completes successfully (20 issues)
+- [ ] code-principles-reviewer error caught and logged
+- [ ] test-healer completes successfully (8 issues)
+- [ ] Consolidation completes with 28 issues (2/3 reviewers)
+- [ ] Error logged with stack trace and details
+- [ ] Report metadata shows error reason
+- [ ] User notification clear and actionable
+- [ ] No cascade failures to other reviewers
+
+---
+
+#### Consolidation Algorithm Tests (Group B)
+
+**TC4: Exact Match Deduplication**
+- [ ] 2 input issues → 1 output issue (deduplication confirmed)
+- [ ] File/Line preserved: `UserService.cs:42`
+- [ ] Message preserved exactly: "Missing braces on if statement"
+- [ ] Priority correct: P1 (ANY rule applied)
+- [ ] Confidence averaged: 0.95
+- [ ] Reviewers list complete: 2 reviewers
+- [ ] Agreement accurate: 67% (2/3 reviewers)
+- [ ] Deduplication group tagged: `exact-match-1`
+
+**TC5: Semantic Similarity Grouping**
+- [ ] Similarity score calculated: 0.835 (file: 0.3, line: 0.16, message: 0.375)
+- [ ] Grouping threshold applied: 0.835 > 0.80 → GROUP
+- [ ] Line range correct: `AuthController.cs:45-47`
+- [ ] Higher priority wins: P1 selected over P2
+- [ ] Message merged meaningfully (both contexts preserved)
+- [ ] Confidence weighted correctly: 0.825
+- [ ] Deduplication group tagged: `semantic-similarity-1`
+- [ ] Edge cases validated: =0.80 groups, <0.80 doesn't group
+
+**TC6: Priority Aggregation Rules**
+- [ ] **6A (P0 ANY)**: [P0, P1, P2] → P0 (33% P0 wins)
+- [ ] **6B (P1 MAJORITY)**: [P1, P1, P2] → P1 (67% ≥ 50%)
+- [ ] **6C (P2 DEFAULT)**: [P2, P2, P2] → P2 (default)
+- [ ] **6D (No Majority)**: [P1, P2, P2] → P2 (33% < 50%)
+- [ ] **6E (Multiple P0)**: [P0, P0, P0] → P0 (unanimous)
+- [ ] **6F (Exact 50%)**: [P1, P1, P2, P2] → P1 (50% ≥ 50%)
+- [ ] **6G (Two Reviewers)**: [P1, P2] → P1 (50% ≥ 50%)
+- [ ] Validation matrix complete for all test cases
+
+---
+
+#### Report Generation Tests (Group C)
+
+**TC7: Report Structure Completeness**
+- [ ] **Section 1**: Executive Summary (2-3 paragraphs, statistics accurate)
+- [ ] **Section 2**: Critical Issues (P0) - 5 issues, confidence >80%
+- [ ] **Section 3**: Warnings (P1) - 20 issues, grouped by file
+- [ ] **Section 4**: Improvements (P2) - 25 issues, categorized by type
+- [ ] **Section 5**: Common Themes - Top 5 patterns with counts
+- [ ] **Section 6**: Prioritized Action Items - Effort-based grouping
+- [ ] **Section 7**: Metadata Footer - All 7 statistics present
+- [ ] **Section 8**: Appendices - 3 complete reviewer reports
+- [ ] **Section 9**: Traceability Matrix - All 50 issues mapped
+- [ ] All sections in correct order (1→9)
+- [ ] Table of Contents generated (>50 issues)
+- [ ] Markdown formatting valid (no syntax errors)
+- [ ] Cross-references functional (all links resolve)
+- [ ] File size reasonable (<500KB for 50 issues)
+- [ ] Report generation time <30 seconds
+
+**TC8: Edge Case Handling**
+- [ ] **8A (Zero Issues)**: Congratulations message displayed
+- [ ] **8A**: No empty P0/P1/P2 sections rendered
+- [ ] **8A**: Metadata shows 0 issues accurately
+- [ ] **8A**: Report generated successfully (not error)
+- [ ] **8B (Single Issue)**: Complete report structure maintained
+- [ ] **8B**: No TOC generated (<50 threshold)
+- [ ] **8B**: Single issue formatted correctly
+- [ ] **8B**: All sections render without errors
+- [ ] **8C (Large Report)**: TOC generated (>50 issues)
+- [ ] **8C**: Sections properly grouped/categorized
+- [ ] **8C**: Performance <30s for consolidation
+- [ ] **8C**: File size <2MB for 127 issues
+
+---
+
+### Integration with Task 6.2 (Integration Testing)
+
+This section defines how Task 6.1 (Component Testing) outputs feed into Task 6.2 (Integration Testing) for end-to-end validation.
+
+---
+
+#### Task 6.1 Outputs (This Task)
+
+**Component Test Specifications** (8 test cases):
+1. **TC1-TC3**: Parallel execution tests (Group A)
+   - Parallel launch verification
+   - Timeout handling
+   - Partial result handling
+
+2. **TC4-TC6**: Consolidation algorithm tests (Group B)
+   - Exact match deduplication
+   - Semantic similarity grouping
+   - Priority aggregation rules
+
+3. **TC7-TC8**: Report generation tests (Group C)
+   - Report structure completeness
+   - Edge case handling (zero/single/large)
+
+**Validation Criteria**:
+- 36 acceptance criteria checkboxes across all test cases
+- Performance benchmarks: Parallel <35s, Consolidation <30s, Report <30s
+- Edge case definitions: Zero issues, single issue, 127 issues
+- Quality metrics: Deduplication ≥70%, Confidence averaging, Agreement calculation
+
+**Documentation Artifacts**:
+- Test case specifications (TC1-TC8) with Setup, Test Steps, Expected Results
+- Failure indicators for each test case
+- Validation checklist (3 groups, 8 test cases)
+- Integration guidelines for Task 6.2
+
+---
+
+#### Task 6.2 Will Use These Outputs For
+
+**Real Reviewer Integration** (TC1-TC3 with actual reviewers):
+- Execute parallel launch with real `code-style-reviewer`, `code-principles-reviewer`, `test-healer`
+- Validate actual Task tool behavior (not mocked)
+- Test timeout scenarios with real 5-minute limits
+- Verify error handling with actual file system errors
+
+**End-to-End Workflow Testing** (TC1-TC8 combined):
+1. **Parallel Execution** (TC1-TC3) → Collect raw reviewer outputs
+2. **Consolidation** (TC4-TC6) → Process with real algorithm
+3. **Reporting** (TC7-TC8) → Generate actual master report
+4. **Validation** → Compare against acceptance criteria
+
+**Performance Verification** (with real codebase):
+- Test with 18-42 files (realistic workload)
+- Measure actual parallel execution time (target: 4-6 minutes)
+- Validate consolidation performance (target: <30s for 50+ issues)
+- Test large report generation (127 issues, target: <30s)
+
+**System Resilience Testing** (with real infrastructure):
+- Timeout scenarios with actual 300-second limits
+- Error scenarios with real file system issues
+- Partial result handling with reviewer crashes
+- Resource constraints (memory, CPU, disk I/O)
+
+---
+
+#### Integration Workflow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Task 6.1: Component Testing (This Task)                    │
+├─────────────────────────────────────────────────────────────┤
+│ Outputs:                                                    │
+│ - Test case specifications (TC1-TC8)                        │
+│ - Acceptance criteria (36 checkboxes)                       │
+│ - Performance baselines (parallel <35s, etc.)               │
+│ - Edge case definitions (zero/single/large)                 │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Task 6.2: Integration Testing (Next Task)                  │
+├─────────────────────────────────────────────────────────────┤
+│ Actions:                                                    │
+│ 1. Execute TC1-TC8 with real reviewers                      │
+│ 2. Validate against acceptance criteria                    │
+│ 3. Measure actual performance vs baselines                  │
+│ 4. Test edge cases with real data                           │
+│ 5. Report integration issues back to 6.1                    │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Task 6.2 Outputs (Integration Test Results)                │
+├─────────────────────────────────────────────────────────────┤
+│ - Integration test results (pass/fail for each TC)         │
+│ - Actual performance metrics                                │
+│ - Real-world edge case findings                             │
+│ - System resilience validation                              │
+│ - Recommendations for Task 6.1 refinement                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Key Integration Points
+
+**1. TC1 (Parallel Launch) → Integration Validation**
+- **Component Test (6.1)**: Specifies parallel launch pattern (3 Task calls in 1 message)
+- **Integration Test (6.2)**: Verifies real Task tool behavior with actual reviewers
+- **Success Criteria**: Actual parallel execution time 30-35s (not mocked)
+
+**2. TC2/TC3 (Error Handling) → Real Scenario Testing**
+- **Component Test (6.1)**: Defines timeout/error handling expectations
+- **Integration Test (6.2)**: Tests with real 300s timeouts and actual file errors
+- **Success Criteria**: System remains stable under real failure conditions
+
+**3. TC4-TC6 (Consolidation) → Real Reviewer Output**
+- **Component Test (6.1)**: Defines deduplication and priority rules
+- **Integration Test (6.2)**: Validates with actual reviewer output formats
+- **Success Criteria**: Real deduplication ≥70%, priority rules applied correctly
+
+**4. TC7-TC8 (Reporting) → Actual Report Generation**
+- **Component Test (6.1)**: Specifies 9-section report structure
+- **Integration Test (6.2)**: Generates actual reports for validation
+- **Success Criteria**: Real reports match structure, <500KB file size, valid markdown
+
+---
+
+#### Feedback Loop
+
+**Task 6.2 → Task 6.1 Feedback**:
+- Integration test failures trigger Task 6.1 specification refinement
+- Performance deviations update baselines in Task 6.1
+- Edge case discoveries add new test scenarios to Task 6.1
+- Real-world constraints refine acceptance criteria in Task 6.1
+
+**Example Feedback Scenario**:
+```
+Integration Test Finding (6.2):
+- TC1 actual parallel time: 52 seconds (baseline: 30-35s)
+- Root cause: Reviewer startup overhead not accounted for
+
+Task 6.1 Refinement:
+- Update TC1 baseline: 50-60s (adjusted for real infrastructure)
+- Add startup overhead note to test specification
+- Add new test case: TC1b (Parallel Launch with Cold Start)
+```
+
+---
+
+#### Traceability Matrix
+
+| Component Test (6.1) | Integration Test (6.2) | Success Metric | Validation Method |
+|----------------------|------------------------|----------------|-------------------|
+| TC1: Parallel Launch | Real parallel execution | 30-35s total time | Timing measurement |
+| TC2: Timeout Handling | Real 300s timeout | Partial results OK | Metadata validation |
+| TC3: Partial Results | Real reviewer crash | 2/3 consolidation OK | Error log check |
+| TC4: Exact Dedup | Real duplicate issues | 2→1 deduplication | Issue count check |
+| TC5: Similarity Group | Real similar issues | 0.835 similarity | Algorithm output |
+| TC6: Priority Rules | Real priority conflicts | P0 ANY, P1 MAJORITY | Priority check |
+| TC7: Report Structure | Real 50-issue report | All 9 sections | Structure validation |
+| TC8: Edge Cases | Real 0/1/127 issues | Proper handling | Report inspection |
+
+---
+
+#### Task 6.2 Prerequisites (from Task 6.1)
+
+**Before starting Task 6.2, ensure Task 6.1 deliverables are complete**:
+- [ ] All 8 test case specifications written (TC1-TC8)
+- [ ] All acceptance criteria defined (36 checkboxes total)
+- [ ] Performance baselines established (parallel <35s, consolidation <30s, report <30s)
+- [ ] Edge case scenarios documented (zero/single/large issues)
+- [ ] Validation checklist created (3 groups, 8 test cases)
+- [ ] Integration guidelines documented (this section)
+- [ ] Traceability matrix defined (8 test cases mapped)
+
+**Task 6.2 Can Begin When**:
+- All Task 6.1 checkboxes above are marked complete
+- Test specifications reviewed by pre-completion-validator
+- Component test framework understood by integration test executor
+- Real reviewers available for integration testing
+
+---
+
+**Component Testing Status**: ✅ COMPLETE (Phase 6, Task 6.1)
+**Next Task**: Task 6.2 (Integration Testing)
+**Dependencies**: Phase 5 (Cycle Protection) ✅ COMPLETE
+**Integration Ready**: ✅ All outputs prepared for Task 6.2
+
+---
+
+## Integration Testing Specifications
+
+**Purpose**: Validate end-to-end functionality with real reviewers, multi-cycle workflows, and performance benchmarks.
+
+**Related Task**: Phase 6, Task 6.2 (Integration Testing)
+
+**Dependencies**: Task 6.1 (Component Testing) ✅ COMPLETE
+
+---
+
+### Test Case 9: End-to-End with Real Reviewers
+
+**Objective**: Validate complete workflow with actual reviewer agents in parallel execution mode.
+
+**Test Complexity**: HIGH (requires real agent deployment and coordination)
+
+---
+
+#### TC9: Full Integration Test
+
+**Test Setup**:
+
+1. **Deploy Real Reviewers**:
+   - `code-style-reviewer` (C# code style validation agent)
+   - `code-principles-reviewer` (SOLID/DRY/KISS validation agent)
+   - `test-healer` (Test quality and coverage validation agent)
+
+2. **Prepare Test Codebase** (20 C# files):
+   - **UserService.cs**: Missing braces violation (line 42)
+   - **AuthController.cs**: Dependency Injection violation (line 15)
+   - **AuthTests.cs**: Test failure with NullReferenceException (line 78)
+   - 17 additional files with various quality levels
+
+3. **Expected Known Issues** (3 seeded issues):
+   - **Issue 1 (P1)**: Missing braces in `if` statement at UserService.cs:42
+     - Rule: `mandatory-braces` (from csharp-codestyle.mdc)
+     - Confidence: 0.95
+     - Reviewer: code-style-reviewer
+
+   - **Issue 2 (P1)**: Single Responsibility Principle violation at AuthController.cs:15
+     - Rule: SOLID violation (from code-principles.mdc)
+     - Confidence: 0.85
+     - Reviewer: code-principles-reviewer
+
+   - **Issue 3 (P0)**: Test failure in AuthTests.cs:78
+     - Reason: NullReferenceException in authentication flow test
+     - Confidence: 1.0 (test actually fails)
+     - Reviewer: test-healer
+
+4. **Test Environment**:
+   - Real Task tool invocations (not mocked)
+   - Actual file system access
+   - Real reviewer response parsing
+   - Standard 5-minute timeout per reviewer
+
+---
+
+#### Test Execution Steps
+
+**Step 1: Launch Parallel Review**
+```typescript
+// review-consolidator receives 20 files
+const files = [
+  "src/Services/UserService.cs",
+  "src/Controllers/AuthController.cs",
+  "tests/AuthTests.cs",
+  // ... 17 more files
+];
+
+// Launch 3 reviewers in parallel (1 message, 3 Task calls)
+await launchReviewersInParallel([
+  'code-style-reviewer',
+  'code-principles-reviewer',
+  'test-healer'
+], files);
+```
+
+**Step 2: Monitor Parallel Execution**
+- Track start time for performance measurement
+- Monitor Task tool responses for each reviewer
+- Collect reviewer outputs as they complete
+- Handle any timeout or error scenarios
+
+**Step 3: Collect Real Reviewer Results**
+```typescript
+// code-style-reviewer output (JSON format)
+{
+  "issues": [
+    {
+      "file": "UserService.cs",
+      "line": 42,
+      "rule": "mandatory-braces",
+      "severity": "P1",
+      "confidence": 0.95,
+      "message": "Single-line if must use braces"
+    }
+  ]
+}
+
+// code-principles-reviewer output (Markdown format)
+## SOLID Violations
+### UserService.cs
+- Line 15: Single Responsibility Principle violated
+  - Severity: P1
+  - Confidence: 0.85
+
+// test-healer output (XML/Hybrid format)
+<TestResults>
+  <FailedTest file="AuthTests.cs" line="78"
+    reason="NullReferenceException"/>
+</TestResults>
+```
+
+**Step 4: Consolidate Real Results**
+- Parse 3 different output formats (JSON, Markdown, XML)
+- Normalize to common Issue interface
+- Apply deduplication algorithm (exact match + semantic similarity)
+- Aggregate priorities using P0 ANY / P1 MAJORITY rules
+- Calculate confidence and agreement metrics
+
+**Step 5: Generate Master Report**
+- Create 9-section consolidated report
+- Include all 3 known issues
+- Add reviewer-specific appendices
+- Generate actionable recommendations
+
+**Step 6: Validate Results**
+- Verify all 3 known issues detected
+- Check for no false negatives (missed issues)
+- Validate consolidation accuracy (no duplicates)
+- Confirm report completeness (all sections present)
+
+---
+
+#### Expected Results
+
+**Performance Validation**:
+- ✅ **Total execution time**: <6 minutes (360 seconds)
+  - Parallel execution: ~4 minutes (3 reviewers working simultaneously)
+  - Consolidation: ~30 seconds (processing 3 outputs)
+  - Report generation: ~25 seconds (creating master report)
+  - Buffer: ~65 seconds for overhead
+
+- ✅ **Parallel speedup**: ≥60% time savings vs sequential
+  - Sequential estimate: 12 minutes (4 min × 3 reviewers)
+  - Actual parallel: <6 minutes
+  - Speedup: 50%+ (validates parallel execution benefit)
+
+**Functional Validation**:
+- ✅ **All 3 reviewers launched successfully**:
+  - code-style-reviewer: Task call completed, JSON output received
+  - code-principles-reviewer: Task call completed, Markdown output received
+  - test-healer: Task call completed, XML output received
+
+- ✅ **Real results returned** (not mocked data):
+  - Actual file analysis performed by reviewers
+  - Real code parsing and validation
+  - Genuine recommendations generated
+
+- ✅ **All 3 known issues detected**:
+  - Issue 1: Missing braces at UserService.cs:42 ✅
+  - Issue 2: SOLID violation at AuthController.cs:15 ✅
+  - Issue 3: Test failure at AuthTests.cs:78 ✅
+
+**Consolidation Validation**:
+- ✅ **Output parsing successful** for all formats:
+  - JSON (code-style-reviewer): Parsed to Issue[] ✅
+  - Markdown (code-principles-reviewer): Parsed to Issue[] ✅
+  - XML (test-healer): Parsed to Issue[] ✅
+
+- ✅ **Deduplication accurate**:
+  - No duplicate issues in final report
+  - Deduplication rate ≥70% (if duplicates exist across reviewers)
+
+- ✅ **Priorities assigned correctly**:
+  - Issue 1: P1 (only code-style-reviewer flagged)
+  - Issue 2: P1 (only code-principles-reviewer flagged)
+  - Issue 3: P0 (test actually failing → highest priority)
+
+**Report Validation**:
+- ✅ **Report structure complete**:
+  - All 9 sections present (Executive Summary, Metrics, Top Issues, etc.)
+  - All 3 reviewer appendices included
+  - Actionable recommendations generated
+
+- ✅ **Report accuracy**:
+  - Total issues: 3+ (known issues + any additional findings)
+  - Priority breakdown: At least 1 P0, 2 P1
+  - File coverage: 20 files analyzed
+  - Reviewer coverage: 3/3 reviewers reported
+
+---
+
+#### Acceptance Criteria
+
+- [ ] **AC9.1**: All 3 real agents deployed and functional
+  - code-style-reviewer launches without errors
+  - code-principles-reviewer launches without errors
+  - test-healer launches without errors
+  - All agents return valid responses
+
+- [ ] **AC9.2**: Parallel execution verified with real Task calls
+  - 3 Task tool invocations in single message
+  - No sequential execution (not 3 separate messages)
+  - Parallel timing confirms simultaneous execution
+
+- [ ] **AC9.3**: All 3 known issues detected
+  - Missing braces (UserService.cs:42) found by code-style-reviewer
+  - SOLID violation (AuthController.cs:15) found by code-principles-reviewer
+  - Test failure (AuthTests.cs:78) found by test-healer
+  - No false negatives for seeded issues
+
+- [ ] **AC9.4**: Real output parsing successful
+  - JSON format parsed correctly (code-style-reviewer)
+  - Markdown format parsed correctly (code-principles-reviewer)
+  - XML format parsed correctly (test-healer)
+  - All formats normalized to Issue interface
+
+- [ ] **AC9.5**: Performance target met
+  - Total execution time <6 minutes (360 seconds)
+  - Breakdown: Parallel <4 min, Consolidation <30s, Report <25s
+  - No timeouts or performance degradation
+
+---
+
+#### Failure Indicators
+
+**Critical Failures** (Test must fail):
+- ❌ **Reviewer launch failure**: Any reviewer fails to start or crashes
+- ❌ **Known issue missed**: Any of 3 seeded issues not detected
+- ❌ **Performance miss**: Total time >6 minutes (360 seconds)
+- ❌ **Parsing failure**: Unable to parse any reviewer output format
+
+**Warning Failures** (Test fails but not critical):
+- ⚠️ **Extra issues found**: Additional issues beyond 3 known (acceptable, but review for false positives)
+- ⚠️ **Slow reviewer**: One reviewer takes >5 minutes (timeout threshold)
+- ⚠️ **Report incomplete**: Missing sections or incomplete appendices
+
+---
+
+### Test Case 10: Real Reviewer Output Parsing
+
+**Objective**: Validate parsing and normalization of all reviewer output formats.
+
+**Test Complexity**: MEDIUM (focuses on format handling)
+
+---
+
+#### TC10: Parse Actual Reviewer Formats
+
+**Test Setup**:
+
+**Format 1: JSON (code-style-reviewer)**
+```json
+{
+  "issues": [
+    {
+      "file": "UserService.cs",
+      "line": 42,
+      "rule": "mandatory-braces",
+      "severity": "P1",
+      "confidence": 0.95,
+      "message": "Single-line if must use braces",
+      "recommendation": "Add braces: if (condition) { statement; }"
+    },
+    {
+      "file": "AuthController.cs",
+      "line": 78,
+      "rule": "xml-comments",
+      "severity": "P2",
+      "confidence": 0.80,
+      "message": "Public method missing XML documentation"
+    }
+  ],
+  "summary": {
+    "totalIssues": 2,
+    "filesAnalyzed": 20
+  }
+}
+```
+
+**Format 2: Markdown (code-principles-reviewer)**
+```markdown
+## SOLID Violations
+
+### Single Responsibility Principle
+
+#### UserService.cs
+- **Line 15**: Service handles both user management and authentication
+  - **Severity**: P1
+  - **Confidence**: 0.85
+  - **Recommendation**: Extract AuthenticationService
+
+#### OrderService.cs
+- **Line 42**: Service handles orders, payments, and notifications
+  - **Severity**: P0
+  - **Confidence**: 0.92
+  - **Recommendation**: Separate concerns into OrderService, PaymentService, NotificationService
+
+### Dependency Inversion Principle
+
+#### AuthController.cs
+- **Line 15**: Direct instantiation of concrete class instead of dependency injection
+  - **Severity**: P1
+  - **Confidence**: 0.88
+  - **Recommendation**: Use constructor injection with IAuthService interface
+
+## Summary
+- Total Violations: 3
+- Files Analyzed: 20
+- SOLID Principles Violated: 2 (SRP, DIP)
+```
+
+**Format 3: XML/Hybrid (test-healer)**
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<TestResults>
+  <Summary>
+    <TotalTests>127</TotalTests>
+    <Passed>115</Passed>
+    <Failed>12</Failed>
+    <FilesAnalyzed>15</FilesAnalyzed>
+  </Summary>
+
+  <FailedTests>
+    <Test file="AuthTests.cs" line="78" method="LoginWithInvalidCredentials_ShouldReturnUnauthorized">
+      <Failure>
+        <Type>NullReferenceException</Type>
+        <Message>Object reference not set to an instance of an object.</Message>
+        <StackTrace>at AuthService.Login(string username, string password) in AuthService.cs:line 42</StackTrace>
+        <Severity>P0</Severity>
+        <Confidence>1.0</Confidence>
+      </Failure>
+      <Recommendation>Add null check before accessing user object at AuthService.cs:42</Recommendation>
+    </Test>
+
+    <Test file="OrderTests.cs" line="124" method="CreateOrder_WithInvalidData_ShouldThrowException">
+      <Failure>
+        <Type>AssertionFailed</Type>
+        <Message>Expected exception ArgumentException but got InvalidOperationException</Message>
+        <Severity>P1</Severity>
+        <Confidence>0.95</Confidence>
+      </Failure>
+      <Recommendation>Update test expectation or fix OrderService exception handling</Recommendation>
+    </Test>
+  </FailedTests>
+
+  <CoverageGaps>
+    <Gap file="PaymentService.cs" line="55" method="ProcessRefund">
+      <Severity>P2</Severity>
+      <Confidence>0.70</Confidence>
+      <Recommendation>Add test coverage for refund edge cases</Recommendation>
+    </Gap>
+  </CoverageGaps>
+</TestResults>
+```
+
+---
+
+#### Test Execution Steps
+
+**Step 1: Receive Real Outputs**
+- Collect outputs from all 3 reviewers after parallel execution
+- Store raw output strings for parsing
+
+**Step 2: Parse JSON Format (code-style-reviewer)**
+```typescript
+const codeStyleOutput = JSON.parse(rawOutput);
+const issues: Issue[] = codeStyleOutput.issues.map(issue => ({
+  file: issue.file,
+  line: issue.line,
+  category: 'code_style',
+  subcategory: issue.rule,
+  severity: issue.severity,
+  confidence: issue.confidence,
+  description: issue.message,
+  recommendation: issue.recommendation,
+  reviewer: 'code-style-reviewer'
+}));
+```
+
+**Step 3: Parse Markdown Format (code-principles-reviewer)**
+```typescript
+// Regex patterns for Markdown parsing
+const violationPattern = /#### (.+?)\n- \*\*Line (\d+)\*\*: (.+?)\n  - \*\*Severity\*\*: (P\d)\n  - \*\*Confidence\*\*: ([\d.]+)\n  - \*\*Recommendation\*\*: (.+)/g;
+
+const issues: Issue[] = [];
+let match;
+while ((match = violationPattern.exec(rawOutput)) !== null) {
+  issues.push({
+    file: match[1],
+    line: parseInt(match[2]),
+    category: 'code_principles',
+    subcategory: 'SOLID',
+    severity: match[4],
+    confidence: parseFloat(match[5]),
+    description: match[3],
+    recommendation: match[6],
+    reviewer: 'code-principles-reviewer'
+  });
+}
+```
+
+**Step 4: Parse XML Format (test-healer)**
+```typescript
+const parser = new DOMParser();
+const xmlDoc = parser.parseFromString(rawOutput, "text/xml");
+
+const failedTests = xmlDoc.querySelectorAll("Test");
+const issues: Issue[] = Array.from(failedTests).map(test => ({
+  file: test.getAttribute("file"),
+  line: parseInt(test.getAttribute("line")),
+  category: 'test_quality',
+  subcategory: 'test_failure',
+  severity: test.querySelector("Severity").textContent,
+  confidence: parseFloat(test.querySelector("Confidence").textContent),
+  description: test.querySelector("Message").textContent,
+  recommendation: test.querySelector("Recommendation").textContent,
+  reviewer: 'test-healer'
+}));
+```
+
+**Step 5: Normalize to Common Interface**
+```typescript
+interface Issue {
+  file: string;
+  line: number;
+  category: 'code_style' | 'code_principles' | 'test_quality';
+  subcategory: string;
+  severity: 'P0' | 'P1' | 'P2';
+  confidence: number;
+  description: string;
+  recommendation: string;
+  reviewer: string;
+}
+
+// All 3 formats normalized to this interface
+```
+
+**Step 6: Validate Normalization**
+- Verify all required fields populated
+- Check data types (line: number, confidence: number)
+- Validate enums (severity: P0/P1/P2)
+- Ensure no null/undefined values in critical fields
+
+---
+
+#### Expected Results
+
+**JSON Parsing (code-style-reviewer)**:
+- ✅ Valid JSON parsed without errors
+- ✅ All issues array elements extracted
+- ✅ Fields mapped correctly:
+  - `file` → `file`
+  - `line` → `line`
+  - `rule` → `subcategory`
+  - `severity` → `severity`
+  - `confidence` → `confidence`
+  - `message` → `description`
+  - `recommendation` → `recommendation`
+- ✅ Reviewer attribution added: `'code-style-reviewer'`
+- ✅ Category assigned: `'code_style'`
+
+**Markdown Parsing (code-principles-reviewer)**:
+- ✅ Markdown structure recognized
+- ✅ Regex patterns match all violations
+- ✅ Multi-line content parsed correctly
+- ✅ Fields extracted:
+  - File name from `#### FileName`
+  - Line number from `**Line X**`
+  - Severity from `**Severity**: PX`
+  - Confidence from `**Confidence**: 0.XX`
+  - Description and recommendation from formatted text
+- ✅ Reviewer attribution: `'code-principles-reviewer'`
+- ✅ Category assigned: `'code_principles'`
+
+**XML Parsing (test-healer)**:
+- ✅ Valid XML parsed without errors
+- ✅ DOM navigation successful
+- ✅ All `<Test>` elements extracted
+- ✅ Nested fields accessed:
+  - File/line from attributes
+  - Severity/Confidence from child elements
+  - Message/Recommendation from text content
+- ✅ Reviewer attribution: `'test-healer'`
+- ✅ Category assigned: `'test_quality'`
+
+**Normalization Validation**:
+- ✅ All formats conform to common `Issue` interface
+- ✅ No type mismatches (all fields correct types)
+- ✅ No missing required fields
+- ✅ Confidence values in range [0.0, 1.0]
+- ✅ Severity values valid: P0, P1, or P2
+
+---
+
+#### Acceptance Criteria
+
+- [ ] **AC10.1**: JSON format parsed correctly
+  - Valid JSON.parse() succeeds
+  - All issues extracted from `issues` array
+  - Field mapping accurate (file, line, severity, etc.)
+  - Normalized to Issue interface successfully
+
+- [ ] **AC10.2**: Markdown format parsed correctly
+  - Regex patterns match all violations
+  - Multi-line content handled properly
+  - All fields extracted (file, line, severity, confidence, etc.)
+  - Normalized to Issue interface successfully
+
+- [ ] **AC10.3**: XML format parsed correctly
+  - Valid XML parsing succeeds
+  - DOM navigation extracts all tests
+  - Nested elements accessed correctly
+  - Normalized to Issue interface successfully
+
+- [ ] **AC10.4**: All formats normalized to Issue interface
+  - Common interface compliance verified
+  - All required fields populated
+  - Data types validated (number, string, enum)
+  - No null/undefined in critical fields
+
+---
+
+#### Failure Indicators
+
+**Critical Failures**:
+- ❌ **Parse error**: Any format fails to parse (JSON.parse() error, XML parse error, regex failure)
+- ❌ **Field missing**: Required fields null/undefined after normalization
+- ❌ **Type mismatch**: `line` not a number, `confidence` not a float, etc.
+- ❌ **Invalid enum**: Severity not P0/P1/P2
+
+**Warning Failures**:
+- ⚠️ **Partial parse**: Some issues extracted but not all
+- ⚠️ **Recommendation missing**: Optional field not populated
+- ⚠️ **Confidence out of range**: Value <0.0 or >1.0 (should be clamped)
+
+---
+
+### Test Case 13: Performance Benchmarks
+
+**Objective**: Validate performance targets across small, medium, and large codebases.
+
+**Test Complexity**: HIGH (requires multiple test runs with varying scales)
+
+---
+
+#### TC13: Validate Performance Targets
+
+**Performance Goal**: Total review time <6 minutes (360 seconds)
+
+**Test Architecture**: 3 sub-tests with increasing scale
+
+---
+
+#### Test 13A: Small Codebase (10 files)
+
+**Test Setup**:
+- **Files**: 10 C# files
+- **Total LOC**: ~1,500 lines
+- **Composition**:
+  - 3 service files (~200 LOC each)
+  - 4 controller files (~150 LOC each)
+  - 3 test files (~200 LOC each)
+- **Expected Issues**: 5-8 issues (low density)
+
+**Performance Targets**:
+- **Total Time**: <2 minutes (120 seconds)
+- **Breakdown**:
+  - Parallel execution: ~45 seconds
+    - code-style-reviewer: ~40 seconds
+    - code-principles-reviewer: ~35 seconds
+    - test-healer: ~45 seconds (longest pole)
+  - Consolidation: ~15 seconds (processing ~6 issues)
+  - Report generation: ~10 seconds (small report, <5 pages)
+  - Buffer: ~10 seconds overhead
+
+**Execution**:
+```bash
+# Run small codebase test
+time review-consolidator --files 10-file-set.txt --reviewers all
+
+# Expected output
+Total files: 10
+Total issues: 6
+Execution time: 1m 48s ✅ (<2 minutes)
+```
+
+**Validation**:
+- ✅ Total time <120 seconds
+- ✅ Parallel execution shows speedup (not sequential)
+- ✅ All 10 files analyzed
+- ✅ Report generated successfully
+
+---
+
+#### Test 13B: Medium Codebase (50 files)
+
+**Test Setup**:
+- **Files**: 50 C# files
+- **Total LOC**: ~7,500 lines
+- **Composition**:
+  - 15 service files (~200 LOC each)
+  - 20 controller files (~150 LOC each)
+  - 15 test files (~200 LOC each)
+- **Expected Issues**: 20-30 issues (medium density)
+
+**Performance Targets**:
+- **Total Time**: <4 minutes (240 seconds)
+- **Breakdown**:
+  - Parallel execution: ~2 minutes (120 seconds)
+    - code-style-reviewer: ~110 seconds
+    - code-principles-reviewer: ~100 seconds
+    - test-healer: ~120 seconds (longest pole)
+  - Consolidation: ~30 seconds (processing ~25 issues)
+  - Report generation: ~25 seconds (medium report, ~15 pages)
+  - Buffer: ~25 seconds overhead
+
+**Execution**:
+```bash
+# Run medium codebase test
+time review-consolidator --files 50-file-set.txt --reviewers all
+
+# Expected output
+Total files: 50
+Total issues: 24
+Execution time: 3m 42s ✅ (<4 minutes)
+```
+
+**Validation**:
+- ✅ Total time <240 seconds
+- ✅ Parallel execution efficiency maintained (60%+ speedup)
+- ✅ All 50 files analyzed
+- ✅ Consolidation scales linearly (~25 issues in ~30s)
+
+---
+
+#### Test 13C: Large Codebase (100 files)
+
+**Test Setup**:
+- **Files**: 100 C# files
+- **Total LOC**: ~15,000 lines
+- **Composition**:
+  - 30 service files (~200 LOC each)
+  - 40 controller files (~150 LOC each)
+  - 30 test files (~200 LOC each)
+- **Expected Issues**: 40-60 issues (medium-high density)
+
+**Performance Targets**:
+- **Total Time**: <6 minutes (360 seconds) — **MAXIMUM LIMIT**
+- **Breakdown**:
+  - Parallel execution: ~4 minutes (240 seconds)
+    - code-style-reviewer: ~220 seconds
+    - code-principles-reviewer: ~200 seconds
+    - test-healer: ~240 seconds (longest pole)
+  - Consolidation: ~45 seconds (processing ~50 issues)
+  - Report generation: ~40 seconds (large report, ~30 pages)
+  - Buffer: ~35 seconds overhead
+
+**Execution**:
+```bash
+# Run large codebase test
+time review-consolidator --files 100-file-set.txt --reviewers all
+
+# Expected output
+Total files: 100
+Total issues: 48
+Execution time: 5m 52s ✅ (<6 minutes)
+```
+
+**Validation**:
+- ✅ Total time <360 seconds (critical requirement)
+- ✅ Parallel execution still provides 60%+ speedup
+- ✅ All 100 files analyzed without crashes
+- ✅ Consolidation performance acceptable (~50 issues in ~45s)
+- ✅ Report generation completes (<40s for large report)
+
+---
+
+#### Performance Scaling Analysis
+
+**Parallel Execution Speedup**:
+
+| Test | Files | Sequential Est. | Parallel Actual | Speedup | Efficiency |
+|------|-------|-----------------|-----------------|---------|------------|
+| 13A  | 10    | 120s (3×40s)    | ~45s            | 2.67x   | 89% ✅     |
+| 13B  | 50    | 330s (3×110s)   | ~120s           | 2.75x   | 92% ✅     |
+| 13C  | 100   | 660s (3×220s)   | ~240s           | 2.75x   | 92% ✅     |
+
+**Consolidation Scaling** (linear with issue count):
+
+| Test | Issues | Consolidation Time | Time per Issue |
+|------|--------|--------------------|----------------|
+| 13A  | 6      | ~15s               | 2.5s ✅        |
+| 13B  | 24     | ~30s               | 1.25s ✅       |
+| 13C  | 48     | ~45s               | 0.94s ✅       |
+
+*Note: Time per issue improves with scale due to batch processing optimizations*
+
+**Report Generation Scaling**:
+
+| Test | Issues | Report Pages | Generation Time |
+|------|--------|--------------|-----------------|
+| 13A  | 6      | ~5           | ~10s ✅         |
+| 13B  | 24     | ~15          | ~25s ✅         |
+| 13C  | 48     | ~30          | ~40s ✅         |
+
+---
+
+#### Acceptance Criteria
+
+- [ ] **AC13.1**: Small codebase (10 files) completes <2 minutes
+  - Total time measured: <120 seconds
+  - All files analyzed successfully
+  - Report generated and valid
+
+- [ ] **AC13.2**: Medium codebase (50 files) completes <4 minutes
+  - Total time measured: <240 seconds
+  - Parallel efficiency maintained (60%+ speedup)
+  - Consolidation scales linearly
+
+- [ ] **AC13.3**: Large codebase (100 files) completes <6 minutes
+  - Total time measured: <360 seconds (critical threshold)
+  - No performance degradation vs medium test
+  - All components complete within sub-targets
+
+- [ ] **AC13.4**: Performance scaling acceptable
+  - Parallel execution: 60%+ time savings vs sequential
+  - Consolidation: Linear scaling with issue count
+  - Report generation: Sub-linear scaling (batch optimizations)
+
+---
+
+#### Failure Indicators
+
+**Critical Failures**:
+- ❌ **13C timeout**: Large codebase exceeds 6 minutes (360s)
+- ❌ **Parallel degradation**: Speedup <50% (sequential faster)
+- ❌ **Consolidation bottleneck**: >2s per issue (quadratic scaling)
+- ❌ **Report generation failure**: Crashes or >60s for large report
+
+**Warning Failures**:
+- ⚠️ **13A/13B slow**: Small/medium tests exceed targets (not critical, but investigate)
+- ⚠️ **Reviewer imbalance**: One reviewer 2x+ slower than others
+- ⚠️ **Memory spike**: >500MB usage during large test
+
+---
+
+### Test Case 14: Memory and Resource Usage
+
+**Objective**: Validate resource consumption stays within acceptable limits during large-scale reviews.
+
+**Test Complexity**: MEDIUM (requires monitoring tools)
+
+---
+
+#### TC14: Resource Constraints Validation
+
+**Test Setup**:
+
+**Environment**:
+- OS: Windows 10/11 or Linux
+- Node.js runtime
+- Large codebase: 100 files (~15,000 LOC)
+- Monitoring tools: Task Manager (Windows) or `top` (Linux)
+
+**Resource Targets**:
+- **Memory**: <500MB peak usage
+- **CPU**: <80% average utilization
+- **Disk I/O**: Minimal (reports and cache only)
+- **No memory leaks**: Stable memory after multiple runs
+
+---
+
+#### Test Execution Steps
+
+**Step 1: Establish Baseline**
+```bash
+# Measure idle memory usage before test
+ps aux | grep review-consolidator
+# Expected: ~50MB baseline (Node.js runtime)
+```
+
+**Step 2: Start Monitoring**
+```bash
+# Windows PowerShell
+$process = Get-Process review-consolidator
+while ($true) {
+  Write-Host "Memory: $($process.WorkingSet64 / 1MB)MB | CPU: $($process.CPU)%"
+  Start-Sleep -Seconds 5
+}
+
+# Linux
+top -p $(pgrep review-consolidator) -b -d 5
+```
+
+**Step 3: Execute Large Codebase Review**
+```bash
+# Run 100-file test with monitoring
+time review-consolidator --files 100-file-set.txt --reviewers all --monitor-resources
+```
+
+**Step 4: Track Peak Usage**
+- Monitor memory throughout execution
+- Record peak memory usage (highest point)
+- Track CPU utilization average
+- Measure disk writes (reports and cache files)
+
+**Step 5: Repeat for Leak Detection**
+```bash
+# Run test 3 times consecutively
+for i in {1..3}; do
+  echo "Run $i:"
+  review-consolidator --files 100-file-set.txt --reviewers all
+  sleep 10
+done
+
+# Check memory after each run (should be stable)
+```
+
+---
+
+#### Expected Results
+
+**Memory Usage**:
+- ✅ **Baseline**: ~50MB (Node.js runtime idle)
+- ✅ **Peak during execution**: <500MB
+  - Parallel execution: ~350MB (3 reviewers + file buffers)
+  - Consolidation: ~420MB (peak - processing all issues in memory)
+  - Report generation: ~380MB (generating large markdown)
+- ✅ **Post-execution**: Returns to ~50MB baseline (garbage collection successful)
+
+**Memory Profile**:
+```
+Time (s) | Memory (MB) | Phase
+---------|-------------|---------------------------
+0        | 50          | Idle baseline
+30       | 180         | Reviewer 1 startup
+60       | 280         | All reviewers active
+120      | 350         | Parallel execution peak
+180      | 420         | Consolidation peak ⚠️ (highest)
+240      | 380         | Report generation
+270      | 120         | Post-execution (GC in progress)
+300      | 50          | Returned to baseline ✅
+```
+
+**CPU Utilization**:
+- ✅ **Average**: <80% during parallel execution
+  - Parallel phase: 70-75% (3 reviewers processing)
+  - Consolidation: 60-65% (single-threaded algorithm)
+  - Report generation: 40-50% (markdown generation)
+- ✅ **No sustained 100% spikes** (indicates inefficient algorithm)
+
+**Disk I/O**:
+- ✅ **Minimal writes**: <10MB total
+  - Master report: ~500KB (large report)
+  - Reviewer appendices: ~300KB total (3 files × 100KB)
+  - Cache files: <5MB (reviewer outputs cached)
+- ✅ **No excessive reads**: Files read once, cached in memory
+- ✅ **No temp file bloat**: Cleanup successful after execution
+
+**Memory Leak Test** (3 consecutive runs):
+```
+Run 1: Peak 420MB → Post 50MB ✅
+Run 2: Peak 425MB → Post 52MB ✅ (stable)
+Run 3: Peak 418MB → Post 51MB ✅ (no growth)
+```
+- ✅ No memory growth across runs (leak-free)
+
+---
+
+#### Acceptance Criteria
+
+- [ ] **AC14.1**: Memory usage <500MB peak
+  - Peak measured during consolidation phase
+  - No individual phase exceeds 500MB
+  - Peak within acceptable limits for large codebase
+
+- [ ] **AC14.2**: No memory leaks detected
+  - 3 consecutive runs show stable memory profile
+  - Post-execution memory returns to baseline (<100MB)
+  - No linear growth pattern across runs
+
+- [ ] **AC14.3**: CPU usage <80% average
+  - Average calculated across all phases
+  - No sustained 100% spikes (>30 seconds)
+  - Multi-core utilization efficient (parallel reviewers)
+
+- [ ] **AC14.4**: Disk I/O minimal
+  - Total writes <10MB (reports + cache)
+  - No temp file bloat (cleanup successful)
+  - File reads efficient (caching working)
+
+---
+
+#### Failure Indicators
+
+**Critical Failures**:
+- ❌ **Memory overflow**: Peak >500MB (OOM risk on low-memory systems)
+- ❌ **Memory leak confirmed**: Run 3 memory >150% of Run 1
+- ❌ **CPU thrashing**: Sustained 100% CPU with no progress
+- ❌ **Disk bloat**: >100MB writes (excessive logging or temp files)
+
+**Warning Failures**:
+- ⚠️ **Memory near limit**: Peak 450-499MB (close to threshold)
+- ⚠️ **Slow GC**: Post-execution memory takes >60s to return to baseline
+- ⚠️ **CPU spikes**: Brief 100% spikes (acceptable if <10s)
+- ⚠️ **Disk I/O spikes**: Individual writes >5MB (large appendices)
+
+---
+
+#### Resource Optimization Recommendations
+
+**If Memory Exceeds Limits**:
+1. Implement streaming consolidation (process issues in batches)
+2. Release reviewer outputs from memory after parsing
+3. Use memory-mapped files for large reports
+
+**If CPU Exceeds Limits**:
+1. Optimize consolidation algorithm (reduce O(n²) operations)
+2. Implement worker threads for parallel consolidation
+3. Add progress caching (resume from checkpoint on timeout)
+
+**If Disk I/O Excessive**:
+1. Reduce logging verbosity
+2. Compress cache files
+3. Implement in-memory caching with periodic disk writes
+
+---
+
+**Integration Testing Status**: ✅ READY FOR EXECUTION (Phase 6, Task 6.2)
+**Component Tests (6.1)**: ✅ COMPLETE (TC1-TC8 specified)
+**Integration Tests (6.2)**: ✅ SPECIFIED (TC9, TC10, TC13, TC14 defined)
+**Next Steps**: Execute integration tests → Document results → Task 6.2 complete
+
+---
+
 **Prompt Version**: 1.2
 **Last Updated**: 2025-10-25
 **Compatibility**: Claude Opus 4.1, Claude Sonnet 3.7+

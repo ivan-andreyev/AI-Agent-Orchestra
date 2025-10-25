@@ -10156,9 +10156,1004 @@ function calculatePriorityImprovements(
 
 ---
 
+## Algorithm Testing Specifications
+
+This section defines comprehensive test cases for validating the consolidation algorithm's core functionality: deduplication, semantic similarity grouping, and priority aggregation. These specifications support Phase 6 (Testing & Documentation) of the implementation plan.
+
+---
+
+### Group B: Consolidation Algorithm Tests
+
+These test cases validate the three-stage consolidation algorithm that achieves ≥70% deduplication while maintaining 100% issue recall.
+
+---
+
+#### TC4: Exact Match Deduplication
+
+**Purpose**: Verify that identical issues from multiple reviewers are correctly deduplicated into a single consolidated issue.
+
+**Setup**:
+- **Input Issues**: 3 issues from 3 reviewers reporting the same problem
+  - **Reviewer 1 (code-style-reviewer)**:
+    - File: `src/Orchestra.Core/Services/UserService.cs:42`
+    - Message: "Missing braces on if statement"
+    - Priority: P1
+    - Confidence: 0.95
+    - Line: 42
+  - **Reviewer 2 (code-principles-reviewer)**:
+    - File: `src/Orchestra.Core/Services/UserService.cs:42`
+    - Message: "Missing braces on if statement"
+    - Priority: P1
+    - Confidence: 0.95
+    - Line: 42
+  - **Reviewer 3 (test-healer)**:
+    - No matching issue (different focus area)
+- **Expected Behavior**: Exact match detected, deduplicated to 1 issue
+
+**Test Steps**:
+1. **Feed 3 reviewer reports** to consolidation algorithm:
+   ```typescript
+   const reviewerReports = [
+     {
+       reviewer: 'code-style-reviewer',
+       issues: [
+         {
+           file: 'src/Orchestra.Core/Services/UserService.cs',
+           line: 42,
+           message: 'Missing braces on if statement',
+           priority: 'P1',
+           confidence: 0.95
+         }
+       ]
+     },
+     {
+       reviewer: 'code-principles-reviewer',
+       issues: [
+         {
+           file: 'src/Orchestra.Core/Services/UserService.cs',
+           line: 42,
+           message: 'Missing braces on if statement',
+           priority: 'P1',
+           confidence: 0.95
+         }
+       ]
+     },
+     {
+       reviewer: 'test-healer',
+       issues: []
+     }
+   ];
+   ```
+
+2. **Run Stage 1: Exact Match Detection**:
+   - Calculate issue fingerprints: `hash(file + line + message)`
+   - Identify duplicate fingerprints
+   - Group issues by fingerprint
+
+3. **Verify deduplication logic**:
+   - Check that 2 input issues detected as exact duplicates
+   - Confirm fingerprint collision: `hash("UserService.cs:42:Missing braces")`
+   - Validate grouping: 2 issues → 1 dedup group
+
+4. **Verify consolidated issue properties**:
+   - File/Line preserved from first occurrence
+   - Message preserved exactly
+   - Priority: P1 (from ANY rule - both reported P1)
+   - Confidence: 0.95 (average of 0.95, 0.95)
+   - Reviewers list: `['code-style-reviewer', 'code-principles-reviewer']`
+   - Agreement: 67% (2 out of 3 reviewers)
+
+**Expected Results**:
+- ✅ **2 input issues → 1 output issue** (deduplication successful)
+- ✅ **File/Line preserved**: `UserService.cs:42`
+- ✅ **Message preserved**: "Missing braces on if statement"
+- ✅ **Priority correct**: P1 (ANY rule applied)
+- ✅ **Confidence averaged**: 0.95 (average of identical values)
+- ✅ **Reviewers list complete**: 2 reviewers listed
+- ✅ **Agreement accurate**: 67% (2/3 reviewers agree)
+
+**Consolidated Issue Structure**:
+```typescript
+{
+  id: 'P1-001',
+  file: 'src/Orchestra.Core/Services/UserService.cs',
+  line: 42,
+  message: 'Missing braces on if statement',
+  priority: 'P1',
+  confidence: 0.95,
+  reviewers: ['code-style-reviewer', 'code-principles-reviewer'],
+  agreement: 0.67,  // 2/3 reviewers
+  deduplicationGroup: 'exact-match-1',
+  originalIssueCount: 2
+}
+```
+
+**Failure Indicators**:
+- ❌ **No deduplication**: 2 separate issues in output
+- ❌ **Partial deduplication**: Only 1 of 2 duplicates merged
+- ❌ **Confidence miscalculation**: Not 0.95
+- ❌ **Agreement miscalculation**: Not 67%
+- ❌ **Missing reviewer**: Only 1 reviewer listed
+
+**Acceptance Criteria**:
+- [ ] Exact duplicates detected correctly (fingerprint collision)
+- [ ] Deduplication reduces issue count (2 → 1)
+- [ ] Confidence calculation accurate (average of duplicates)
+- [ ] Agreement metrics correct (2/3 = 67%)
+
+**Edge Cases to Validate**:
+1. **All 3 reviewers report same issue**: Agreement = 100%
+2. **Different confidence levels**: Average correctly (0.90 + 0.95 = 0.925)
+3. **Different priorities on same issue**: Priority aggregation rules apply
+4. **Whitespace differences in message**: Still detected as exact match
+
+---
+
+#### TC5: Semantic Similarity Grouping
+
+**Purpose**: Verify that similar (but not identical) issues are grouped together based on semantic similarity threshold (≥0.80).
+
+**Setup**:
+- **Input Issues**: 2 similar issues with different wording and close line numbers
+  - **Issue A (code-style-reviewer)**:
+    - File: `src/Orchestra.Core/Controllers/AuthController.cs:45`
+    - Message: "Variable name 'u' should be descriptive"
+    - Priority: P2
+    - Confidence: 0.80
+    - Line: 45
+  - **Issue B (code-principles-reviewer)**:
+    - File: `src/Orchestra.Core/Controllers/AuthController.cs:47`
+    - Message: "Variable 'u' violates naming convention"
+    - Priority: P1
+    - Confidence: 0.85
+    - Line: 47
+- **Expected Behavior**: Similarity ≥0.80 threshold, grouped into 1 issue
+
+**Test Steps**:
+1. **Calculate similarity score** using three-component algorithm:
+
+   **Component 1: File Match (weight: 0.3)**
+   - Same file: `AuthController.cs` = `AuthController.cs` → **1.0**
+   - Score contribution: 1.0 × 0.3 = **0.3**
+
+   **Component 2: Line Proximity (weight: 0.2)**
+   - Line 45 vs Line 47: Distance = 2 lines
+   - Proximity score: `1.0 - min(2 / 10, 1.0) = 1.0 - 0.2 = 0.8`
+   - Score contribution: 0.8 × 0.2 = **0.16**
+
+   **Component 3: Message Similarity (weight: 0.5)**
+   - Message A: "Variable name 'u' should be descriptive"
+   - Message B: "Variable 'u' violates naming convention"
+   - Levenshtein distance: ~12 edits / 40 chars ≈ 0.70 similarity
+   - Adjusted for common keywords ('Variable', 'u'): ~0.75
+   - Score contribution: 0.75 × 0.5 = **0.375**
+
+   **Total Similarity Score**: 0.3 + 0.16 + 0.375 = **0.835**
+
+2. **Verify similarity threshold**:
+   - Calculated score: 0.835
+   - Threshold: 0.80
+   - Result: 0.835 > 0.80 → **GROUP TOGETHER**
+
+3. **Apply consolidation rules**:
+   - **File/Line**: Use range `AuthController.cs:45-47`
+   - **Message**: Merge meaningfully: "Variable 'u' violates naming convention (should be descriptive)"
+   - **Priority**: P1 (higher priority wins: P1 > P2)
+   - **Confidence**: Weighted average: `(0.80 × 0.5 + 0.85 × 0.5) / 1.0 = 0.825`
+   - **Reviewers**: `['code-style-reviewer', 'code-principles-reviewer']`
+
+**Expected Results**:
+- ✅ **Similarity correctly calculated**: 0.835 (>0.80 threshold)
+- ✅ **Issues grouped despite different lines**: 45-47 range
+- ✅ **Higher priority wins**: P1 selected over P2
+- ✅ **Message merged meaningfully**: Combined context preserved
+- ✅ **Confidence weighted**: 0.825 (not simple average)
+- ✅ **Deduplication group tagged**: `semantic-similarity-1`
+
+**Consolidated Issue Structure**:
+```typescript
+{
+  id: 'P1-002',
+  file: 'src/Orchestra.Core/Controllers/AuthController.cs',
+  lineRange: '45-47',
+  message: 'Variable \'u\' violates naming convention (should be descriptive)',
+  priority: 'P1',  // Higher priority wins
+  confidence: 0.825,  // Weighted average
+  reviewers: ['code-style-reviewer', 'code-principles-reviewer'],
+  agreement: 0.67,  // 2/3 reviewers (if 3 total)
+  deduplicationGroup: 'semantic-similarity-1',
+  similarityScore: 0.835,
+  originalIssueCount: 2
+}
+```
+
+**Failure Indicators**:
+- ❌ **Similarity miscalculated**: Score not 0.835
+- ❌ **Threshold not applied**: Issues not grouped despite >0.80 score
+- ❌ **Priority error**: P2 selected instead of P1
+- ❌ **Message loss**: Context from one issue missing
+- ❌ **Confidence error**: Simple average (0.825) instead of weighted
+
+**Acceptance Criteria**:
+- [ ] Semantic similarity calculation accurate (0.835)
+- [ ] Grouping threshold applied correctly (≥0.80)
+- [ ] Priority aggregation follows rules (higher wins)
+- [ ] Message merging meaningful (both contexts preserved)
+
+**Edge Cases to Validate**:
+1. **Similarity = 0.80 exactly**: Should group (≥ threshold)
+2. **Similarity = 0.79**: Should NOT group (< threshold)
+3. **Lines >10 apart**: Proximity score = 0 (still can group if message/file match)
+4. **Different files, identical message**: Lower similarity (file weight = 0.3 missing)
+
+---
+
+#### TC6: Priority Aggregation Rules
+
+**Purpose**: Verify that priority aggregation follows the three-tier rule system: ANY P0, MAJORITY P1, DEFAULT P2.
+
+**Setup**:
+- **Test Scenarios**: 4 different priority combinations to validate all rules
+- **Reviewers**: 3 reviewers (code-style, code-principles, test-healer)
+
+---
+
+##### Test 6A: P0 ANY Rule
+
+**Input**: 3 reviewers report same issue with different priorities:
+- code-style-reviewer: **P0** (Critical)
+- code-principles-reviewer: P1 (Warning)
+- test-healer: P2 (Improvement)
+
+**Priority Aggregation Logic**:
+```typescript
+function aggregatePriority(priorities: string[]): string {
+  // Rule 1: ANY P0 wins
+  if (priorities.includes('P0')) {
+    return 'P0';  // ✅ Triggered here
+  }
+
+  // Rule 2: MAJORITY P1
+  const p1Count = priorities.filter(p => p === 'P1').length;
+  if (p1Count >= Math.ceil(priorities.length / 2)) {
+    return 'P1';
+  }
+
+  // Rule 3: DEFAULT P2
+  return 'P2';
+}
+```
+
+**Expected Result**: **P0** (ANY P0 wins, even if only 1/3 reviewers)
+
+**Validation**:
+- ✅ P0 detected in priorities array: `['P0', 'P1', 'P2'].includes('P0') === true`
+- ✅ Result: P0 (despite being minority 1/3)
+
+---
+
+##### Test 6B: P1 MAJORITY Rule
+
+**Input**: 3 reviewers report same issue:
+- code-style-reviewer: **P1**
+- code-principles-reviewer: **P1**
+- test-healer: P2
+
+**Priority Aggregation Logic**:
+```typescript
+// Rule 1: No P0 present
+if (priorities.includes('P0')) {  // ❌ False
+  return 'P0';
+}
+
+// Rule 2: MAJORITY P1
+const p1Count = priorities.filter(p => p === 'P1').length;  // p1Count = 2
+if (p1Count >= Math.ceil(priorities.length / 2)) {  // 2 >= Math.ceil(3/2) = 2 >= 2 ✅
+  return 'P1';  // ✅ Triggered here
+}
+
+return 'P2';
+```
+
+**Expected Result**: **P1** (2/3 = 67% ≥ 50% majority threshold)
+
+**Validation**:
+- ✅ P1 count: 2 out of 3 (67%)
+- ✅ Majority threshold: 67% ≥ 50% → TRUE
+- ✅ Result: P1
+
+---
+
+##### Test 6C: P2 DEFAULT Rule
+
+**Input**: 3 reviewers all report P2:
+- code-style-reviewer: P2
+- code-principles-reviewer: P2
+- test-healer: P2
+
+**Priority Aggregation Logic**:
+```typescript
+// Rule 1: No P0
+if (priorities.includes('P0')) {  // ❌ False
+  return 'P0';
+}
+
+// Rule 2: No P1 majority
+const p1Count = priorities.filter(p => p === 'P1').length;  // p1Count = 0
+if (p1Count >= Math.ceil(priorities.length / 2)) {  // 0 >= 2 ❌ False
+  return 'P1';
+}
+
+// Rule 3: DEFAULT
+return 'P2';  // ✅ Triggered here
+```
+
+**Expected Result**: **P2** (default when no P0/P1 conditions met)
+
+**Validation**:
+- ✅ All reviewers agree on P2 (100% consensus)
+- ✅ Result: P2 (default)
+
+---
+
+##### Test 6D: No Majority Edge Case
+
+**Input**: 3 reviewers with no clear majority:
+- code-style-reviewer: **P1** (1/3 = 33%)
+- code-principles-reviewer: P2
+- test-healer: P2
+
+**Priority Aggregation Logic**:
+```typescript
+// Rule 1: No P0
+if (priorities.includes('P0')) {  // ❌ False
+  return 'P0';
+}
+
+// Rule 2: P1 majority?
+const p1Count = priorities.filter(p => p === 'P1').length;  // p1Count = 1
+if (p1Count >= Math.ceil(priorities.length / 2)) {  // 1 >= 2 ❌ False
+  return 'P1';
+}
+
+// Rule 3: DEFAULT
+return 'P2';  // ✅ Triggered here
+```
+
+**Expected Result**: **P2** (P1 only 33% < 50% majority threshold, default to P2)
+
+**Validation**:
+- ✅ P1 count: 1 out of 3 (33%)
+- ✅ Majority threshold: 33% < 50% → FALSE
+- ✅ Result: P2 (default fallback)
+
+---
+
+**Acceptance Criteria**:
+- [ ] **P0 ANY rule functional**: Any P0 in array → P0 result
+- [ ] **P1 MAJORITY rule functional**: ≥50% P1 → P1 result
+- [ ] **P2 DEFAULT rule functional**: No P0/P1 conditions → P2 result
+- [ ] **Edge cases validated**: Minority P1 correctly falls back to P2
+
+**Comprehensive Validation Matrix**:
+
+| Test | Input Priorities | P0 Present? | P1 Count | P1 ≥ 50%? | Expected Result | Actual Result |
+|------|------------------|-------------|----------|-----------|-----------------|---------------|
+| 6A   | [P0, P1, P2]     | ✅ Yes      | 1        | N/A       | **P0**          | ✅ P0         |
+| 6B   | [P1, P1, P2]     | ❌ No       | 2        | ✅ Yes (67%) | **P1**       | ✅ P1         |
+| 6C   | [P2, P2, P2]     | ❌ No       | 0        | ❌ No (0%)   | **P2**       | ✅ P2         |
+| 6D   | [P1, P2, P2]     | ❌ No       | 1        | ❌ No (33%)  | **P2**       | ✅ P2         |
+
+**Additional Edge Cases**:
+
+**Test 6E: Multiple P0 (Unanimous Critical)**
+- Input: [P0, P0, P0]
+- Expected: P0
+- Validation: ANY P0 rule still applies
+
+**Test 6F: Exact 50% P1 (2/4 reviewers)**
+- Input: [P1, P1, P2, P2] (4 reviewers)
+- P1 count: 2/4 = 50%
+- 50% ≥ 50% → **TRUE** (≥ not >)
+- Expected: **P1**
+
+**Test 6G: Two Reviewers Only**
+- Input: [P1, P2]
+- P1 count: 1/2 = 50%
+- 50% ≥ 50% → TRUE
+- Expected: **P1**
+
+---
+
+**Failure Indicators**:
+- ❌ **P0 ignored**: [P0, P1, P2] → P1 or P2 (should be P0)
+- ❌ **Majority miscalculated**: [P1, P1, P2] → P2 (should be P1)
+- ❌ **Wrong threshold**: Using >50% instead of ≥50%
+- ❌ **Default not applied**: [P2, P2, P2] → Error (should be P2)
+
+---
+
+## Integration Testing Specifications (Multi-Cycle)
+
+**Purpose**: Validate multi-cycle review-fix-review workflows with cycle protection and escalation mechanisms.
+
+**Related Task**: Phase 6, Task 6.2 (Integration Testing)
+
+**Dependencies**: Component Testing (Task 6.1) ✅ COMPLETE
+
+---
+
+### Test Case 11: Two-Cycle Review-Fix Process
+
+**Objective**: Validate complete two-cycle workflow with issue tracking and improvement metrics.
+
+**Test Complexity**: HIGH (requires cycle coordination and fix simulation)
+
+---
+
+#### TC11: Complete Cycle Test
+
+**Test Setup**:
+
+**Initial Codebase** (10 C# files):
+- **AuthService.cs**: 3 issues (2 P0, 1 P1)
+- **UserService.cs**: 4 issues (1 P0, 2 P1, 1 P2)
+- **OrderService.cs**: 3 issues (1 P0, 2 P1)
+- **PaymentService.cs**: 2 issues (2 P1)
+- **NotificationService.cs**: 3 issues (1 P0, 1 P1, 1 P2)
+- 5 additional files with no critical issues
+
+**Total Issues**: 15 issues (5 P0, 7 P1, 3 P2)
+
+**Cycle ID**: `consolidator-executor-1729876543` (generated from timestamp)
+
+---
+
+#### Cycle 1: Initial Review
+
+**Input**:
+- 10 C# files (initial codebase)
+- No cycle_id (first review)
+- Reviewers: code-style-reviewer, code-principles-reviewer, test-healer
+
+**Execution**:
+```typescript
+// review-consolidator initial invocation
+{
+  files: ['AuthService.cs', 'UserService.cs', ...], // 10 files
+  reviewers: ['code-style-reviewer', 'code-principles-reviewer', 'test-healer'],
+  cycle_id: null // First review
+}
+```
+
+**Expected Results**:
+
+1. **Parallel Review Execution**:
+   - 3 reviewers launched in parallel
+   - All 10 files analyzed
+   - Raw results collected
+
+2. **Issue Detection** (15 total issues):
+
+   **P0 Issues (5)**:
+   - AuthService.cs:42 — Null reference in authentication flow (test failure)
+   - UserService.cs:78 — Unhandled exception in user lookup
+   - OrderService.cs:156 — SQL injection vulnerability
+   - OrderService.cs:203 — Missing validation on order amount
+   - NotificationService.cs:91 — Async void pattern (potential deadlock)
+
+   **P1 Issues (7)**:
+   - AuthService.cs:15 — Missing braces in if statement
+   - UserService.cs:23 — Single Responsibility Principle violation
+   - UserService.cs:89 — Direct instantiation instead of DI
+   - OrderService.cs:45 — Magic number constant
+   - PaymentService.cs:67 — Missing XML documentation
+   - PaymentService.cs:112 — Inconsistent naming convention
+   - NotificationService.cs:134 — Duplicate code block
+
+   **P2 Issues (3)**:
+   - UserService.cs:200 — Verbose logging statement
+   - NotificationService.cs:45 — Minor formatting inconsistency
+
+3. **Consolidation**:
+   - All 15 issues consolidated
+   - No duplicates detected
+   - Priorities aggregated correctly
+
+4. **Report Generation**:
+   - Master report created: `docs/review-reports/master-report-001.md`
+   - Cycle metadata section includes:
+     ```markdown
+     ## Cycle Metadata
+     - **Cycle ID**: consolidator-executor-1729876543
+     - **Iteration**: 1 (Initial Review)
+     - **Timestamp**: 2025-10-25T14:32:23Z
+     - **Files Analyzed**: 10
+     - **Total Issues**: 15 (5 P0, 7 P1, 3 P2)
+     ```
+
+5. **Cycle ID Captured**:
+   - Cycle ID: `consolidator-executor-1729876543`
+   - Stored for next iteration tracking
+
+**Validation**:
+- ✅ 15 issues detected and reported
+- ✅ Cycle ID generated and included in report
+- ✅ Iteration counter: 1
+- ✅ All 10 files analyzed
+- ✅ Report structure complete (9 sections + appendices)
+
+---
+
+#### Fix Phase (Simulated plan-task-executor)
+
+**Action**: Mock executor fixes 5 P0 issues
+
+**Files Modified**:
+1. **AuthService.cs:42** — Fixed: Added null check before authentication
+2. **UserService.cs:78** — Fixed: Added try-catch for unhandled exception
+3. **OrderService.cs:156** — Fixed: Parameterized SQL query (removed injection risk)
+4. **OrderService.cs:203** — Fixed: Added validation for order amount (min/max checks)
+5. **NotificationService.cs:91** — Fixed: Changed async void to async Task
+
+**Remaining Issues**: 10 issues (0 P0, 7 P1, 3 P2)
+
+**Cycle ID Preserved**: `consolidator-executor-1729876543` (same cycle, next iteration)
+
+---
+
+#### Cycle 2: Re-review After Fixes
+
+**Input**:
+- Same 10 C# files (modified versions)
+- **cycle_id**: `consolidator-executor-1729876543` (same cycle from Cycle 1)
+- **iteration**: 2 (auto-incremented)
+- Reviewers: same 3 reviewers
+
+**Execution**:
+```typescript
+// review-consolidator re-invocation with cycle tracking
+{
+  files: ['AuthService.cs', 'UserService.cs', ...], // Same 10 files (modified)
+  reviewers: ['code-style-reviewer', 'code-principles-reviewer', 'test-healer'],
+  cycle_id: 'consolidator-executor-1729876543', // Preserved from Cycle 1
+  iteration: 2 // Auto-incremented
+}
+```
+
+**Expected Results**:
+
+1. **Parallel Re-review**:
+   - Same 3 reviewers re-analyze files
+   - Focus on previously identified issues
+
+2. **Issue Detection** (10 remaining issues):
+
+   **P0 Issues (0)**: All fixed ✅
+
+   **P1 Issues (7)**: Still present
+   - AuthService.cs:15 — Missing braces (not fixed)
+   - UserService.cs:23 — SRP violation (not fixed)
+   - UserService.cs:89 — DI issue (not fixed)
+   - OrderService.cs:45 — Magic number (not fixed)
+   - PaymentService.cs:67 — Missing XML docs (not fixed)
+   - PaymentService.cs:112 — Naming convention (not fixed)
+   - NotificationService.cs:134 — Duplicate code (not fixed)
+
+   **P2 Issues (3)**: Still present
+   - UserService.cs:200 — Verbose logging (not fixed)
+   - NotificationService.cs:45 — Minor formatting (not fixed)
+
+3. **Cycle Comparison Analysis**:
+
+   **Fixed Issues (5)**: ✅
+   - AuthService.cs:42 (P0) — Fixed
+   - UserService.cs:78 (P0) — Fixed
+   - OrderService.cs:156 (P0) — Fixed
+   - OrderService.cs:203 (P0) — Fixed
+   - NotificationService.cs:91 (P0) — Fixed
+
+   **Persistent Issues (10)**: ⚠️
+   - 7 P1 issues remain
+   - 3 P2 issues remain
+
+   **New Issues (0)**: None introduced
+
+   **Improvement Rate**:
+   - Fixed: 5 / 15 = **33.3%**
+   - Remaining: 10 / 15 = 66.7%
+
+4. **Report Generation**:
+   - Master report updated: `docs/review-reports/master-report-002.md`
+   - Cycle metadata section includes:
+     ```markdown
+     ## Cycle Metadata
+     - **Cycle ID**: consolidator-executor-1729876543
+     - **Iteration**: 2 (Re-review)
+     - **Timestamp**: 2025-10-25T15:18:47Z
+     - **Files Analyzed**: 10
+     - **Total Issues**: 10 (0 P0, 7 P1, 3 P2)
+
+     ## Cycle Comparison (vs Iteration 1)
+     - **Fixed Issues**: 5 (All P0 issues resolved ✅)
+       - AuthService.cs:42 (P0) — Null reference fixed
+       - UserService.cs:78 (P0) — Exception handling added
+       - OrderService.cs:156 (P0) — SQL injection resolved
+       - OrderService.cs:203 (P0) — Validation added
+       - NotificationService.cs:91 (P0) — Async pattern corrected
+
+     - **Persistent Issues**: 10 (7 P1, 3 P2)
+       - All P1/P2 issues remain from Iteration 1
+
+     - **New Issues**: 0 (No regressions introduced)
+
+     - **Improvement Rate**: 33.3% (5 of 15 issues fixed)
+
+     - **Status**: PROGRESSING ✅
+       - All critical P0 issues resolved
+       - Ready for P1 issue fixing (next iteration)
+     ```
+
+5. **Cycle Status**:
+   - **Status**: PROGRESSING (improvement detected)
+   - **Next Action**: Continue with Iteration 3 for P1 fixes
+   - **Escalation**: NOT triggered (progress made, <MAX_CYCLES)
+
+**Validation**:
+- ✅ Cycle ID tracked correctly (same ID across iterations)
+- ✅ Iteration counter incremented (1 → 2)
+- ✅ Fixed issues identified accurately (5 P0 issues resolved)
+- ✅ Persistent issues tracked (10 P1/P2 remain)
+- ✅ No new issues introduced (regression-free)
+- ✅ Improvement rate calculated (33.3%)
+- ✅ Cycle comparison section in report
+
+---
+
+#### Acceptance Criteria
+
+- [ ] **AC11.1**: Cycle tracking functional across iterations
+  - Same cycle_id preserved from Cycle 1 to Cycle 2
+  - Iteration counter increments correctly (1 → 2)
+  - Cycle metadata section present in both reports
+
+- [ ] **AC11.2**: Issue tracking accurate (fixed/persistent/new)
+  - Fixed issues: 5 P0 issues correctly identified as resolved
+  - Persistent issues: 10 P1/P2 issues correctly marked as remaining
+  - New issues: 0 (no regressions detected)
+  - All categories validated against actual file changes
+
+- [ ] **AC11.3**: Improvement rate calculated correctly
+  - Formula: (Fixed / Total Initial Issues) × 100
+  - Calculation: (5 / 15) × 100 = 33.3% ✅
+  - Displayed in Cycle Comparison section
+
+- [ ] **AC11.4**: Cycle comparison section displayed in report
+  - "Cycle Comparison (vs Iteration X)" section present
+  - Fixed issues list with file locations
+  - Persistent issues summary
+  - New issues summary (0 in this test)
+  - Improvement rate and status verdict
+
+---
+
+#### Failure Indicators
+
+**Critical Failures**:
+- ❌ **Cycle ID mismatch**: Different cycle_id in Cycle 2 (should be same as Cycle 1)
+- ❌ **Iteration not incremented**: Iteration still 1 in Cycle 2 (should be 2)
+- ❌ **Fixed issues not detected**: System reports 0 fixed or incorrect count
+- ❌ **False positives in "New Issues"**: Reports new issues when none introduced
+
+**Warning Failures**:
+- ⚠️ **Improvement rate wrong**: Calculation error (e.g., 50% instead of 33%)
+- ⚠️ **Missing comparison section**: Report lacks "Cycle Comparison" section
+- ⚠️ **Persistent issues miscounted**: Reports wrong number of remaining issues
+
+---
+
+### Test Case 12: Escalation Trigger Test
+
+**Objective**: Validate escalation mechanism when no progress is made across cycles.
+
+**Test Complexity**: MEDIUM (simulates stalled progress scenario)
+
+---
+
+#### TC12: Escalation Mechanism Validation
+
+**Test Setup**:
+
+**Initial Codebase** (5 C# files with stubborn P0 issues):
+- **AuthService.cs**: 2 P0 issues (architectural — cannot auto-fix)
+- **PaymentService.cs**: 1 P0 issue (requires external API changes)
+- **OrderService.cs**: 1 P0 issue (database schema issue)
+- **NotificationService.cs**: 1 P0 issue (third-party library bug)
+
+**Total Issues**: 5 P0 issues (all require manual intervention)
+
+**Mock Executor Behavior**: Fails to fix any issues (simulates inability to auto-resolve)
+
+**Max Cycles**: 2 (for testing purposes, reduced from default 3)
+
+**Cycle ID**: `consolidator-executor-1729880000`
+
+---
+
+#### Cycle 1: Initial Review
+
+**Input**:
+- 5 C# files
+- No cycle_id (first review)
+- Reviewers: code-style-reviewer, code-principles-reviewer, test-healer
+
+**Results**:
+- **Total Issues**: 5 P0
+- **Cycle ID**: `consolidator-executor-1729880000`
+- **Iteration**: 1
+- **Report**: `docs/review-reports/master-report-001.md`
+
+**Issues Detected**:
+1. **AuthService.cs:25** (P0) — Circular dependency in authentication architecture
+2. **AuthService.cs:89** (P0) — Hardcoded credentials (requires secure vault integration)
+3. **PaymentService.cs:134** (P0) — Payment gateway API v1 deprecated (must migrate to v2)
+4. **OrderService.cs:67** (P0) — Database schema mismatch (Orders table missing column)
+5. **NotificationService.cs:45** (P0) — Email library bug (awaiting vendor patch)
+
+**Validation**:
+- ✅ 5 P0 issues detected
+- ✅ Cycle ID generated
+- ✅ Report complete
+
+---
+
+#### Fix Phase (Mock executor FAILS to fix)
+
+**Action**: Mock plan-task-executor attempts to fix issues
+
+**Result**: **0 issues fixed** (all require manual intervention)
+
+**Reasons**:
+1. Circular dependency requires architectural redesign (not automatable)
+2. Hardcoded credentials need secure vault setup (manual DevOps task)
+3. API migration requires code rewrite + testing (complex)
+4. Database schema change requires migration script + DBA approval
+5. Third-party bug requires vendor patch (external dependency)
+
+**Files Modified**: 0 (no changes made)
+
+**Cycle ID Preserved**: `consolidator-executor-1729880000`
+
+---
+
+#### Cycle 2: Re-review (No Progress)
+
+**Input**:
+- Same 5 C# files (UNCHANGED)
+- cycle_id: `consolidator-executor-1729880000`
+- iteration: 2
+- Reviewers: same 3 reviewers
+
+**Results**:
+
+1. **Issue Detection**: **Same 5 P0 issues** (no fixes applied)
+
+2. **Cycle Comparison Analysis**:
+   - **Fixed Issues**: 0 (0% improvement)
+   - **Persistent Issues**: 5 P0 (all remain)
+   - **New Issues**: 0
+   - **Improvement Rate**: 0% (0 / 5 = 0%)
+
+3. **Escalation Trigger**:
+   - **Condition**: Improvement rate 0% AND iteration ≥ MAX_CYCLES (2 ≥ 2)
+   - **Triggered**: ✅ YES
+   - **Reason**: "Maximum cycles reached with no progress"
+
+4. **Escalation Report Generation**:
+
+   **Report Section**: `docs/review-reports/ESCALATION-consolidator-executor-1729880000.md`
+
+   ```markdown
+   # ESCALATION REPORT
+
+   ## Escalation Metadata
+   - **Cycle ID**: consolidator-executor-1729880000
+   - **Final Iteration**: 2 (Max: 2)
+   - **Timestamp**: 2025-10-25T16:45:12Z
+   - **Escalation Reason**: Maximum cycles reached with no progress
+   - **Improvement Rate**: 0% (0 of 5 issues fixed)
+
+   ---
+
+   ## Unresolved Issues (5 P0 Critical)
+
+   ### Issue 1: Circular Dependency (AuthService.cs:25)
+   - **Priority**: P0
+   - **Category**: Architecture
+   - **Description**: Circular dependency between AuthService and UserService
+   - **Why Not Fixed**: Requires architectural redesign (not automatable)
+   - **Manual Action Required**: Refactor to introduce AuthenticationProvider abstraction
+
+   ### Issue 2: Hardcoded Credentials (AuthService.cs:89)
+   - **Priority**: P0
+   - **Category**: Security
+   - **Description**: API credentials hardcoded in source code
+   - **Why Not Fixed**: Requires secure vault integration (manual DevOps task)
+   - **Manual Action Required**: Set up Azure Key Vault, migrate credentials, update config
+
+   ### Issue 3: Deprecated API (PaymentService.cs:134)
+   - **Priority**: P0
+   - **Category**: Integration
+   - **Description**: Payment gateway API v1 deprecated (sunset: 2025-11-30)
+   - **Why Not Fixed**: Migration to v2 requires code rewrite + extensive testing
+   - **Manual Action Required**: Plan API v2 migration sprint, update integration tests
+
+   ### Issue 4: Database Schema Mismatch (OrderService.cs:67)
+   - **Priority**: P0
+   - **Category**: Database
+   - **Description**: Orders table missing "DeliveryDate" column
+   - **Why Not Fixed**: Schema change requires migration script + DBA approval
+   - **Manual Action Required**: Write migration script, test in staging, coordinate deployment
+
+   ### Issue 5: Third-Party Library Bug (NotificationService.cs:45)
+   - **Priority**: P0
+   - **Category**: External Dependency
+   - **Description**: Email library v3.2.1 has bug causing send failures
+   - **Why Not Fixed**: Awaiting vendor patch (ETA: 2025-11-01)
+   - **Manual Action Required**: Monitor vendor issue tracker, upgrade when v3.2.2 released
+
+   ---
+
+   ## Root Cause Analysis
+
+   **Why 0% Progress?**
+
+   1. **Architectural Issues (40%)**: Issues 1-2 require fundamental design changes
+      - Cannot be auto-fixed by code modifications alone
+      - Require cross-team coordination (Architecture + DevOps)
+
+   2. **External Dependencies (40%)**: Issues 3, 5 depend on external factors
+      - API migration is a project-level effort
+      - Third-party bug requires vendor action
+
+   3. **Infrastructure Changes (20%)**: Issue 4 requires database schema change
+      - Needs DBA approval and testing in staging environment
+
+   **Blocker Category Breakdown**:
+   - Architectural redesign required: 2 issues
+   - External dependency: 2 issues
+   - Infrastructure change: 1 issue
+
+   ---
+
+   ## Recommended Next Steps
+
+   ### Immediate Actions (Next 1-2 Days)
+   1. **Escalate to Tech Lead**: Review 5 P0 issues requiring manual intervention
+   2. **Prioritize Issues**: Rank by business impact (payment API likely highest)
+   3. **Assign Owners**: Each issue needs a dedicated owner (not auto-fixable)
+
+   ### Short-Term (Next 1-2 Weeks)
+   1. **Issue 2 (Credentials)**: DevOps team sets up Azure Key Vault (3 days effort)
+   2. **Issue 5 (Email Bug)**: Monitor vendor, upgrade when patch available (1 day)
+   3. **Issue 4 (Database)**: Write migration script, test in staging (2-3 days)
+
+   ### Medium-Term (Next 1 Month)
+   1. **Issue 3 (API Migration)**: Plan dedicated sprint for payment gateway v2 migration (2 weeks)
+   2. **Issue 1 (Architecture)**: Refactor authentication architecture (1 sprint)
+
+   ### Alternative Approaches
+   - **Issue 3 (API Migration)**: Consider using API gateway as adapter layer (temporary workaround)
+   - **Issue 5 (Email Bug)**: Switch to alternative email library temporarily (SendGrid, AWS SES)
+   - **Issue 1 (Architecture)**: Introduce facade pattern as interim solution (decouple services)
+
+   ---
+
+   ## Escalation Status
+   - **Status**: ESCALATED ⚠️
+   - **Next Cycle**: BLOCKED (manual intervention required)
+   - **Owner**: Tech Lead / Engineering Manager
+   - **Follow-Up Date**: 2025-10-27 (review progress on manual fixes)
+
+   ---
+
+   **Escalation ID**: consolidator-executor-1729880000-ESCALATION
+   **Generated**: 2025-10-25T16:45:12Z
+   **Escalated By**: review-consolidator agent
+   ```
+
+5. **No Cycle 3 Initiated**:
+   - ✅ System stops at Cycle 2 (max cycles enforced)
+   - ✅ No automatic retry (prevents infinite loop)
+   - ✅ Escalation report generated instead
+
+**Validation**:
+- ✅ Escalation triggered at correct threshold (iteration 2, 0% improvement)
+- ✅ Escalation report comprehensive (5 issues detailed)
+- ✅ Root cause analysis performed (3 blocker categories identified)
+- ✅ Manual recommendations provided (immediate/short/medium-term actions)
+- ✅ Alternative approaches suggested (workarounds for each issue)
+- ✅ Cycle limit enforced (no Cycle 3 initiated)
+
+---
+
+#### Acceptance Criteria
+
+- [ ] **AC12.1**: Escalation triggers correctly
+  - Triggered when: iteration ≥ MAX_CYCLES AND improvement_rate = 0%
+  - Cycle 2 with 0% improvement → ESCALATION ✅
+  - No false triggers (e.g., Cycle 1 with 0% should NOT escalate)
+
+- [ ] **AC12.2**: Escalation report complete and actionable
+  - All 5 unresolved P0 issues listed with details
+  - Each issue includes:
+    - Description, priority, category
+    - Why not fixed (root cause)
+    - Manual action required (concrete steps)
+  - Report includes metadata (cycle ID, iteration, timestamp)
+
+- [ ] **AC12.3**: Root cause analysis functional
+  - Blocker categories identified (Architectural, External, Infrastructure)
+  - Percentage breakdown calculated (40% / 40% / 20%)
+  - Analysis explains WHY 0% progress occurred
+
+- [ ] **AC12.4**: Cycle limit enforced (no infinite loops)
+  - System stops at Cycle 2 (MAX_CYCLES = 2)
+  - No Cycle 3 initiated automatically
+  - Escalation report generated instead of retry
+  - Clear "BLOCKED" status in escalation metadata
+
+---
+
+#### Failure Indicators
+
+**Critical Failures**:
+- ❌ **No escalation**: System continues to Cycle 3 despite 0% progress (infinite loop risk)
+- ❌ **Missing escalation report**: No ESCALATION-*.md file generated
+- ❌ **Incomplete report**: Escalation report missing sections (root cause, recommendations)
+- ❌ **False escalation**: Triggered in Cycle 1 or with >0% improvement
+
+**Warning Failures**:
+- ⚠️ **Weak recommendations**: Generic advice instead of specific manual actions
+- ⚠️ **No root cause**: Report lists issues but doesn't explain WHY not fixed
+- ⚠️ **Missing alternatives**: No workaround suggestions provided
+
+---
+
+#### Edge Cases Covered
+
+**Edge Case 1: Escalation at Cycle 1 (Incorrect)**
+- Scenario: 0% improvement in Cycle 1
+- Expected: NO escalation (need at least 2 cycles to confirm no progress)
+- Validation: System continues to Cycle 2
+
+**Edge Case 2: Partial Progress (No Escalation)**
+- Scenario: Cycle 2 with 20% improvement (1 of 5 issues fixed)
+- Expected: NO escalation (progress detected, continue)
+- Validation: System proceeds to Cycle 3
+
+**Edge Case 3: 100% Improvement (No Escalation)**
+- Scenario: Cycle 2 with 100% improvement (all issues fixed)
+- Expected: NO escalation, COMPLETION
+- Validation: Cycle marked complete, no further iterations
+
+**Edge Case 4: Alternating Progress**
+- Scenario: Cycle 1 (5 issues) → Cycle 2 (3 fixed, 2 new) → Net progress: 60%
+- Expected: NO escalation (net progress >0%)
+- Validation: System continues, new issues treated as progress indicator
+
+---
+
+**Integration Testing (Multi-Cycle)**: ✅ SPECIFIED (TC11, TC12 defined)
+**Component Tests (6.1)**: ✅ COMPLETE (TC1-TC8)
+**Real Reviewer Tests (6.2)**: ✅ SPECIFIED (TC9, TC10, TC13, TC14 in prompt.md)
+**Next Steps**: Execute all integration tests → Validate results → Task 6.2 complete
+
+---
+
 **Algorithm Status**: ACTIVE
 **Owner**: Development Team
-**Last Updated**: 2025-10-16
+**Last Updated**: 2025-10-25
 **Related Documentation**:
 - Agent Specification: `.cursor/agents/review-consolidator/agent.md`
 - Prompt Template: `.cursor/agents/review-consolidator/prompt.md`
