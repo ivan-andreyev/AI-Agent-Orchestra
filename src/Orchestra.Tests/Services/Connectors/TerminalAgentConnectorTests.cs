@@ -214,21 +214,8 @@ public class TerminalAgentConnectorTests : IDisposable
         Assert.Contains("ConnectorType mismatch", result.ErrorMessage);
     }
 
-    [Fact]
-    public async Task ConnectAsync_NotYetImplemented_ReturnsFailure()
-    {
-        // Arrange
-        var connectionParams = CreateValidTerminalConnectionParams();
-
-        // Act
-        var result = await _connector.ConnectAsync("test-agent", connectionParams);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.False(result.Success);
-        Assert.Contains("Not implemented", result.ErrorMessage);
-        Assert.Contains("Task 1.2B", result.ErrorMessage);
-    }
+    // NOTE: ConnectAsync_NotYetImplemented_ReturnsFailure test removed
+    // ConnectAsync is now fully implemented in Task 1.2B.3
 
     #endregion
 

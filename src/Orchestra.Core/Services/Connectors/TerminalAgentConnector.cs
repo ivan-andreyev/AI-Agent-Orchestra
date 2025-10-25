@@ -99,7 +99,7 @@ public class TerminalAgentConnector : IAgentConnector
     public event EventHandler<ConnectionStatusChangedEventArgs>? StatusChanged;
 
     /// <inheritdoc />
-    public Task<ConnectionResult> ConnectAsync(
+    public async Task<ConnectionResult> ConnectAsync(
         string agentId,
         AgentConnectionParams connectionParams,
         CancellationToken cancellationToken = default)
@@ -127,16 +127,129 @@ public class TerminalAgentConnector : IAgentConnector
         {
             var errorMessage = string.Join(", ", validationErrors);
             _logger.LogError("Invalid connection parameters: {Errors}", errorMessage);
-            return Task.FromResult(ConnectionResult.CreateFailure(errorMessage));
+            return ConnectionResult.CreateFailure(errorMessage);
         }
 
-        // NOTE: Connection implementation pending (Task 1.2B: Cross-Platform Socket Connection)
-        _logger.LogWarning(
-            "ConnectAsync not yet implemented. " +
-            "Implementation pending for cross-platform socket connection");
+        try
+        {
+            // Update status to Connecting
+            Status = ConnectionStatus.Connecting;
+            _logger.LogInformation("Connecting to agent '{AgentId}'...", agentId);
 
-        return Task.FromResult(ConnectionResult.CreateFailure(
-            "Not implemented: ConnectAsync stub. Implementation pending in Task 1.2B."));
+            // Determine preferred connection method
+            var connectionMethod = GetPreferredConnectionMethod(connectionParams);
+
+            if (connectionMethod == null)
+            {
+                var errorMsg = "No valid connection method available for current platform. " +
+                              $"Platform supports Unix sockets: {SupportsUnixDomainSockets()}, " +
+                              $"Options: UseUnixSockets={_options.UseUnixSockets}, UseNamedPipes={_options.UseNamedPipes}";
+                _logger.LogError(errorMsg);
+                Status = ConnectionStatus.Disconnected;
+                return ConnectionResult.CreateFailure(errorMsg);
+            }
+
+            Stream connectionStream;
+
+            // Connect using selected method
+            if (connectionMethod == "unix")
+            {
+                // Unix Domain Socket connection
+                var socketPath = connectionParams.SocketPath ?? _options.DefaultSocketPath;
+                if (string.IsNullOrWhiteSpace(socketPath))
+                {
+                    var errorMsg = "Unix socket path not provided in connection params or options";
+                    _logger.LogError(errorMsg);
+                    Status = ConnectionStatus.Disconnected;
+                    return ConnectionResult.CreateFailure(errorMsg);
+                }
+
+                _logger.LogDebug("Using Unix Domain Socket connection: {SocketPath}", socketPath);
+                var socket = await ConnectUnixDomainSocketAsync(socketPath, cancellationToken);
+                connectionStream = new NetworkStream(socket, ownsSocket: true);
+            }
+            else if (connectionMethod == "namedpipe")
+            {
+                // Named Pipe connection
+                var pipeName = connectionParams.PipeName ?? _options.DefaultPipeName;
+                if (string.IsNullOrWhiteSpace(pipeName))
+                {
+                    var errorMsg = "Named pipe name not provided in connection params or options";
+                    _logger.LogError(errorMsg);
+                    Status = ConnectionStatus.Disconnected;
+                    return ConnectionResult.CreateFailure(errorMsg);
+                }
+
+                _logger.LogDebug("Using Named Pipe connection: {PipeName}", pipeName);
+                connectionStream = await ConnectWindowsNamedPipeAsync(pipeName, cancellationToken);
+            }
+            else
+            {
+                // Should never happen due to GetPreferredConnectionMethod validation
+                var errorMsg = $"Unknown connection method: {connectionMethod}";
+                _logger.LogError(errorMsg);
+                Status = ConnectionStatus.Disconnected;
+                return ConnectionResult.CreateFailure(errorMsg);
+            }
+
+            // Store connection state
+            _connectionStream = connectionStream;
+            _agentId = agentId;
+            UpdateLastActivity();
+
+            // Start background output reader
+            _cancellationTokenSource = new CancellationTokenSource();
+            _outputReaderTask = Task.Run(
+                () => ReadOutputLoopAsync(connectionStream, _cancellationTokenSource.Token),
+                _cancellationTokenSource.Token);
+
+            // Update status to Connected
+            Status = ConnectionStatus.Connected;
+            UpdateLastActivity();
+
+            _logger.LogInformation(
+                "Successfully connected to agent '{AgentId}' using {Method}",
+                agentId,
+                connectionMethod);
+
+            // Create success result with session ID
+            var sessionId = $"{agentId}_{DateTime.UtcNow:yyyyMMddHHmmss}";
+            return ConnectionResult.CreateSuccess(
+                sessionId,
+                new Dictionary<string, object>
+                {
+                    { "connectionMethod", connectionMethod },
+                    { "agentId", agentId },
+                    { "connectedAt", DateTime.UtcNow }
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to connect to agent '{AgentId}'", agentId);
+            Status = ConnectionStatus.Error;
+            UpdateLastActivity();
+
+            // Clean up partial connection
+            if (_connectionStream != null)
+            {
+                _connectionStream.Dispose();
+                _connectionStream = null;
+            }
+
+            if (_cancellationTokenSource != null)
+            {
+                _cancellationTokenSource.Dispose();
+                _cancellationTokenSource = null;
+            }
+
+            return ConnectionResult.CreateFailure(
+                $"Connection failed: {ex.Message}",
+                new Dictionary<string, object>
+                {
+                    { "exceptionType", ex.GetType().Name },
+                    { "agentId", agentId }
+                });
+        }
     }
 
     /// <inheritdoc />
@@ -484,6 +597,130 @@ public class TerminalAgentConnector : IAgentConnector
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Определяет предпочтительный метод подключения для текущей платформы
+    /// </summary>
+    /// <param name="connectionParams">Параметры подключения с указанными путями/именами</param>
+    /// <returns>
+    /// Тип метода подключения:
+    /// - "unix" для Unix Domain Sockets
+    /// - "namedpipe" для Windows Named Pipes
+    /// - null если нет доступного метода
+    /// </returns>
+    /// <remarks>
+    /// Алгоритм выбора:
+    /// 1. Если указан SocketPath и платформа поддерживает Unix Sockets → "unix"
+    /// 2. Если указан PipeName и это Windows → "namedpipe"
+    /// 3. Если UseUnixSockets=true и платформа поддерживает → "unix" (с DefaultSocketPath)
+    /// 4. Если UseNamedPipes=true и Windows → "namedpipe" (с DefaultPipeName)
+    /// 5. Иначе → null
+    ///
+    /// Поддержка Unix Domain Sockets:
+    /// - Linux: всегда
+    /// - macOS: всегда
+    /// - Windows: начиная с Windows 10 build 17063 (проверяется через OperatingSystem.IsWindowsVersionAtLeast)
+    /// </remarks>
+    private string? GetPreferredConnectionMethod(AgentConnectionParams connectionParams)
+    {
+        // Priority 1: Unix Domain Socket if path specified and platform supports it
+        if (!string.IsNullOrWhiteSpace(connectionParams.SocketPath))
+        {
+            if (SupportsUnixDomainSockets() && _options.UseUnixSockets)
+            {
+                return "unix";
+            }
+        }
+
+        // Priority 2: Named Pipe if name specified and on Windows
+        if (!string.IsNullOrWhiteSpace(connectionParams.PipeName))
+        {
+            if (OperatingSystem.IsWindows() && _options.UseNamedPipes)
+            {
+                return "namedpipe";
+            }
+        }
+
+        // Priority 3: Unix Domain Socket with default path (if enabled and platform supports)
+        if (_options.UseUnixSockets && SupportsUnixDomainSockets())
+        {
+            if (!string.IsNullOrWhiteSpace(_options.DefaultSocketPath))
+            {
+                return "unix";
+            }
+        }
+
+        // Priority 4: Named Pipe with default name (if enabled and on Windows)
+        if (_options.UseNamedPipes && OperatingSystem.IsWindows())
+        {
+            if (!string.IsNullOrWhiteSpace(_options.DefaultPipeName))
+            {
+                return "namedpipe";
+            }
+        }
+
+        // No available connection method
+        return null;
+    }
+
+    /// <summary>
+    /// Проверяет поддерживает ли текущая платформа Unix Domain Sockets
+    /// </summary>
+    /// <returns>True если Unix Domain Sockets поддерживаются</returns>
+    /// <remarks>
+    /// Unix Domain Sockets поддерживаются на:
+    /// - Linux (все версии)
+    /// - macOS (все версии)
+    /// - Windows 10 build 17063 и выше (осень 2018, версия 1803)
+    ///
+    /// Windows версии проверяются через OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17063).
+    /// </remarks>
+    private static bool SupportsUnixDomainSockets()
+    {
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            return true;
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            // Windows 10 build 17063 (версия 1803, апрель 2018) добавила поддержку Unix Domain Sockets
+            return OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17063);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Читает вывод агента в фоновом режиме
+    /// </summary>
+    /// <param name="stream">Поток для чтения вывода</param>
+    /// <param name="cancellationToken">Токен отмены операции</param>
+    /// <returns>Task для фонового чтения</returns>
+    /// <remarks>
+    /// NOTE: Stub implementation for Task 1.2C (Command Sending and Output Reading).
+    /// This method will be fully implemented in Task 1.2C.
+    /// Currently just keeps the task running until cancellation.
+    /// </remarks>
+    private async Task ReadOutputLoopAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        _logger.LogDebug("ReadOutputLoopAsync started (stub implementation)");
+
+        try
+        {
+            // Stub: just wait for cancellation
+            // Real implementation in Task 1.2C will read from stream and push to _outputBuffer
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogDebug("ReadOutputLoopAsync cancelled");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ReadOutputLoopAsync");
+        }
     }
 
     /// <summary>
