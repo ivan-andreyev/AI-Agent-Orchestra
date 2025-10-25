@@ -1,0 +1,94 @@
+@page "/agent-terminal"
+@using Orchestra.Web.Components.AgentTerminal
+@inject NavigationManager Navigation
+
+<PageTitle>Agent Terminal - Orchestra</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-terminal-fill me-2"></i>
+                Agent Terminal
+            </h1>
+            <p class="text-muted mb-0">
+                Real-time interaction with external AI agents
+            </p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" @onclick="ShowConnectDialog">
+                <i class="bi bi-plug-fill me-1"></i>
+                Connect to Agent
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <AgentTerminalComponent @ref="_terminalComponent"
+                                   AgentId="@_selectedAgentId"
+                                   ConnectorType="@_connectorType"
+                                   OnCommandExecuted="HandleCommandExecuted" />
+        </div>
+    </div>
+
+    @if (_showHelp)
+    {
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-question-circle me-2"></i>
+                            Quick Help
+                        </h5>
+                        <button class="btn btn-sm btn-link" @onclick="() => _showHelp = false">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <h6>Keyboard Shortcuts</h6>
+                        <ul class="list-unstyled mb-3">
+                            <li><kbd>Enter</kbd> - Send command</li>
+                            <li><kbd>↑</kbd> / <kbd>↓</kbd> - Navigate command history</li>
+                            <li><kbd>Esc</kbd> - Clear input</li>
+                        </ul>
+
+                        <h6>Features</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li><i class="bi bi-check-circle text-success me-2"></i>Real-time output streaming</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>Command history (arrow keys)</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>Auto-scroll toggle</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>Copy output to clipboard</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>Clear terminal</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private AgentTerminalComponent? _terminalComponent;
+    private string? _selectedAgentId;
+    private string _connectorType = "terminal";
+    private bool _showHelp = true;
+
+    private void ShowConnectDialog()
+    {
+        // Terminal component will show its own connection dialog
+        // Just need to trigger it - for now user clicks Connect button in terminal header
+    }
+
+    private async Task HandleCommandExecuted(string command)
+    {
+        // Log command execution or perform additional actions
+        Console.WriteLine($"Command executed: {command}");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+}
