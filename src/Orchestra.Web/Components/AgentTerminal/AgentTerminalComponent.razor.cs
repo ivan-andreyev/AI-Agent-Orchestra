@@ -21,6 +21,9 @@ namespace Orchestra.Web.Components.AgentTerminal
         private List<OutputLine> OutputLines { get; set; } = new();
         private List<string> _commandHistory = new();
         private int _historyIndex = -1;
+        private CancellationTokenSource _streamCancellation = new();
+        private DateTime _lastKeepAlive = DateTime.Now;
+        private bool _pendingScrollToBottom;
 
         private bool IsConnected => _hubConnection?.State == HubConnectionState.Connected && !string.IsNullOrEmpty(_sessionId);
         private string ConnectionStatus => GetConnectionStatus();
@@ -365,7 +368,6 @@ namespace Orchestra.Web.Components.AgentTerminal
 
         /// <summary>
         /// Streams output from agent via SignalR in background.
-        /// NOTE: Output streaming implementation will be in Task 3.2B.
         /// </summary>
         private async Task StreamOutputAsync()
         {
@@ -376,18 +378,61 @@ namespace Orchestra.Web.Components.AgentTerminal
 
             try
             {
-                // NOTE: StreamOutput will be implemented in Task 3.2B
-                // For now, this is a placeholder that will be replaced with actual streaming logic
-                AddSystemLine("Output streaming will be implemented in Task 3.2B");
+                var cancellationToken = _streamCancellation.Token;
+
+                // Start streaming from hub
+                await foreach (var line in _hubConnection.StreamAsync<string>(
+                    "StreamOutput",
+                    _sessionId,
+                    cancellationToken))
+                {
+                    // Process each line
+                    ProcessStreamedLine(line);
+
+                    // Update UI
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Streaming cancelled - this is normal on disconnect
+                AddSystemLine("Output streaming stopped.");
             }
             catch (Exception ex)
             {
-                AddErrorLine($"Output streaming error: {ex.Message}");
+                AddErrorLine($"Streaming error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Processes a single line received from the output stream.
+        /// </summary>
+        private void ProcessStreamedLine(string line)
+        {
+            // Filter keep-alive messages
+            if (line == "[KEEPALIVE]")
+            {
+                _lastKeepAlive = DateTime.Now;
+                return;
+            }
+
+            // Add to output buffer
+            AddOutputLine(line);
+
+            // Handle auto-scroll
+            if (AutoScroll)
+            {
+                _pendingScrollToBottom = true;
             }
         }
 
         public async ValueTask DisposeAsync()
         {
+            // Cancel streaming
+            _streamCancellation?.Cancel();
+            _streamCancellation?.Dispose();
+
+            // Dispose hub connection
             if (_hubConnection != null)
             {
                 await _hubConnection.DisposeAsync();
