@@ -66,6 +66,18 @@ public class Startup
                     .WithHeaders("Authorization", "Content-Type", "x-signalr-user-agent")
                     .SetIsOriginAllowed(origin => true); // Allow dynamic origins for development
             });
+
+            // Add SignalR-specific CORS policy for agent interaction hub
+            options.AddPolicy("SignalRPolicy", policy =>
+            {
+                policy.WithOrigins(
+                        "https://localhost:5001",
+                        "http://localhost:5000",
+                        "http://localhost:3000") // React dev server
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials();
+            });
         });
 
 
@@ -153,8 +165,11 @@ public class Startup
         {
             options.EnableDetailedErrors = true;
             options.MaximumReceiveMessageSize = 1024 * 1024; // 1MB
-            options.StreamBufferCapacity = 10;
+            options.StreamBufferCapacity = 100;
         });
+
+        // Register AgentInteractionHub as Scoped for dependency injection
+        services.AddScoped<AgentInteractionHub>();
 
         // Add MediatR for LLM-friendly Command/Query pattern
         services.AddMediatR(typeof(Startup).Assembly, typeof(Orchestra.Core.Commands.ICommand).Assembly);
@@ -330,6 +345,7 @@ public class Startup
             // Map SignalR hubs for real-time communication
             endpoints.MapHub<AgentCommunicationHub>("/agentHub").RequireCors("BlazorWasmPolicy");
             endpoints.MapHub<CoordinatorChatHub>("/coordinatorHub").RequireCors("BlazorWasmPolicy");
+            endpoints.MapHub<AgentInteractionHub>("/hubs/agent-interaction").RequireCors("SignalRPolicy");
 
             // Health check endpoints
             endpoints.MapHealthChecks("/health");
