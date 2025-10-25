@@ -182,6 +182,10 @@ public class Startup
 
         // Register AgentSessionManager for managing external agent connections (Phase 1.3)
         services.AddSingleton<Orchestra.Core.Services.Connectors.IAgentSessionManager, Orchestra.Core.Services.Connectors.AgentSessionManager>();
+
+        // Register AgentOutputBuffer for buffering agent output (required by TerminalAgentConnector)
+        services.AddTransient<Orchestra.Core.Services.Connectors.IAgentOutputBuffer, Orchestra.Core.Services.Connectors.AgentOutputBuffer>();
+
         services.AddTransient<Orchestra.Core.Services.Connectors.IAgentConnector, Orchestra.Core.Services.Connectors.TerminalAgentConnector>();
 
         // Register SimpleOrchestrator as Scoped with proper DI for agent state management

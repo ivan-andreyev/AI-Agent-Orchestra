@@ -14,7 +14,7 @@ namespace Orchestra.Core.Services.Connectors;
 /// Все операции потокобезопасны благодаря использованию SemaphoreSlim.
 /// </para>
 /// </remarks>
-internal class AgentOutputBuffer : IAgentOutputBuffer, IDisposable
+public class AgentOutputBuffer : IAgentOutputBuffer, IDisposable
 {
     private readonly CircularBuffer<OutputLine> _buffer;
     private readonly SemaphoreSlim _lock = new(1, 1);

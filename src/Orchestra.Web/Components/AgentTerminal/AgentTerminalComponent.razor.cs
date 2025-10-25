@@ -36,7 +36,12 @@ namespace Orchestra.Web.Components.AgentTerminal
 
         protected override async Task OnInitializedAsync()
         {
-            // Component initialization - hub connection will be established in ConnectAsync
+            // Show connection dialog if not connected on first load
+            if (!IsConnected)
+            {
+                ShowConnectionDialog = true;
+            }
+
             await base.OnInitializedAsync();
         }
 
@@ -66,7 +71,7 @@ namespace Orchestra.Web.Components.AgentTerminal
         private async Task InitializeHubConnection()
         {
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl(Navigation.ToAbsoluteUri("/hubs/agent-interaction"))
+                .WithUrl("http://localhost:55002/hubs/agent-interaction")
                 .WithAutomaticReconnect()
                 .Build();
 
@@ -288,6 +293,16 @@ namespace Orchestra.Web.Components.AgentTerminal
         private void CloseConnectionDialog()
         {
             ShowConnectionDialog = false;
+            StateHasChanged();
+        }
+
+        /// <summary>
+        /// Shows the connection dialog for connecting to an external agent.
+        /// Public method to be called from parent component.
+        /// </summary>
+        public void ShowDialog()
+        {
+            ShowConnectionDialog = true;
             StateHasChanged();
         }
 

@@ -77,8 +77,8 @@
 
     private void ShowConnectDialog()
     {
-        // Terminal component will show its own connection dialog
-        // Just need to trigger it - for now user clicks Connect button in terminal header
+        // Trigger the connection dialog in the terminal component
+        _terminalComponent?.ShowDialog();
     }
 
     private async Task HandleCommandExecuted(string command)

@@ -48,7 +48,11 @@
         @if (!OutputLines.Any())
         {
             <div class="terminal-welcome">
-                <p>Terminal ready. Click "Connect" to start.</p>
+                <p class="mb-3">Terminal ready</p>
+                <button class="btn btn-primary" @onclick="@(() => ShowConnectionDialog = true)">
+                    <i class="bi bi-plug-fill me-1"></i>
+                    Connect to Agent
+                </button>
             </div>
         }
         else
