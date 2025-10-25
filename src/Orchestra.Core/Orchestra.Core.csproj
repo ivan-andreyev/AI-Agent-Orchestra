@@ -21,5 +21,8 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Orchestra.Tests" />
+  </ItemGroup>
 
 </Project>
