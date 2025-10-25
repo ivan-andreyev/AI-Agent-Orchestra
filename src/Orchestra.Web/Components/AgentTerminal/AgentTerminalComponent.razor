@@ -1,0 +1,99 @@
+@namespace Orchestra.Web.Components.AgentTerminal
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<div class="agent-terminal-container">
+    <!-- Terminal Header -->
+    <div class="terminal-header">
+        <div class="terminal-info">
+            <span class="agent-label">Agent:</span>
+            <span class="agent-id">@AgentId</span>
+            <span class="connection-status @GetStatusClass()">
+                <i class="bi @GetStatusIcon()"></i>
+                @ConnectionStatus
+            </span>
+        </div>
+        <div class="terminal-actions">
+            <button class="btn btn-sm btn-outline-secondary"
+                    @onclick="ClearOutput"
+                    disabled="@(!IsConnected)">
+                <i class="bi bi-trash"></i> Clear
+            </button>
+            <button class="btn btn-sm btn-outline-secondary"
+                    @onclick="ToggleAutoScroll">
+                <i class="bi @(AutoScroll ? "bi-arrow-down-square-fill" : "bi-arrow-down-square")"></i>
+                Auto-scroll
+            </button>
+            <button class="btn btn-sm btn-danger"
+                    @onclick="DisconnectAsync"
+                    disabled="@(!IsConnected)">
+                <i class="bi bi-x-circle"></i> Disconnect
+            </button>
+        </div>
+    </div>
+
+    <!-- Terminal Output -->
+    <div class="terminal-output" @ref="_outputElement">
+        @if (!OutputLines.Any())
+        {
+            <div class="terminal-welcome">
+                <p>Terminal ready. Click "Connect" to start.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var line in OutputLines)
+            {
+                <div class="terminal-line @GetLineClass(line)">
+                    <span class="line-timestamp">[@line.Timestamp:HH:mm:ss]</span>
+                    <span class="line-content">@line.Content</span>
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Terminal Input -->
+    <div class="terminal-input-container">
+        <div class="input-group">
+            <span class="input-prompt">$</span>
+            <input type="text"
+                   class="terminal-input"
+                   @bind="_commandInput"
+                   @bind:event="oninput"
+                   @onkeydown="HandleKeyDown"
+                   disabled="@(!IsConnected)"
+                   placeholder="@(IsConnected ? "Enter command..." : "Not connected")" />
+            <button class="btn btn-primary"
+                    @onclick="SendCommandAsync"
+                    disabled="@(!IsConnected || string.IsNullOrWhiteSpace(_commandInput))">
+                <i class="bi bi-send"></i> Send
+            </button>
+        </div>
+    </div>
+
+    <!-- Connection Dialog -->
+    @if (ShowConnectionDialog)
+    {
+        <div class="connection-dialog-overlay">
+            <div class="connection-dialog">
+                <h5>Connect to Agent</h5>
+                <div class="form-group">
+                    <label>Agent ID:</label>
+                    <input type="text" class="form-control" @bind="_connectAgentId" />
+                </div>
+                <div class="form-group">
+                    <label>Connector Type:</label>
+                    <select class="form-control" @bind="_connectType">
+                        <option value="terminal">Terminal (Claude Code)</option>
+                        <option value="tab">Tab-based (Cursor)</option>
+                    </select>
+                </div>
+                <div class="dialog-actions">
+                    <button class="btn btn-primary" @onclick="ConnectAsync">Connect</button>
+                    <button class="btn btn-secondary" @onclick="CloseConnectionDialog">Cancel</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
