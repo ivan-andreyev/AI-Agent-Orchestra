@@ -24,6 +24,7 @@ namespace Orchestra.Web.Components.AgentTerminal
         private CancellationTokenSource _streamCancellation = new();
         private DateTime _lastKeepAlive = DateTime.Now;
         private bool _pendingScrollToBottom;
+        private bool _isConnecting;
 
         private bool IsConnected => _hubConnection?.State == HubConnectionState.Connected && !string.IsNullOrEmpty(_sessionId);
         private string ConnectionStatus => GetConnectionStatus();
@@ -37,6 +38,26 @@ namespace Orchestra.Web.Components.AgentTerminal
         {
             // Component initialization - hub connection will be established in ConnectAsync
             await base.OnInitializedAsync();
+        }
+
+        /// <summary>
+        /// Выполняется после рендеринга компонента для установки фокуса на поле ввода.
+        /// </summary>
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (firstRender)
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("terminalFunctions.focusInput", ".terminal-input");
+                }
+                catch
+                {
+                    // Focus may fail if element not ready yet
+                }
+            }
+
+            await base.OnAfterRenderAsync(firstRender);
         }
 
         /// <summary>
@@ -184,6 +205,9 @@ namespace Orchestra.Web.Components.AgentTerminal
 
         private async Task ConnectAsync()
         {
+            _isConnecting = true;
+            await InvokeAsync(StateHasChanged);
+
             try
             {
                 AddSystemLine($"Connecting to agent {_connectAgentId}...");
@@ -225,6 +249,7 @@ namespace Orchestra.Web.Components.AgentTerminal
             }
             finally
             {
+                _isConnecting = false;
                 ShowConnectionDialog = false;
                 await InvokeAsync(StateHasChanged);
             }
@@ -377,12 +402,33 @@ namespace Orchestra.Web.Components.AgentTerminal
             {
                 try
                 {
-                    await JSRuntime.InvokeVoidAsync("scrollToBottom", _outputElement);
+                    await JSRuntime.InvokeVoidAsync("terminalFunctions.scrollToBottom", _outputElement);
                 }
                 catch
                 {
                     // JS interop may fail during disposal or if element not ready
                 }
+            }
+        }
+
+        /// <summary>
+        /// Копирует весь вывод терминала в буфер обмена.
+        /// </summary>
+        private async Task CopyAllOutput()
+        {
+            try
+            {
+                var allText = string.Join("\n", OutputLines.Select(l => $"[{l.Timestamp:HH:mm:ss}] {l.Content}"));
+                var success = await JSRuntime.InvokeAsync<bool>("terminalFunctions.copyToClipboard", allText);
+
+                if (success)
+                {
+                    AddSystemLine("Output copied to clipboard");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddErrorLine($"Failed to copy: {ex.Message}");
             }
         }
 
