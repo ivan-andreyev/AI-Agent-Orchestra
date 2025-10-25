@@ -293,6 +293,86 @@ public class AgentInteractionHub : Hub
     }
 
     /// <summary>
+    /// Стримит вывод агента в реальном времени клиенту через SignalR.
+    /// </summary>
+    /// <param name="sessionId">Идентификатор сессии (AgentId)</param>
+    /// <param name="cancellationToken">Токен отмены для остановки стриминга</param>
+    /// <returns>Асинхронный поток строк вывода агента</returns>
+    /// <remarks>
+    /// <para>
+    /// NOTE: Uses IAsyncEnumerable for efficient streaming without buffering entire output.
+    /// </para>
+    /// <para>
+    /// First streams existing output via GetLinesAsync, then subscribes to LineAdded event
+    /// to stream new lines as they arrive.
+    /// </para>
+    /// <para>
+    /// Automatically unsubscribes from events when client disconnects (cancellationToken).
+    /// </para>
+    /// </remarks>
+    public async IAsyncEnumerable<string> StreamOutput(
+        string sessionId,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Starting output stream for session {SessionId} from connection {ConnectionId}",
+            sessionId, Context.ConnectionId);
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            _logger.LogWarning("Cannot stream output: SessionId is empty");
+            yield break;
+        }
+
+        // Get session from manager (sessionId is AgentId)
+        var session = _sessionManager.GetSessionAsync(sessionId);
+
+        if (session == null)
+        {
+            _logger.LogWarning("Cannot stream output: Session {SessionId} not found", sessionId);
+            yield break;
+        }
+
+        // Channel for receiving new lines from event handler
+        var channel = System.Threading.Channels.Channel.CreateUnbounded<string>();
+
+        // Event handler that writes to channel
+        void OnLineAdded(object? sender, OutputLineAddedEventArgs e)
+        {
+            channel.Writer.TryWrite(e.Line);
+        }
+
+        try
+        {
+            // Subscribe to new line events
+            session.OutputBuffer.LineAdded += OnLineAdded;
+
+            _logger.LogDebug("Subscribed to LineAdded event for session {SessionId}", sessionId);
+
+            // First, yield existing lines from buffer
+            await foreach (var line in session.OutputBuffer.GetLinesAsync(cancellationToken: cancellationToken))
+            {
+                yield return line;
+            }
+
+            _logger.LogDebug("Finished streaming existing lines for session {SessionId}, now streaming live output", sessionId);
+
+            // Then, stream new lines from channel as they arrive
+            await foreach (var line in channel.Reader.ReadAllAsync(cancellationToken))
+            {
+                yield return line;
+            }
+        }
+        finally
+        {
+            // Cleanup: unsubscribe from event
+            session.OutputBuffer.LineAdded -= OnLineAdded;
+            channel.Writer.TryComplete();
+
+            _logger.LogInformation("Stopped output stream for session {SessionId}", sessionId);
+        }
+    }
+
+    /// <summary>
     /// Извлекает целочисленный параметр из словаря параметров подключения.
     /// </summary>
     /// <param name="parameters">Словарь параметров</param>
