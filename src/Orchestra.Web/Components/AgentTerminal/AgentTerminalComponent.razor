@@ -101,12 +101,24 @@
         <div class="connection-dialog-overlay">
             <div class="connection-dialog">
                 <h5>Connect to Agent</h5>
-                <div class="form-group">
-                    <label>Agent ID:</label>
-                    <input type="text" class="form-control" @bind="_connectAgentId" />
+                <div class="form-group mb-3">
+                    <label class="form-label">
+                        Agent ID:
+                        <i class="bi bi-info-circle-fill text-info ms-1"
+                           data-bs-toggle="tooltip"
+                           data-bs-placement="top"
+                           title="Session ID из файлов .jsonl в папке C:\Users\[username]\.claude\projects\[project-name]\"></i>
+                    </label>
+                    <input type="text"
+                           class="form-control"
+                           @bind="_connectAgentId"
+                           placeholder="Например: abc123def456 (из .claude/projects/)" />
+                    <small class="form-text text-muted">
+                        Найдите Session ID в файлах .jsonl в вашей папке .claude/projects/
+                    </small>
                 </div>
-                <div class="form-group">
-                    <label>Connector Type:</label>
+                <div class="form-group mb-3">
+                    <label class="form-label">Connector Type:</label>
                     <select class="form-control" @bind="_connectType">
                         <option value="terminal">Terminal (Claude Code)</option>
                         <option value="tab">Tab-based (Cursor)</option>

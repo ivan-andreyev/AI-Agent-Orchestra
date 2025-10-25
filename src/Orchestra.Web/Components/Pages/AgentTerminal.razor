@@ -1,5 +1,6 @@
 @page "/agent-terminal"
 @using Orchestra.Web.Components.AgentTerminal
+@using Orchestra.Web.Components
 @inject NavigationManager Navigation
 
 <PageTitle>Agent Terminal - Orchestra</PageTitle>
@@ -23,12 +24,53 @@
         </div>
     </div>
 
+    <!-- Tabs Navigation -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <a class="nav-link @(_activeTab == "history" ? "active" : "")"
+                       @onclick="@(() => SetActiveTab("history"))"
+                       style="cursor: pointer;">
+                        <i class="bi bi-clock-history me-1"></i>
+                        History (Read-Only)
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(_activeTab == "connect" ? "active" : "")"
+                       @onclick="@(() => SetActiveTab("connect"))"
+                       style="cursor: pointer;">
+                        <i class="bi bi-plug-fill me-1"></i>
+                        Connect (Interactive)
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
     <div class="row">
         <div class="col-12">
-            <AgentTerminalComponent @ref="_terminalComponent"
-                                   AgentId="@_selectedAgentId"
-                                   ConnectorType="@_connectorType"
-                                   OnCommandExecuted="HandleCommandExecuted" />
+            <div class="tab-content">
+                <!-- History Tab -->
+                <div class="tab-pane @(_activeTab == "history" ? "active show" : "")" id="history-tab">
+                    @if (_activeTab == "history")
+                    {
+                        <AgentHistory SelectedAgentId="@_selectedSessionId" />
+                    }
+                </div>
+
+                <!-- Connect Tab -->
+                <div class="tab-pane @(_activeTab == "connect" ? "active show" : "")" id="connect-tab">
+                    @if (_activeTab == "connect")
+                    {
+                        <AgentTerminalComponent @ref="_terminalComponent"
+                                               AgentId="@_selectedAgentId"
+                                               ConnectorType="@_connectorType"
+                                               OnCommandExecuted="HandleCommandExecuted" />
+                    }
+                </div>
+            </div>
         </div>
     </div>
 
@@ -72,11 +114,23 @@
 @code {
     private AgentTerminalComponent? _terminalComponent;
     private string? _selectedAgentId;
+    private string? _selectedSessionId;
     private string _connectorType = "terminal";
     private bool _showHelp = true;
+    private string _activeTab = "history"; // Default to read-only history view
+
+    private void SetActiveTab(string tab)
+    {
+        _activeTab = tab;
+        StateHasChanged();
+    }
 
     private void ShowConnectDialog()
     {
+        // Switch to Connect tab and trigger the connection dialog
+        _activeTab = "connect";
+        StateHasChanged();
+
         // Trigger the connection dialog in the terminal component
         _terminalComponent?.ShowDialog();
     }
