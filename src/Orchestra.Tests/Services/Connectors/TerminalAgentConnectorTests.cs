@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Orchestra.Core.Models;
 using Orchestra.Core.Services.Connectors;
@@ -23,13 +24,19 @@ public class TerminalAgentConnectorTests : IDisposable
 {
     private readonly Mock<ILogger<TerminalAgentConnector>> _loggerMock;
     private readonly Mock<IAgentOutputBuffer> _outputBufferMock;
+    private readonly Mock<IOptions<TerminalConnectorOptions>> _optionsMock;
     private readonly TerminalAgentConnector _connector;
 
     public TerminalAgentConnectorTests()
     {
         _loggerMock = new Mock<ILogger<TerminalAgentConnector>>();
         _outputBufferMock = new Mock<IAgentOutputBuffer>();
-        _connector = new TerminalAgentConnector(_loggerMock.Object, _outputBufferMock.Object);
+        _optionsMock = new Mock<IOptions<TerminalConnectorOptions>>();
+        _optionsMock.Setup(x => x.Value).Returns(new TerminalConnectorOptions());
+        _connector = new TerminalAgentConnector(
+            _loggerMock.Object,
+            _outputBufferMock.Object,
+            _optionsMock.Object);
     }
 
     public void Dispose()
@@ -51,7 +58,7 @@ public class TerminalAgentConnectorTests : IDisposable
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new TerminalAgentConnector(null!, _outputBufferMock.Object));
+            new TerminalAgentConnector(null!, _outputBufferMock.Object, _optionsMock.Object));
 
         Assert.Equal("logger", exception.ParamName);
     }
@@ -61,9 +68,19 @@ public class TerminalAgentConnectorTests : IDisposable
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new TerminalAgentConnector(_loggerMock.Object, null!));
+            new TerminalAgentConnector(_loggerMock.Object, null!, _optionsMock.Object));
 
         Assert.Equal("outputBuffer", exception.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_WithNullOptions_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new TerminalAgentConnector(_loggerMock.Object, _outputBufferMock.Object, null!));
+
+        Assert.Equal("options", exception.ParamName);
     }
 
     #endregion

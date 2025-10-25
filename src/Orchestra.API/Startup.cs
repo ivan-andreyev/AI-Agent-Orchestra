@@ -260,6 +260,13 @@ public class Startup
         services.Configure<Orchestra.Core.Services.AgentDiscoveryOptions>(
             configuration.GetSection("AgentDiscovery"));
 
+        // Configure Terminal Connector options (for Agent Interaction System)
+        services.Configure<Orchestra.Core.Services.Connectors.TerminalConnectorOptions>(
+            configuration.GetSection("TerminalConnector"));
+
+        // Register Terminal Agent Connector (transient for per-session isolation)
+        services.AddTransient<Orchestra.Core.Services.Connectors.TerminalAgentConnector>();
+
         // Register Claude Code services - TaskRepository integration is handled by TaskExecutionJob layer
         services.AddSingleton<Orchestra.Agents.ClaudeCode.ClaudeCodeService>();
         services.AddSingleton<Orchestra.Agents.ClaudeCode.IClaudeCodeService>(provider =>

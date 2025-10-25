@@ -1,5 +1,7 @@
+using System.IO.Pipes;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orchestra.Core.Models;
 
 namespace Orchestra.Core.Services.Connectors;
@@ -33,6 +35,7 @@ public class TerminalAgentConnector : IAgentConnector
 {
     private readonly ILogger<TerminalAgentConnector> _logger;
     private readonly IAgentOutputBuffer _outputBuffer;
+    private readonly TerminalConnectorOptions _options;
 
     // Connection state
     private string? _agentId;
@@ -50,12 +53,15 @@ public class TerminalAgentConnector : IAgentConnector
     /// </summary>
     /// <param name="logger">Логгер для диагностики</param>
     /// <param name="outputBuffer">Буфер для вывода агента</param>
+    /// <param name="options">Настройки терминального коннектора</param>
     public TerminalAgentConnector(
         ILogger<TerminalAgentConnector> logger,
-        IAgentOutputBuffer outputBuffer)
+        IAgentOutputBuffer outputBuffer,
+        IOptions<TerminalConnectorOptions> options)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _outputBuffer = outputBuffer ?? throw new ArgumentNullException(nameof(outputBuffer));
+        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
         _status = ConnectionStatus.Disconnected;
         _lastActivityAt = DateTime.UtcNow;
@@ -228,6 +234,120 @@ public class TerminalAgentConnector : IAgentConnector
     private void UpdateLastActivity()
     {
         _lastActivityAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Подключается к агенту через Windows Named Pipe
+    /// </summary>
+    /// <param name="pipeName">Имя именованного канала (без префикса \\.\pipe\)</param>
+    /// <param name="cancellationToken">Токен отмены операции</param>
+    /// <returns>Поток подключенного именованного канала</returns>
+    /// <exception cref="ArgumentException">Если имя канала невалидно</exception>
+    /// <exception cref="TimeoutException">Если подключение не удалось в течение таймаута</exception>
+    /// <exception cref="IOException">Если произошла ошибка ввода-вывода при подключении</exception>
+    /// <remarks>
+    /// Используется для подключения к агентам на Windows, особенно для legacy систем,
+    /// где Unix Domain Sockets недоступны. Создает NamedPipeClientStream и подключается
+    /// к указанному каналу на локальной машине.
+    ///
+    /// Timeout: Определяется через TerminalConnectorOptions.ConnectionTimeoutMs
+    /// Direction: InOut (двунаправленный)
+    /// Options: Asynchronous (асинхронный режим)
+    /// </remarks>
+    private async Task<Stream> ConnectWindowsNamedPipeAsync(
+        string pipeName,
+        CancellationToken cancellationToken)
+    {
+        if (!IsValidWindowsPipeName(pipeName))
+        {
+            throw new ArgumentException(
+                $"Invalid pipe name: '{pipeName}'. Pipe name must be non-empty, " +
+                $"not contain backslashes, and be less than 256 characters.",
+                nameof(pipeName));
+        }
+
+        _logger.LogDebug("Connecting to Windows Named Pipe: {PipeName}", pipeName);
+
+        // Create named pipe client stream
+        var pipeClient = new NamedPipeClientStream(
+            ".",                        // local machine
+            pipeName,                   // pipe name
+            PipeDirection.InOut,        // bidirectional
+            PipeOptions.Asynchronous);  // async mode
+
+        try
+        {
+            // Connect with configured timeout
+            await pipeClient.ConnectAsync(_options.ConnectionTimeoutMs, cancellationToken);
+
+            _logger.LogInformation(
+                "Successfully connected to Windows Named Pipe '{PipeName}'",
+                pipeName);
+
+            return pipeClient;
+        }
+        catch (Exception ex)
+        {
+            // Dispose pipe on any error
+            pipeClient.Dispose();
+
+            // Log appropriate error message based on exception type
+            var errorType = ex switch
+            {
+                TimeoutException => "Timeout",
+                IOException => "IO error",
+                _ => "Unexpected error"
+            };
+
+            _logger.LogError(
+                ex,
+                "{ErrorType} connecting to Named Pipe '{PipeName}'",
+                errorType,
+                pipeName);
+
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Проверяет валидность имени Windows Named Pipe
+    /// </summary>
+    /// <param name="pipeName">Имя именованного канала для проверки</param>
+    /// <returns>True если имя валидно, иначе false</returns>
+    /// <remarks>
+    /// Правила валидации:
+    /// - Имя не должно быть пустым или состоять только из пробелов
+    /// - Имя не должно содержать обратные слеши (\)
+    /// - Имя должно быть короче 256 символов
+    ///
+    /// Примеры валидных имен:
+    /// - "orchestra_agent_pipe"
+    /// - "agent-123"
+    /// - "claude_code_session"
+    ///
+    /// Примеры невалидных имен:
+    /// - "" (пустое)
+    /// - "pipe\\name" (содержит \)
+    /// - [строка длиной > 255 символов]
+    /// </remarks>
+    private bool IsValidWindowsPipeName(string pipeName)
+    {
+        if (string.IsNullOrWhiteSpace(pipeName))
+        {
+            return false;
+        }
+
+        if (pipeName.Contains('\\'))
+        {
+            return false;
+        }
+
+        if (pipeName.Length >= 256)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>
