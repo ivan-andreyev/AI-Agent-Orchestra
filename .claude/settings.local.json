@@ -74,7 +74,13 @@
       "Bash(if [ -f \"$file\" ])",
       "Bash(then wc -l \"$file\")",
       "Bash(else echo \"FILE NOT FOUND\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(Get-Content \"C:\\Users\\mrred\\RiderProjects\\AI-Agent-Orchestra\\.cursor\\agents\\review-consolidator\\agent.md\")",
+      "Bash(Select-String -Pattern \"^## \")",
+      "Bash(do echo \"== $section ==\")",
+      "Bash(Select-String -Pattern \"(FAIL|Expected|Actual|StackTrace)\" -Context 2)",
+      "Bash(Select-String -Pattern \"(Passed|Failed|Total tests)\")",
+      "Bash(Select-Object -Last 5)"
     ],
     "deny": [],
     "ask": []

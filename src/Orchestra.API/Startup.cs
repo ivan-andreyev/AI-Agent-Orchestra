@@ -162,6 +162,10 @@ public class Startup
         // Register agent state store abstraction for proper isolation
         services.AddSingleton<Orchestra.Core.Abstractions.IAgentStateStore, Orchestra.Core.Services.InMemoryAgentStateStore>();
 
+        // Register AgentSessionManager for managing external agent connections (Phase 1.3)
+        services.AddSingleton<Orchestra.Core.Services.Connectors.IAgentSessionManager, Orchestra.Core.Services.Connectors.AgentSessionManager>();
+        services.AddTransient<Orchestra.Core.Services.Connectors.IAgentConnector, Orchestra.Core.Services.Connectors.TerminalAgentConnector>();
+
         // Register SimpleOrchestrator as Scoped with proper DI for agent state management
         services.AddSingleton<SimpleOrchestrator>(provider =>
         {
