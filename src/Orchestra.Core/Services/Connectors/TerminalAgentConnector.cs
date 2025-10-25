@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -343,6 +344,141 @@ public class TerminalAgentConnector : IAgentConnector
         }
 
         if (pipeName.Length >= 256)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Подключается к агенту через Unix Domain Socket
+    /// </summary>
+    /// <param name="socketPath">Путь к файлу Unix Domain Socket</param>
+    /// <param name="cancellationToken">Токен отмены операции</param>
+    /// <returns>Подключенный сокет</returns>
+    /// <exception cref="ArgumentException">Если путь к сокету невалиден</exception>
+    /// <exception cref="SocketException">Если произошла ошибка при подключении сокета</exception>
+    /// <exception cref="IOException">Если произошла ошибка ввода-вывода</exception>
+    /// <remarks>
+    /// Используется для подключения к агентам через Unix Domain Sockets на Linux/macOS
+    /// и Windows 10+ (build 17063 и выше). Создает Socket с AddressFamily.Unix и подключается
+    /// к указанному пути файла сокета.
+    ///
+    /// Timeout: Определяется через TerminalConnectorOptions.ConnectionTimeoutMs
+    /// Socket Options: NoDelay = true, ReceiveTimeout/SendTimeout = ConnectionTimeoutMs
+    /// </remarks>
+    private async Task<Socket> ConnectUnixDomainSocketAsync(
+        string socketPath,
+        CancellationToken cancellationToken)
+    {
+        if (!IsValidUnixSocketPath(socketPath))
+        {
+            throw new ArgumentException(
+                $"Invalid Unix socket path: '{socketPath}'. Path must start with /, " +
+                $"be less than 108 characters, and parent directory must exist.",
+                nameof(socketPath));
+        }
+
+        _logger.LogDebug("Connecting to Unix Domain Socket: {SocketPath}", socketPath);
+
+        // Create Unix Domain Socket
+        var socket = new Socket(
+            AddressFamily.Unix,
+            SocketType.Stream,
+            ProtocolType.Unspecified);
+
+        try
+        {
+            // Create endpoint
+            var endpoint = new UnixDomainSocketEndPoint(socketPath);
+
+            // Connect with timeout handling
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(_options.ConnectionTimeoutMs);
+
+            await socket.ConnectAsync(endpoint, cts.Token);
+
+            // Configure socket options
+            socket.NoDelay = true;
+            socket.ReceiveTimeout = _options.ConnectionTimeoutMs;
+            socket.SendTimeout = _options.ConnectionTimeoutMs;
+
+            _logger.LogInformation(
+                "Successfully connected to Unix Domain Socket '{SocketPath}'",
+                socketPath);
+
+            return socket;
+        }
+        catch (Exception ex)
+        {
+            // Dispose socket on any error
+            socket.Dispose();
+
+            // Log appropriate error message based on exception type
+            var errorType = ex switch
+            {
+                OperationCanceledException => "Timeout or cancellation",
+                SocketException => "Socket error",
+                IOException => "IO error",
+                _ => "Unexpected error"
+            };
+
+            _logger.LogError(
+                ex,
+                "{ErrorType} connecting to Unix Domain Socket '{SocketPath}'",
+                errorType,
+                socketPath);
+
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Проверяет валидность пути к Unix Domain Socket
+    /// </summary>
+    /// <param name="socketPath">Путь к файлу сокета для проверки</param>
+    /// <returns>True если путь валиден, иначе false</returns>
+    /// <remarks>
+    /// Правила валидации:
+    /// - Путь не должен быть пустым или состоять только из пробелов
+    /// - Путь должен быть абсолютным (начинаться с / на Unix, или быть полным путем на Windows)
+    /// - Путь должен быть короче 108 символов (ограничение Unix Domain Sockets)
+    /// - Родительская директория должна существовать
+    ///
+    /// Примеры валидных путей:
+    /// - "/tmp/orchestra_agent.sock" (Unix/Linux/macOS)
+    /// - "/var/run/agent.socket" (Unix/Linux)
+    /// - "/home/user/.orchestra/agent.sock" (Unix/Linux/macOS)
+    /// - "C:\Temp\socket.sock" (Windows 10+)
+    ///
+    /// Примеры невалидных путей:
+    /// - "" (пустое)
+    /// - "relative/path.sock" (не абсолютный путь)
+    /// - [строка длиной >= 108 символов]
+    /// - "/nonexistent/directory/socket.sock" (родительская директория не существует)
+    /// </remarks>
+    private bool IsValidUnixSocketPath(string socketPath)
+    {
+        if (string.IsNullOrWhiteSpace(socketPath))
+        {
+            return false;
+        }
+
+        // Check if path is absolute (Unix-style or Windows-style)
+        if (!Path.IsPathFullyQualified(socketPath))
+        {
+            return false;
+        }
+
+        if (socketPath.Length >= 108)
+        {
+            return false;
+        }
+
+        // Check if parent directory exists
+        var parentDirectory = Path.GetDirectoryName(socketPath);
+        if (string.IsNullOrEmpty(parentDirectory) || !Directory.Exists(parentDirectory))
         {
             return false;
         }
