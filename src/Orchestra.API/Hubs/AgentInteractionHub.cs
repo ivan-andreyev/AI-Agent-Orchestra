@@ -222,6 +222,77 @@ public class AgentInteractionHub : Hub
     }
 
     /// <summary>
+    /// Отправляет команду указанному агенту через активную сессию.
+    /// </summary>
+    /// <param name="request">Запрос на отправку команды с идентификатором сессии и командой</param>
+    /// <returns>true если команда успешно отправлена, false если сессия не найдена или команда не отправлена</returns>
+    /// <remarks>
+    /// NOTE: sessionId is the AgentId per IAgentSessionManager API.
+    /// Sends command via IAgentConnector and broadcasts notification to SignalR group.
+    /// </remarks>
+    public async Task<bool> SendCommand(SendCommandRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("Sending command to session {SessionId} from connection {ConnectionId}",
+                request.SessionId, Context.ConnectionId);
+
+            // Validate request
+            if (string.IsNullOrWhiteSpace(request.SessionId))
+            {
+                _logger.LogWarning("Cannot send command: SessionId is empty");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Command))
+            {
+                _logger.LogWarning("Cannot send command: Command is empty");
+                return false;
+            }
+
+            // Get session from manager (sessionId is AgentId)
+            var session = _sessionManager.GetSessionAsync(request.SessionId);
+
+            if (session == null)
+            {
+                _logger.LogWarning("Session {SessionId} not found", request.SessionId);
+                return false;
+            }
+
+            // Send command via connector
+            var result = await session.Connector.SendCommandAsync(request.Command, Context.ConnectionAborted);
+
+            if (!result.Success)
+            {
+                _logger.LogError("Failed to send command to session {SessionId}: {ErrorMessage}",
+                    request.SessionId, result.ErrorMessage);
+                return false;
+            }
+
+            _logger.LogInformation("Command sent successfully to session {SessionId}", request.SessionId);
+
+            // Broadcast notification to group members
+            var groupName = $"agent_session_{request.SessionId}";
+            var notification = new CommandSentNotification(
+                request.SessionId,
+                request.Command,
+                true,
+                DateTime.UtcNow);
+
+            await Clients.Group(groupName).SendAsync("CommandSent", notification, Context.ConnectionAborted);
+
+            _logger.LogDebug("Broadcast command notification to group {GroupName}", groupName);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send command to session {SessionId}", request.SessionId);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Извлекает целочисленный параметр из словаря параметров подключения.
     /// </summary>
     /// <param name="parameters">Словарь параметров</param>
