@@ -171,6 +171,9 @@ public class Startup
         // Register AgentInteractionHub as Scoped for dependency injection
         services.AddScoped<AgentInteractionHub>();
 
+        // Register AgentEventBroadcaster as HostedService for broadcasting session events to SignalR clients
+        services.AddHostedService<Orchestra.API.Services.AgentEventBroadcaster>();
+
         // Add MediatR for LLM-friendly Command/Query pattern
         services.AddMediatR(typeof(Startup).Assembly, typeof(Orchestra.Core.Commands.ICommand).Assembly);
 
