@@ -373,6 +373,59 @@ public class AgentInteractionHub : Hub
     }
 
     /// <summary>
+    /// Получает информацию об активной сессии агента.
+    /// </summary>
+    /// <param name="sessionId">Идентификатор сессии (AgentId)</param>
+    /// <returns>Информация о сессии или null если сессия не найдена</returns>
+    /// <remarks>
+    /// NOTE: sessionId is AgentId per IAgentSessionManager API.
+    /// Returns comprehensive session information including status, timestamps, and output buffer stats.
+    /// </remarks>
+    public async Task<SessionInfo?> GetSessionInfo(string sessionId)
+    {
+        try
+        {
+            _logger.LogDebug("Getting session info for {SessionId} from connection {ConnectionId}",
+                sessionId, Context.ConnectionId);
+
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                _logger.LogWarning("Cannot get session info: SessionId is empty");
+                return null;
+            }
+
+            // Get session from manager (sessionId is AgentId)
+            var session = _sessionManager.GetSessionAsync(sessionId);
+
+            if (session == null)
+            {
+                _logger.LogDebug("Session {SessionId} not found", sessionId);
+                return null;
+            }
+
+            // Map session to SessionInfo DTO
+            var sessionInfo = new SessionInfo(
+                SessionId: session.AgentId,
+                AgentId: session.AgentId,
+                Status: session.Status.ToString(),
+                ConnectorType: session.ConnectionParams.ConnectorType,
+                CreatedAt: session.CreatedAt,
+                LastActivityAt: session.LastActivityAt,
+                OutputLineCount: session.OutputBuffer.Count);
+
+            _logger.LogDebug("Retrieved session info for {SessionId}: Status={Status}, Lines={LineCount}",
+                sessionId, sessionInfo.Status, sessionInfo.OutputLineCount);
+
+            return await Task.FromResult(sessionInfo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get session info for {SessionId}", sessionId);
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Извлекает целочисленный параметр из словаря параметров подключения.
     /// </summary>
     /// <param name="parameters">Словарь параметров</param>

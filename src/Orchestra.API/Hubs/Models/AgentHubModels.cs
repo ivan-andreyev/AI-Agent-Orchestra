@@ -43,3 +43,22 @@ public record CommandSentNotification(
     string Command,
     bool Success,
     DateTime Timestamp);
+
+/// <summary>
+/// Информация об активной сессии агента.
+/// </summary>
+/// <param name="SessionId">Идентификатор сессии (AgentId)</param>
+/// <param name="AgentId">Идентификатор агента</param>
+/// <param name="Status">Текущий статус подключения</param>
+/// <param name="ConnectorType">Тип используемого коннектора</param>
+/// <param name="CreatedAt">Время создания сессии (UTC)</param>
+/// <param name="LastActivityAt">Время последней активности (UTC)</param>
+/// <param name="OutputLineCount">Количество строк в буфере вывода</param>
+public record SessionInfo(
+    string SessionId,
+    string AgentId,
+    string Status,
+    string ConnectorType,
+    DateTime CreatedAt,
+    DateTime LastActivityAt,
+    int OutputLineCount);
