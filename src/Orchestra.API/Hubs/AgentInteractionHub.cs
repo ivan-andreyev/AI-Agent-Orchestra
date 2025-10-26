@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Orchestra.Core.Services.Connectors;
+using Orchestra.Core.Services;
 using Orchestra.API.Hubs.Models;
 using MediatR;
 
@@ -12,6 +13,7 @@ namespace Orchestra.API.Hubs;
 public class AgentInteractionHub : Hub
 {
     private readonly IAgentSessionManager _sessionManager;
+    private readonly IProcessDiscoveryService _processDiscovery;
     private readonly ILogger<AgentInteractionHub> _logger;
     private readonly IMediator _mediator;
 
@@ -19,14 +21,17 @@ public class AgentInteractionHub : Hub
     /// Инициализирует новый экземпляр AgentInteractionHub с необходимыми зависимостями.
     /// </summary>
     /// <param name="sessionManager">Менеджер сеансов агентов для управления подключениями</param>
+    /// <param name="processDiscovery">Сервис для обнаружения процессов Claude Code</param>
     /// <param name="logger">Логгер для диагностики и мониторинга</param>
     /// <param name="mediator">Медиатор для обработки команд и событий</param>
     public AgentInteractionHub(
         IAgentSessionManager sessionManager,
+        IProcessDiscoveryService processDiscovery,
         ILogger<AgentInteractionHub> logger,
         IMediator mediator)
     {
         _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+        _processDiscovery = processDiscovery ?? throw new ArgumentNullException(nameof(processDiscovery));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
     }
@@ -115,6 +120,47 @@ public class AgentInteractionHub : Hub
                 WorkingDirectory = GetStringParameter(request.ConnectionParams, "WorkingDirectory"),
                 ConnectionTimeoutSeconds = ParseIntParameter(request.ConnectionParams, "ConnectionTimeoutSeconds") ?? 30
             };
+
+            // Auto-discover process parameters if terminal connector and params are missing
+            if (request.ConnectorType.Equals("terminal", StringComparison.OrdinalIgnoreCase) &&
+                connectionParams.ProcessId == null &&
+                string.IsNullOrWhiteSpace(connectionParams.PipeName) &&
+                string.IsNullOrWhiteSpace(connectionParams.SocketPath))
+            {
+                _logger.LogInformation("Auto-discovering process parameters for agent {AgentId}", request.AgentId);
+
+                var discoveredParams = await _processDiscovery.GetConnectionParamsForAgentAsync(request.AgentId);
+
+                if (discoveredParams != null)
+                {
+                    // Recreate connectionParams with discovered values (properties are init-only)
+                    connectionParams = new Orchestra.Core.Models.AgentConnectionParams
+                    {
+                        ConnectorType = connectionParams.ConnectorType,
+                        Metadata = connectionParams.Metadata,
+                        ProcessId = discoveredParams.ProcessId,
+                        PipeName = discoveredParams.PipeName,
+                        SocketPath = discoveredParams.SocketPath,
+                        ApiEndpoint = connectionParams.ApiEndpoint,
+                        AuthToken = connectionParams.AuthToken,
+                        WorkingDirectory = connectionParams.WorkingDirectory,
+                        ConnectionTimeoutSeconds = connectionParams.ConnectionTimeoutSeconds
+                    };
+
+                    _logger.LogInformation("Auto-discovered process parameters for agent {AgentId}: ProcessId={ProcessId}, PipeName={PipeName}, SocketPath={SocketPath}",
+                        request.AgentId, connectionParams.ProcessId, connectionParams.PipeName, connectionParams.SocketPath);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to auto-discover process for agent {AgentId}", request.AgentId);
+
+                    return new ConnectToAgentResponse(
+                        string.Empty,
+                        false,
+                        $"Could not find running Claude Code process for session '{request.AgentId}'. " +
+                        "Please ensure the Claude Code agent is running, or provide ProcessId/PipeName/SocketPath manually.");
+                }
+            }
 
             // Create session via manager (NOTE: uses 2 params: agentId, connectionParams)
             var session = await _sessionManager.CreateSessionAsync(

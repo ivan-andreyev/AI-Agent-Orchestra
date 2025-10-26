@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Orchestra.Core.Commands.Agents;
 using Orchestra.Core.Data.Entities;
 using Orchestra.Core.Queries.Agents;
+using Orchestra.Core;
 
 namespace Orchestra.API.Controllers;
 
@@ -15,16 +16,19 @@ public class AgentsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILogger<AgentsController> _logger;
+    private readonly ClaudeSessionDiscovery _sessionDiscovery;
 
     /// <summary>
     /// Инициализирует новый экземпляр AgentsController
     /// </summary>
     /// <param name="mediator">Медиатор для выполнения команд и запросов</param>
     /// <param name="logger">Логгер</param>
-    public AgentsController(IMediator mediator, ILogger<AgentsController> logger)
+    /// <param name="sessionDiscovery">Сервис для чтения истории агентов из .jsonl файлов</param>
+    public AgentsController(IMediator mediator, ILogger<AgentsController> logger, ClaudeSessionDiscovery sessionDiscovery)
     {
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _sessionDiscovery = sessionDiscovery ?? throw new ArgumentNullException(nameof(sessionDiscovery));
     }
 
     /// <summary>
@@ -349,6 +353,49 @@ public class AgentsController : ControllerBase
                 Message = "Agent discovery failed",
                 Error = ex.Message
             });
+        }
+    }
+
+    /// <summary>
+    /// Получить историю агента из .jsonl файлов Claude Code
+    /// </summary>
+    /// <param name="sessionId">Session ID агента</param>
+    /// <param name="maxEntries">Максимальное количество записей истории (по умолчанию 50)</param>
+    /// <returns>Список записей истории агента</returns>
+    [HttpGet("{sessionId}/history")]
+    public ActionResult<List<Orchestra.Core.Models.AgentHistoryEntry>> GetAgentHistory(
+        string sessionId,
+        [FromQuery] int maxEntries = 50)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                return BadRequest(new { Message = "Session ID is required" });
+            }
+
+            if (maxEntries <= 0 || maxEntries > 1000)
+            {
+                return BadRequest(new { Message = "maxEntries must be between 1 and 1000" });
+            }
+
+            _logger.LogDebug("Fetching history for session {SessionId}, maxEntries={MaxEntries}", sessionId, maxEntries);
+
+            var history = _sessionDiscovery.GetAgentHistory(sessionId, maxEntries);
+
+            if (history == null || history.Count == 0)
+            {
+                _logger.LogWarning("No history found for session {SessionId}", sessionId);
+                return Ok(new List<Orchestra.Core.Models.AgentHistoryEntry>());
+            }
+
+            _logger.LogInformation("Returning {Count} history entries for session {SessionId}", history.Count, sessionId);
+            return Ok(history);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get history for session {SessionId}", sessionId);
+            return StatusCode(500, new { Message = "Failed to retrieve agent history", Error = ex.Message });
         }
     }
 }

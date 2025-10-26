@@ -70,13 +70,14 @@ public class Startup
             // Add SignalR-specific CORS policy for agent interaction hub
             options.AddPolicy("SignalRPolicy", policy =>
             {
-                policy.WithOrigins(
-                        "https://localhost:5001",
-                        "http://localhost:5000",
-                        "http://localhost:3000") // React dev server
-                      .AllowAnyHeader()
-                      .AllowAnyMethod()
-                      .AllowCredentials();
+                var allowedOrigins = configuration.GetSection("Cors:BlazorOrigins").Get<string[]>()
+                    ?? new[] { "https://localhost:5001", "http://localhost:5000" };
+
+                policy
+                    .WithOrigins(allowedOrigins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             });
         });
 
@@ -186,6 +187,9 @@ public class Startup
         // Register AgentOutputBuffer for buffering agent output (required by TerminalAgentConnector)
         services.AddTransient<Orchestra.Core.Services.Connectors.IAgentOutputBuffer, Orchestra.Core.Services.Connectors.AgentOutputBuffer>();
 
+        // Register ProcessDiscoveryService for discovering Claude Code processes
+        services.AddSingleton<Orchestra.Core.Services.IProcessDiscoveryService, Orchestra.Core.Services.ProcessDiscoveryService>();
+
         services.AddTransient<Orchestra.Core.Services.Connectors.IAgentConnector, Orchestra.Core.Services.Connectors.TerminalAgentConnector>();
 
         // Register SimpleOrchestrator as Scoped with proper DI for agent state management
@@ -238,6 +242,9 @@ public class Startup
         services.AddScoped<AgentRepository>();
         services.AddScoped<TaskRepository>();
         services.AddScoped<EntityFrameworkOrchestrator>();
+
+        // Register ClaudeSessionDiscovery для чтения истории из .jsonl файлов
+        services.AddSingleton<ClaudeSessionDiscovery>();
 
         // Register chat and session services required by TaskExecutionJob
         services.AddScoped<IChatContextService, ChatContextService>();
