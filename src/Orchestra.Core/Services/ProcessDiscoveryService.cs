@@ -217,8 +217,8 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
             }
 
             // Попытка извлечь SessionId из командной строки или переменных окружения
+            var workingDirectory = GetProcessWorkingDirectory(process);
             var sessionId = ExtractSessionId(commandLine, process);
-            var workingDirectory = ExtractWorkingDirectory(process);
             var socketPath = ExtractSocketPath(commandLine, process);
 
             return new ClaudeProcessInfo(
@@ -472,23 +472,6 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
         return encodedPath.Replace('-', Path.DirectorySeparatorChar);
     }
 
-    /// <summary>
-    /// Извлекает рабочую директорию процесса
-    /// </summary>
-    private string? ExtractWorkingDirectory(Process process)
-    {
-        try
-        {
-            // Попытка получить working directory
-            return process.MainModule?.FileName != null
-                ? Path.GetDirectoryName(process.MainModule.FileName)
-                : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
 
     /// <summary>
     /// Извлекает путь к Unix socket или Named Pipe из командной строки
