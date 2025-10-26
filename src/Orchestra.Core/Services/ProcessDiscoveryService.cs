@@ -274,12 +274,11 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
     }
 
     /// <summary>
-    /// Извлекает Session ID из командной строки или переменных окружения
+    /// Извлекает Session ID из .claude/projects/{ProjectPath}/{SessionId}.jsonl файлов
     /// </summary>
     private string? ExtractSessionId(string commandLine, Process process)
     {
-        // Session ID обычно передается как параметр или находится в рабочей директории
-        // Паттерн: UUID вида "83673153-5336-48e5-ae7a-85cdaca2da91"
+        // Сначала пробуем старую стратегию: UUID в command-line (может быть полезно для других случаев)
         var uuidPattern = @"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
         var match = Regex.Match(commandLine, uuidPattern, RegexOptions.IgnoreCase);
 
@@ -288,25 +287,189 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
             return match.Value;
         }
 
-        // Fallback: попробуем из working directory
+        // Новая стратегия: извлекаем SessionId из .claude/projects структуры
         try
         {
-            var workDir = process.MainModule?.FileName;
-            if (!string.IsNullOrEmpty(workDir))
+            var workingDirectory = GetProcessWorkingDirectory(process);
+            if (string.IsNullOrEmpty(workingDirectory))
             {
-                match = Regex.Match(workDir, uuidPattern, RegexOptions.IgnoreCase);
-                if (match.Success)
+                return null;
+            }
+
+            return ExtractSessionIdFromClaudeProjects(workingDirectory);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogTrace(ex, "Failed to extract SessionId from .claude/projects for process {ProcessId}", process.Id);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Извлекает SessionId из .claude/projects/{ProjectPath}/{SessionId}.jsonl
+    /// </summary>
+    private string? ExtractSessionIdFromClaudeProjects(string projectPath)
+    {
+        try
+        {
+            // Получаем путь к .claude/projects
+            var claudeProjectsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".claude",
+                "projects");
+
+            if (!Directory.Exists(claudeProjectsPath))
+            {
+                return null;
+            }
+
+            // Кодируем projectPath: C:\Users\... → C--Users-...
+            var encodedProjectPath = projectPath
+                .Replace(":", "--")
+                .Replace(Path.DirectorySeparatorChar, '-')
+                .Replace(Path.AltDirectorySeparatorChar, '-');
+
+            var projectClaudeDir = Path.Combine(claudeProjectsPath, encodedProjectPath);
+
+            if (!Directory.Exists(projectClaudeDir))
+            {
+                return null;
+            }
+
+            // Ищем .jsonl файлы
+            var jsonlFiles = Directory.GetFiles(projectClaudeDir, "*.jsonl");
+            if (jsonlFiles.Length == 0)
+            {
+                return null;
+            }
+
+            // Берём самый свежий файл по времени модификации
+            var latestFile = jsonlFiles
+                .Select(f => new FileInfo(f))
+                .OrderByDescending(fi => fi.LastWriteTimeUtc)
+                .FirstOrDefault();
+
+            if (latestFile == null)
+            {
+                return null;
+            }
+
+            // SessionId = имя файла без расширения
+            var sessionId = Path.GetFileNameWithoutExtension(latestFile.Name);
+
+            // Проверяем, что это валидный UUID
+            var uuidPattern = @"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$";
+            if (Regex.IsMatch(sessionId, uuidPattern, RegexOptions.IgnoreCase))
+            {
+                return sessionId;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogTrace(ex, "Failed to extract SessionId from .claude/projects for path {ProjectPath}", projectPath);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Получает Current Working Directory (CWD) процесса через поиск в .claude/projects
+    /// Упрощённая версия: возвращает проект с самым свежим .jsonl файлом
+    /// </summary>
+    private string? GetProcessWorkingDirectory(Process process)
+    {
+        try
+        {
+            // Стратегия: находим САМЫЙ СВЕЖИЙ .jsonl файл во ВСЕХ проектах
+            // Это работает если у нас одна активная сессия Claude Code
+            var claudeProjectsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".claude",
+                "projects");
+
+            if (!Directory.Exists(claudeProjectsPath))
+            {
+                return null;
+            }
+
+            // Получаем все проектные директории
+            var projectDirs = Directory.GetDirectories(claudeProjectsPath);
+
+            FileInfo? latestJsonlFile = null;
+            string? latestProjectDir = null;
+
+            foreach (var projectDir in projectDirs)
+            {
+                var jsonlFiles = Directory.GetFiles(projectDir, "*.jsonl");
+                if (jsonlFiles.Length == 0)
                 {
-                    return match.Value;
+                    continue;
+                }
+
+                foreach (var jsonlFile in jsonlFiles)
+                {
+                    var fileInfo = new FileInfo(jsonlFile);
+                    if (latestJsonlFile == null || fileInfo.LastWriteTimeUtc > latestJsonlFile.LastWriteTimeUtc)
+                    {
+                        latestJsonlFile = fileInfo;
+                        latestProjectDir = projectDir;
+                    }
+                }
+            }
+
+            if (latestProjectDir != null)
+            {
+                // Декодируем путь из имени директории
+                var dirName = Path.GetFileName(latestProjectDir);
+                return DecodeClaudeProjectPath(dirName);
+            }
+
+            // Fallback: Unix/Linux /proc/{pid}/cwd
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var cwdPath = $"/proc/{process.Id}/cwd";
+                if (Directory.Exists(cwdPath))
+                {
+                    var target = Directory.ResolveLinkTarget(cwdPath, false);
+                    if (target != null)
+                    {
+                        return target.FullName;
+                    }
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore
+            _logger.LogTrace(ex, "Failed to get working directory for process {ProcessId}", process.Id);
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Декодирует путь проекта из имени директории .claude/projects
+    /// Пример: C--Users-mrred-RiderProjects-AI-Agent-Orchestra → C:\Users\mrred\RiderProjects\AI-Agent-Orchestra
+    /// </summary>
+    private string DecodeClaudeProjectPath(string encodedPath)
+    {
+        // Обработка Windows путей: C--Users-...
+        if (encodedPath.Length >= 3 && char.IsLetter(encodedPath[0]) && encodedPath.Substring(1, 2) == "--")
+        {
+            // C--Users-mrred → C:\Users\mrred
+            var driveLetter = encodedPath[0];
+            var restPath = encodedPath.Substring(3).Replace('-', '\\');
+            return $"{driveLetter}:\\{restPath}";
+        }
+
+        // Unix пути начинаются с --
+        if (encodedPath.StartsWith("--"))
+        {
+            return "/" + encodedPath.Substring(2).Replace('-', '/');
+        }
+
+        // Fallback: просто замена дефисов
+        return encodedPath.Replace('-', Path.DirectorySeparatorChar);
     }
 
     /// <summary>
