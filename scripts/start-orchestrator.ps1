@@ -8,6 +8,31 @@ param(
 Write-Host "=== Starting AI Agent Orchestra MVP ===" -ForegroundColor Green
 Write-Host "Mode: $Mode" -ForegroundColor Yellow
 Write-Host "Port: $Port" -ForegroundColor Yellow
+Write-Host ""
+
+# Run pre-startup tests first
+Write-Host "Running pre-startup tests..." -ForegroundColor Cyan
+$preStartupTestsScript = Join-Path $PSScriptRoot "pre-startup-tests.ps1"
+if (Test-Path $preStartupTestsScript) {
+    try {
+        & $preStartupTestsScript
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host ""
+            Write-Host "Pre-startup tests failed! Aborting startup." -ForegroundColor Red
+            Write-Host "Fix the failing tests before starting Orchestra." -ForegroundColor Yellow
+            exit 1
+        }
+    } catch {
+        Write-Host ""
+        Write-Host "Pre-startup tests error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Aborting startup." -ForegroundColor Yellow
+        exit 1
+    }
+} else {
+    Write-Host "Warning: pre-startup-tests.ps1 not found at: $preStartupTestsScript" -ForegroundColor Yellow
+    Write-Host "Skipping pre-startup tests..." -ForegroundColor Yellow
+}
+Write-Host ""
 
 # Переходим в директорию API
 $apiPath = Join-Path $PSScriptRoot "..\src\Orchestra.API"
