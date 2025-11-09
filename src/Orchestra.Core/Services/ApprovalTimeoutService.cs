@@ -8,6 +8,7 @@ using Orchestra.Core.Commands.Permissions;
 using Orchestra.Core.Data;
 using Orchestra.Core.Data.Entities;
 using Orchestra.Core.Options;
+using Orchestra.Core.Services.Metrics;
 
 namespace Orchestra.Core.Services;
 
@@ -27,16 +28,19 @@ public class ApprovalTimeoutService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ApprovalTimeoutService> _logger;
     private readonly IOptions<ApprovalTimeoutOptions> _options;
+    private readonly EscalationMetricsService _metricsService;
     private readonly TimeSpan _checkInterval;
 
     public ApprovalTimeoutService(
         IServiceProvider serviceProvider,
         ILogger<ApprovalTimeoutService> logger,
-        IOptions<ApprovalTimeoutOptions> options)
+        IOptions<ApprovalTimeoutOptions> options,
+        EscalationMetricsService metricsService)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _metricsService = metricsService ?? throw new ArgumentNullException(nameof(metricsService));
         _checkInterval = TimeSpan.FromSeconds(_options.Value.CheckIntervalSeconds);
     }
 
@@ -132,6 +136,24 @@ public class ApprovalTimeoutService : BackgroundService
                     await mediator.Send(
                         new CancelApprovalCommand(approval.ApprovalId, "Timeout"),
                         cancellationToken);
+
+                    // Record metrics: Approval timeout
+                    try
+                    {
+                        _metricsService.RecordApprovalTimeout(approval.ApprovalId);
+                        _metricsService.RecordEscalationDequeued(approval.ApprovalId);
+
+                        _logger.LogDebug(
+                            "Метрики таймаута approval записаны. ApprovalId: {ApprovalId}",
+                            approval.ApprovalId);
+                    }
+                    catch (Exception metricsEx)
+                    {
+                        _logger.LogWarning(
+                            metricsEx,
+                            "Не удалось записать метрики таймаута approval. ApprovalId: {ApprovalId}",
+                            approval.ApprovalId);
+                    }
                 }
                 catch (Exception ex)
                 {

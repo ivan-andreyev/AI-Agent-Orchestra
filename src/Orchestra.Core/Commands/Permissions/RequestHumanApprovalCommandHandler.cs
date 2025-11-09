@@ -5,6 +5,8 @@ using Orchestra.Core.Data;
 using Orchestra.Core.Data.Entities;
 using Orchestra.Core.Options;
 using Orchestra.Core.Services;
+using Orchestra.Core.Services.Metrics;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace Orchestra.Core.Commands.Permissions;
@@ -25,17 +27,20 @@ public class RequestHumanApprovalCommandHandler : IRequestHandler<RequestHumanAp
     private readonly ITelegramEscalationService _telegramService;
     private readonly OrchestraDbContext _context;
     private readonly IOptions<ApprovalTimeoutOptions> _timeoutOptions;
+    private readonly EscalationMetricsService _metricsService;
 
     public RequestHumanApprovalCommandHandler(
         ILogger<RequestHumanApprovalCommandHandler> logger,
         ITelegramEscalationService telegramService,
         OrchestraDbContext context,
-        IOptions<ApprovalTimeoutOptions> timeoutOptions)
+        IOptions<ApprovalTimeoutOptions> timeoutOptions,
+        EscalationMetricsService metricsService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _telegramService = telegramService ?? throw new ArgumentNullException(nameof(telegramService));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _timeoutOptions = timeoutOptions ?? throw new ArgumentNullException(nameof(timeoutOptions));
+        _metricsService = metricsService ?? throw new ArgumentNullException(nameof(metricsService));
     }
 
     /// <summary>
@@ -107,24 +112,72 @@ public class RequestHumanApprovalCommandHandler : IRequestHandler<RequestHumanAp
                 expiresAt,
                 timeoutMinutes);
 
+            // Record metrics: Approval initiated
+            try
+            {
+                _metricsService.RecordApprovalInitiated(approvalId, request.AgentId);
+                _metricsService.RecordEscalationEnqueued(approvalId, request.AgentId);
+
+                _logger.LogDebug(
+                    "Метрики инициирования approval записаны. ApprovalId: {ApprovalId}",
+                    approvalId);
+            }
+            catch (Exception metricsEx)
+            {
+                _logger.LogWarning(
+                    metricsEx,
+                    "Не удалось записать метрики инициирования approval. ApprovalId: {ApprovalId}",
+                    approvalId);
+            }
+
             // Формируем сообщение об эскалации
             var escalationMessage = BuildEscalationMessage(request, approvalId, timeoutMinutes);
 
-            // Отправляем эскалацию через Telegram
+            // Отправляем эскалацию через Telegram с замером времени
+            var stopwatch = Stopwatch.StartNew();
             var telegramSuccess = await _telegramService.SendEscalationAsync(
                 request.AgentId,
                 escalationMessage,
                 null,
                 cancellationToken);
+            stopwatch.Stop();
 
-            if (!telegramSuccess)
+            // Record metrics: Telegram call result
+            try
+            {
+                if (telegramSuccess)
+                {
+                    _metricsService.RecordTelegramMessageSent(request.AgentId, stopwatch.Elapsed.TotalMilliseconds);
+
+                    _logger.LogInformation(
+                        "Эскалация отправлена через Telegram за {Duration:F2}ms. AgentId: {AgentId}",
+                        stopwatch.Elapsed.TotalMilliseconds,
+                        request.AgentId);
+                }
+                else
+                {
+                    _metricsService.RecordTelegramMessageFailed(request.AgentId, null);
+
+                    _logger.LogWarning(
+                        "Не удалось отправить эскалацию через Telegram для агента {AgentId}. " +
+                        "Telegram может быть отключен или не сконфигурирован.",
+                        request.AgentId);
+                }
+            }
+            catch (Exception metricsEx)
             {
                 _logger.LogWarning(
-                    "Не удалось отправить эскалацию через Telegram для агента {AgentId}. " +
-                    "Telegram может быть отключен или не сконфигурирован.",
+                    metricsEx,
+                    "Не удалось записать метрики Telegram вызова. AgentId: {AgentId}",
                     request.AgentId);
 
-                // Даже если Telegram не работает, ApprovalId уже создан в БД
+                if (!telegramSuccess)
+                {
+                    _logger.LogWarning(
+                        "Не удалось отправить эскалацию через Telegram для агента {AgentId}. " +
+                        "Telegram может быть отключен или не сконфигурирован.",
+                        request.AgentId);
+                }
             }
 
             _logger.LogInformation(

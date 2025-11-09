@@ -6,6 +6,8 @@ using Orchestra.Core.Commands.Permissions;
 using Orchestra.Core.Data;
 using Orchestra.Core.Data.Entities;
 using Orchestra.Core.Queries.Sessions;
+using Orchestra.Core.Services.Metrics;
+using System.Diagnostics.Metrics;
 using Xunit;
 
 namespace Orchestra.Tests.Commands.Permissions;
@@ -15,13 +17,54 @@ namespace Orchestra.Tests.Commands.Permissions;
 /// </summary>
 public class ProcessHumanApprovalCommandHandlerTests
 {
+    /// <summary>
+    /// Создаёт InMemory базу данных для тестов
+    /// </summary>
+    private OrchestraDbContext CreateInMemoryContext()
+    {
+        var options = new DbContextOptionsBuilder<OrchestraDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        return new OrchestraDbContext(options);
+    }
+
+    /// <summary>
+    /// Создаёт mock EscalationMetricsService для тестов
+    /// </summary>
+    private EscalationMetricsService CreateMockMetricsService()
+    {
+        var mockLogger = new Mock<ILogger<EscalationMetricsService>>();
+        var mockMeterFactory = new Mock<IMeterFactory>();
+        var mockMeter = new Mock<Meter>("test", "1.0.0");
+
+        mockMeterFactory
+            .Setup(x => x.Create(It.IsAny<MeterOptions>()))
+            .Returns(mockMeter.Object);
+
+        return new EscalationMetricsService(mockLogger.Object, mockMeterFactory.Object);
+    }
     [Fact]
     public async Task Handle_WithValidApprovalAndPausedSession_ReturnSuccess()
     {
         // Arrange
         var mockMediator = new Mock<IMediator>();
         var mockLogger = new Mock<ILogger<ProcessHumanApprovalCommandHandler>>();
-        var mockDbContext = new Mock<OrchestraDbContext>();
+        var context = CreateInMemoryContext();
+
+        var approval = new ApprovalRequest
+        {
+            ApprovalId = "approval-123",
+            SessionId = "uuid-session",
+            AgentId = "agent-123",
+            Status = ApprovalStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30)
+        };
+
+        context.ApprovalRequests.Add(approval);
+        await context.SaveChangesAsync();
 
         var session = new AgentSession
         {
@@ -34,14 +77,18 @@ public class ProcessHumanApprovalCommandHandlerTests
             UpdatedAt = DateTime.UtcNow
         };
 
-        var handler = new ProcessHumanApprovalCommandHandler(
-            mockLogger.Object,
-            mockDbContext.Object,
-            mockMediator.Object);
+        context.AgentSessions.Add(session);
+        await context.SaveChangesAsync();
 
         mockMediator
             .Setup(x => x.Send(It.IsAny<GetAgentSessionQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
+
+        var handler = new ProcessHumanApprovalCommandHandler(
+            mockLogger.Object,
+            context,
+            mockMediator.Object,
+            CreateMockMetricsService());
 
         var command = new ProcessHumanApprovalCommand(
             "approval-123",
@@ -55,7 +102,8 @@ public class ProcessHumanApprovalCommandHandlerTests
         var result = await handler.Handle(command, CancellationToken.None);
 
         // Assert
-        Assert.True(result.Success);
+        Assert.NotNull(result);
+        Assert.True(result.Success, $"Expected success=true, got: {result.Message}");
         Assert.True(result.SessionResumed);
         Assert.Equal("uuid-session", result.ResumeSessionId);
     }
@@ -66,12 +114,27 @@ public class ProcessHumanApprovalCommandHandlerTests
         // Arrange
         var mockMediator = new Mock<IMediator>();
         var mockLogger = new Mock<ILogger<ProcessHumanApprovalCommandHandler>>();
-        var mockDbContext = new Mock<OrchestraDbContext>();
+        var context = CreateInMemoryContext();
+
+        var approval = new ApprovalRequest
+        {
+            ApprovalId = "approval-rejected",
+            SessionId = "uuid-session-2",
+            AgentId = "agent-456",
+            Status = ApprovalStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30)
+        };
+
+        context.ApprovalRequests.Add(approval);
+        await context.SaveChangesAsync();
 
         var handler = new ProcessHumanApprovalCommandHandler(
             mockLogger.Object,
-            mockDbContext.Object,
-            mockMediator.Object);
+            context,
+            mockMediator.Object,
+            CreateMockMetricsService());
 
         var command = new ProcessHumanApprovalCommand(
             "approval-rejected",
@@ -96,12 +159,27 @@ public class ProcessHumanApprovalCommandHandlerTests
         // Arrange
         var mockMediator = new Mock<IMediator>();
         var mockLogger = new Mock<ILogger<ProcessHumanApprovalCommandHandler>>();
-        var mockDbContext = new Mock<OrchestraDbContext>();
+        var context = CreateInMemoryContext();
+
+        var approval = new ApprovalRequest
+        {
+            ApprovalId = "approval-notfound",
+            SessionId = "nonexistent-session",
+            AgentId = "agent-123",
+            Status = ApprovalStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30)
+        };
+
+        context.ApprovalRequests.Add(approval);
+        await context.SaveChangesAsync();
 
         var handler = new ProcessHumanApprovalCommandHandler(
             mockLogger.Object,
-            mockDbContext.Object,
-            mockMediator.Object);
+            context,
+            mockMediator.Object,
+            CreateMockMetricsService());
 
         mockMediator
             .Setup(x => x.Send(It.IsAny<GetAgentSessionQuery>(), It.IsAny<CancellationToken>()))
@@ -129,7 +207,21 @@ public class ProcessHumanApprovalCommandHandlerTests
         // Arrange
         var mockMediator = new Mock<IMediator>();
         var mockLogger = new Mock<ILogger<ProcessHumanApprovalCommandHandler>>();
-        var mockDbContext = new Mock<OrchestraDbContext>();
+        var context = CreateInMemoryContext();
+
+        var approval = new ApprovalRequest
+        {
+            ApprovalId = "approval-active",
+            SessionId = "uuid-session-3",
+            AgentId = "agent-789",
+            Status = ApprovalStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30)
+        };
+
+        context.ApprovalRequests.Add(approval);
+        await context.SaveChangesAsync();
 
         var session = new AgentSession
         {
@@ -144,8 +236,9 @@ public class ProcessHumanApprovalCommandHandlerTests
 
         var handler = new ProcessHumanApprovalCommandHandler(
             mockLogger.Object,
-            mockDbContext.Object,
-            mockMediator.Object);
+            context,
+            mockMediator.Object,
+            CreateMockMetricsService());
 
         mockMediator
             .Setup(x => x.Send(It.IsAny<GetAgentSessionQuery>(), It.IsAny<CancellationToken>()))
@@ -173,12 +266,13 @@ public class ProcessHumanApprovalCommandHandlerTests
         // Arrange
         var mockMediator = new Mock<IMediator>();
         var mockLogger = new Mock<ILogger<ProcessHumanApprovalCommandHandler>>();
-        var mockDbContext = new Mock<OrchestraDbContext>();
+        var context = CreateInMemoryContext();
 
         var handler = new ProcessHumanApprovalCommandHandler(
             mockLogger.Object,
-            mockDbContext.Object,
-            mockMediator.Object);
+            context,
+            mockMediator.Object,
+            CreateMockMetricsService());
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(

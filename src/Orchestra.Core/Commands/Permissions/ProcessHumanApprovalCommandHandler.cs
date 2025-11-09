@@ -5,6 +5,7 @@ using Orchestra.Core.Commands.Sessions;
 using Orchestra.Core.Data;
 using Orchestra.Core.Data.Entities;
 using Orchestra.Core.Queries.Sessions;
+using Orchestra.Core.Services.Metrics;
 
 namespace Orchestra.Core.Commands.Permissions;
 
@@ -24,15 +25,18 @@ public class ProcessHumanApprovalCommandHandler : IRequestHandler<ProcessHumanAp
     private readonly ILogger<ProcessHumanApprovalCommandHandler> _logger;
     private readonly OrchestraDbContext _context;
     private readonly IMediator _mediator;
+    private readonly EscalationMetricsService _metricsService;
 
     public ProcessHumanApprovalCommandHandler(
         ILogger<ProcessHumanApprovalCommandHandler> logger,
         OrchestraDbContext context,
-        IMediator mediator)
+        IMediator mediator,
+        EscalationMetricsService metricsService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
+        _metricsService = metricsService ?? throw new ArgumentNullException(nameof(metricsService));
     }
 
     /// <summary>
@@ -113,6 +117,26 @@ public class ProcessHumanApprovalCommandHandler : IRequestHandler<ProcessHumanAp
                 _context.ApprovalRequests.Update(approvalRequest);
                 await _context.SaveChangesAsync(cancellationToken);
 
+                // Record metrics: Approval rejected
+                try
+                {
+                    var responseTime = (DateTime.UtcNow - approvalRequest.CreatedAt).TotalSeconds;
+                    _metricsService.RecordApprovalRejected(request.ApprovalId, responseTime);
+                    _metricsService.RecordEscalationDequeued(request.ApprovalId);
+
+                    _logger.LogDebug(
+                        "Метрики отклонения approval записаны. ApprovalId: {ApprovalId}, ResponseTime: {ResponseTime:F2}s",
+                        request.ApprovalId,
+                        responseTime);
+                }
+                catch (Exception metricsEx)
+                {
+                    _logger.LogWarning(
+                        metricsEx,
+                        "Не удалось записать метрики отклонения approval. ApprovalId: {ApprovalId}",
+                        request.ApprovalId);
+                }
+
                 return new ProcessHumanApprovalResult(
                     Success: true,
                     Message: "Одобрение отклонено. Сессия не будет возобновлена.",
@@ -155,21 +179,54 @@ public class ProcessHumanApprovalCommandHandler : IRequestHandler<ProcessHumanAp
             approvalRequest.ApprovedBy = request.ApprovedBy;
             approvalRequest.UpdatedAt = DateTime.UtcNow;
 
-            // Обновляем сессию - помечаем, что она может возобновиться с пропуском разрешений
-            // (это информация, которую будет использовать ClaudeCodeSubprocessConnector.ResumeSessionAsync)
-            session.UpdatedAt = DateTime.UtcNow;
-            session.LastResumedAt = DateTime.UtcNow;
+            // Reload session from our context to avoid entity tracking issues
+            var trackedSession = await _context.AgentSessions
+                .FirstOrDefaultAsync(s => s.Id == session.Id, cancellationToken);
+
+            if (trackedSession != null)
+            {
+                // Обновляем сессию - помечаем, что она может возобновиться с пропуском разрешений
+                // (это информация, которую будет использовать ClaudeCodeSubprocessConnector.ResumeSessionAsync)
+                trackedSession.UpdatedAt = DateTime.UtcNow;
+                trackedSession.LastResumedAt = DateTime.UtcNow;
+            }
 
             // Сохраняем изменения
             _context.ApprovalRequests.Update(approvalRequest);
-            _context.AgentSessions.Update(session);
+            if (trackedSession != null)
+            {
+                _context.AgentSessions.Update(trackedSession);
+            }
+
             await _context.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation(
-                "Одобрение обработано успешно. Сессия подготовлена к возобновлению. " +
-                "SessionId: {SessionId}, ApprovedBy: {ApprovedBy}",
-                request.SessionId,
-                request.ApprovedBy);
+            // Record metrics: Approval accepted
+            try
+            {
+                var responseTime = (DateTime.UtcNow - approvalRequest.CreatedAt).TotalSeconds;
+                _metricsService.RecordApprovalAccepted(request.ApprovalId, responseTime);
+                _metricsService.RecordEscalationDequeued(request.ApprovalId);
+
+                _logger.LogInformation(
+                    "Одобрение обработано успешно. Сессия подготовлена к возобновлению. " +
+                    "SessionId: {SessionId}, ApprovedBy: {ApprovedBy}, ResponseTime: {ResponseTime:F2}s",
+                    request.SessionId,
+                    request.ApprovedBy,
+                    responseTime);
+            }
+            catch (Exception metricsEx)
+            {
+                _logger.LogWarning(
+                    metricsEx,
+                    "Не удалось записать метрики принятия approval. ApprovalId: {ApprovalId}",
+                    request.ApprovalId);
+
+                _logger.LogInformation(
+                    "Одобрение обработано успешно. Сессия подготовлена к возобновлению. " +
+                    "SessionId: {SessionId}, ApprovedBy: {ApprovedBy}",
+                    request.SessionId,
+                    request.ApprovedBy);
+            }
 
             return new ProcessHumanApprovalResult(
                 Success: true,

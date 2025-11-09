@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Orchestra.Core.Services;
 using System.Diagnostics;
@@ -14,18 +15,22 @@ public class DiagnosticsController : ControllerBase
 {
     private readonly IProcessDiscoveryService _processDiscovery;
     private readonly ILogger<DiagnosticsController> _logger;
+    private readonly IMediator _mediator;
 
     /// <summary>
     /// Инициализирует новый экземпляр DiagnosticsController
     /// </summary>
     /// <param name="processDiscovery">Сервис для обнаружения процессов</param>
     /// <param name="logger">Логгер</param>
+    /// <param name="mediator">Медиатор для отправки команд</param>
     public DiagnosticsController(
         IProcessDiscoveryService processDiscovery,
-        ILogger<DiagnosticsController> logger)
+        ILogger<DiagnosticsController> logger,
+        IMediator mediator)
     {
         _processDiscovery = processDiscovery ?? throw new ArgumentNullException(nameof(processDiscovery));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
     }
 
     /// <summary>
@@ -258,6 +263,199 @@ public class DiagnosticsController : ControllerBase
 
         return null;
     }
+
+    /// <summary>
+    /// Синхронизирует SessionId для всех агентов с обнаруженными процессами Claude Code
+    /// </summary>
+    /// <returns>Результат синхронизации с количеством обновленных агентов</returns>
+    [HttpPost("sync-session-ids")]
+    public async Task<ActionResult<SessionIdSyncResponse>> SyncSessionIds()
+    {
+        try
+        {
+            _logger.LogInformation("DiagnosticsController: SyncSessionIds called");
+
+            // Get all discovered Claude Code processes
+            var discoveredProcesses = await _processDiscovery.DiscoverClaudeProcessesAsync();
+
+            _logger.LogInformation("Found {Count} Claude Code processes for syncing", discoveredProcesses.Count);
+
+            if (!discoveredProcesses.Any())
+            {
+                return Ok(new SessionIdSyncResponse(
+                    TotalAgents: 0,
+                    SyncedAgents: 0,
+                    SkippedAgents: 0,
+                    Errors: 0,
+                    Timestamp: DateTime.UtcNow,
+                    Details: new List<string> { "No Claude Code processes found" }));
+            }
+
+            // Get all agents
+            var getAllAgentsQuery = new Orchestra.Core.Queries.Agents.GetAllAgentsQuery
+            {
+                ActiveOnly = true
+            };
+            var allAgents = await _mediator.Send(getAllAgentsQuery);
+
+            _logger.LogInformation("Found {Count} registered agents", allAgents.Count);
+
+            int syncedCount = 0;
+            int skippedCount = 0;
+            int errorCount = 0;
+            var details = new List<string>();
+
+            // Match and update agents
+            foreach (var agent in allAgents)
+            {
+                // Skip if SessionId already populated
+                if (!string.IsNullOrWhiteSpace(agent.SessionId))
+                {
+                    skippedCount++;
+                    details.Add($"Agent {agent.Id} already has SessionId: {agent.SessionId}");
+                    continue;
+                }
+
+                // Try to match with discovered process
+                var matchedProcess = TryMatchAgentWithProcess(agent, discoveredProcesses);
+
+                if (matchedProcess != null)
+                {
+                    var updateCommand = new Orchestra.Core.Commands.Agents.UpdateAgentSessionIdCommand
+                    {
+                        AgentId = agent.Id,
+                        SessionId = matchedProcess.SessionId
+                    };
+
+                    var result = await _mediator.Send(updateCommand);
+
+                    if (result.Success)
+                    {
+                        syncedCount++;
+                        details.Add($"Synced {agent.Id}: SessionId = {matchedProcess.SessionId}");
+                        _logger.LogInformation("Synced SessionId for agent {AgentId}: {SessionId}",
+                            agent.Id, matchedProcess.SessionId);
+                    }
+                    else
+                    {
+                        errorCount++;
+                        details.Add($"Failed to update {agent.Id}: {result.ErrorMessage}");
+                        _logger.LogWarning("Failed to update SessionId for agent {AgentId}: {Error}",
+                            agent.Id, result.ErrorMessage);
+                    }
+                }
+                else
+                {
+                    skippedCount++;
+                    details.Add($"No matching process found for agent {agent.Id}");
+                }
+            }
+
+            var response = new SessionIdSyncResponse(
+                TotalAgents: allAgents.Count,
+                SyncedAgents: syncedCount,
+                SkippedAgents: skippedCount,
+                Errors: errorCount,
+                Timestamp: DateTime.UtcNow,
+                Details: details);
+
+            _logger.LogInformation("SessionId sync completed: {SyncedCount}/{TotalAgents} agents updated",
+                syncedCount, allAgents.Count);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sync SessionIds: {Error}", ex.Message);
+            return StatusCode(500, new SessionIdSyncResponse(
+                TotalAgents: 0,
+                SyncedAgents: 0,
+                SkippedAgents: 0,
+                Errors: 1,
+                Timestamp: DateTime.UtcNow,
+                Details: new List<string> { $"Error: {ex.Message}" }));
+        }
+    }
+
+    /// <summary>
+    /// Пытается сопоставить агента с обнаруженным процессом
+    /// </summary>
+    private Orchestra.Core.Services.ClaudeProcessInfo? TryMatchAgentWithProcess(
+        Orchestra.Core.Data.Entities.Agent agent,
+        List<Orchestra.Core.Services.ClaudeProcessInfo> discoveredProcesses)
+    {
+        // Try to extract ProcessId from agent's ConfigurationJson
+        if (!string.IsNullOrWhiteSpace(agent.ConfigurationJson))
+        {
+            try
+            {
+                var config = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(agent.ConfigurationJson);
+
+                if (config != null && config.TryGetValue("ProcessId", out var processIdElement))
+                {
+                    var processId = processIdElement.GetInt32();
+
+                    // Match by ProcessId
+                    var matchedByPid = discoveredProcesses.FirstOrDefault(p => p.ProcessId == processId);
+                    if (matchedByPid != null)
+                    {
+                        _logger.LogDebug("Matched agent {AgentId} with process PID {ProcessId}",
+                            agent.Id, processId);
+                        return matchedByPid;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogTrace(ex, "Failed to parse ConfigurationJson for agent {AgentId}", agent.Id);
+            }
+        }
+
+        // Fallback: try to match by repository path
+        if (!string.IsNullOrWhiteSpace(agent.RepositoryPath))
+        {
+            var matchedByPath = discoveredProcesses.FirstOrDefault(p =>
+                !string.IsNullOrWhiteSpace(p.WorkingDirectory) &&
+                (p.WorkingDirectory.Equals(agent.RepositoryPath, StringComparison.OrdinalIgnoreCase) ||
+                 agent.RepositoryPath.StartsWith(p.WorkingDirectory, StringComparison.OrdinalIgnoreCase)));
+
+            if (matchedByPath != null)
+            {
+                _logger.LogDebug("Matched agent {AgentId} with process by repository path: {Path}",
+                    agent.Id, agent.RepositoryPath);
+                return matchedByPath;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Получить текущие метрики системы в JSON формате
+    /// </summary>
+    /// <returns>Текущие метрики мониторинга</returns>
+    [HttpGet("metrics")]
+    public ActionResult<MetricsResponse> GetMetrics()
+    {
+        try
+        {
+            _logger.LogInformation("DiagnosticsController: GetMetrics called");
+
+            var response = new MetricsResponse(
+                Status: "metrics endpoint available",
+                Timestamp: DateTime.UtcNow,
+                MetricsEndpoint: "/metrics",
+                Message: "Prometheus metrics are available at the /metrics endpoint"
+            );
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get metrics information");
+            return StatusCode(500, new { Message = "Failed to retrieve metrics information", Error = ex.Message });
+        }
+    }
 }
 
 #region Response Models
@@ -297,5 +495,25 @@ public record SessionIdDiagnosticsResponse(
     Orchestra.Core.Models.AgentConnectionParams? ConnectionParams,
     bool Found,
     DateTime Timestamp);
+
+/// <summary>
+/// Результат синхронизации SessionId
+/// </summary>
+public record SessionIdSyncResponse(
+    int TotalAgents,
+    int SyncedAgents,
+    int SkippedAgents,
+    int Errors,
+    DateTime Timestamp,
+    List<string> Details);
+
+/// <summary>
+/// Ответ с информацией о метриках
+/// </summary>
+public record MetricsResponse(
+    string Status,
+    DateTime Timestamp,
+    string MetricsEndpoint,
+    string Message);
 
 #endregion

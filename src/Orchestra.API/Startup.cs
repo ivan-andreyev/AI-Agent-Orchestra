@@ -20,6 +20,9 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Orchestra.Core.HealthChecks;
 using MediatR;
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Exporter;
 
 namespace Orchestra.API;
 
@@ -357,6 +360,26 @@ public class Startup
 
         // Register PermissionDenialDetectionService for detecting permission_denials in Claude Code responses
         services.AddSingleton<IPermissionDenialDetectionService, PermissionDenialDetectionService>();
+
+        // Register EscalationMetricsService for monitoring & metrics (Phase 4.3)
+        services.AddSingleton<Orchestra.Core.Services.Metrics.EscalationMetricsService>();
+
+        // Configure OpenTelemetry for metrics collection (Phase 4.3)
+        var openTelemetrySection = configuration.GetSection("OpenTelemetry");
+        var openTelemetryEnabled = openTelemetrySection.GetValue<bool>("Enabled", true);
+        var metricsEnabled = openTelemetrySection.GetValue<bool>("MetricsEnabled", true);
+
+        if (openTelemetryEnabled && metricsEnabled)
+        {
+            var meterProvider = Sdk.CreateMeterProviderBuilder()
+                .AddMeter("Orchestra.Escalation")
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddPrometheusExporter()
+                .Build();
+
+            services.AddSingleton(meterProvider);
+        }
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IConfiguration configuration)
@@ -371,6 +394,16 @@ public class Startup
 
         // Enable static files (for coordinator.html)
         app.UseStaticFiles();
+
+        // Enable OpenTelemetry Prometheus scraper endpoint (Phase 4.3)
+        var openTelemetrySection = configuration.GetSection("OpenTelemetry");
+        var openTelemetryEnabled = openTelemetrySection.GetValue<bool>("Enabled", true);
+        var metricsEnabled = openTelemetrySection.GetValue<bool>("MetricsEnabled", true);
+
+        if (openTelemetryEnabled && metricsEnabled)
+        {
+            app.UseOpenTelemetryPrometheusScrapingEndpoint();
+        }
 
         // Hangfire Dashboard with basic authorization
         app.UseHangfireDashboard("/hangfire", new DashboardOptions

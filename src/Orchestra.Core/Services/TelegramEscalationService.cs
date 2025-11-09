@@ -1,5 +1,11 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Orchestra.Core.Options;
+using Orchestra.Core.Services.Metrics;
+using Orchestra.Core.Services.Resilience;
+using Orchestra.Core.Utilities;
+using Polly;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace Orchestra.Core.Services;
@@ -9,13 +15,16 @@ namespace Orchestra.Core.Services;
 /// </summary>
 /// <remarks>
 /// Сервис отправляет запросы на одобрение через Telegram бота.
-/// Требует конфигурацию BotToken и ChatId в appsettings.json
+/// Требует конфигурацию BotToken и ChatId в appsettings.json.
+/// Использует Polly retry policy для resilient вызовов API.
 /// </remarks>
 public class TelegramEscalationService : ITelegramEscalationService
 {
     private readonly ILogger<TelegramEscalationService> _logger;
     private readonly TelegramEscalationOptions _options;
     private readonly HttpClient _httpClient;
+    private readonly ResiliencePipeline<HttpResponseMessage> _retryPolicy;
+    private readonly EscalationMetricsService? _metricsService;
 
     /// <summary>
     /// Базовый URL Telegram Bot API
@@ -25,16 +34,27 @@ public class TelegramEscalationService : ITelegramEscalationService
     public TelegramEscalationService(
         ILogger<TelegramEscalationService> logger,
         IOptions<TelegramEscalationOptions> options,
-        HttpClient httpClient)
+        HttpClient httpClient,
+        IPolicyRegistry policyRegistry,
+        EscalationMetricsService? metricsService = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _metricsService = metricsService;
+
+        if (policyRegistry == null)
+        {
+            throw new ArgumentNullException(nameof(policyRegistry));
+        }
+
+        _retryPolicy = policyRegistry.GetTelegramRetryPolicy();
 
         _logger.LogInformation(
-            "TelegramEscalationService инициализирован. Enabled: {Enabled}, Configured: {Configured}",
+            "TelegramEscalationService initialized. Enabled: {Enabled}, Configured: {Configured}, RetryPolicy: Configured, Metrics: {MetricsEnabled}",
             _options.Enabled,
-            !string.IsNullOrEmpty(_options.BotToken));
+            !string.IsNullOrEmpty(_options.BotToken),
+            metricsService != null);
     }
 
     /// <summary>
@@ -49,24 +69,27 @@ public class TelegramEscalationService : ITelegramEscalationService
         // Проверяем конфигурацию
         if (!_options.Enabled)
         {
-            _logger.LogWarning("TelegramEscalationService отключен в конфигурации");
+            _logger.LogWarning("TelegramEscalationService disabled in configuration");
             return false;
         }
 
         if (string.IsNullOrEmpty(_options.BotToken) || string.IsNullOrEmpty(_options.ChatId))
         {
             _logger.LogError(
-                "TelegramEscalationService не сконфигурирован. BotToken: {BotTokenExists}, ChatId: {ChatIdExists}",
+                "TelegramEscalationService not configured. BotToken: {BotTokenExists}, ChatId: {ChatIdExists}",
                 !string.IsNullOrEmpty(_options.BotToken),
                 !string.IsNullOrEmpty(_options.ChatId));
             return false;
         }
 
+        var stopwatch = Stopwatch.StartNew();
+        var retryCount = 0;
+
         try
         {
-            var escapedMessage = EscapeMarkdownV2(message);
-            var telegramMessage = $"*⚠️ Требуется одобрение от оператора*\n\n" +
-                                 $"Агент: `{EscapeMarkdownV2(agentId)}`\n\n" +
+            var escapedMessage = TelegramMarkdownHelper.EscapeMarkdownV2(message);
+            var telegramMessage = $"*⚠️ Operator Approval Required*\n\n" +
+                                 $"Agent: `{TelegramMarkdownHelper.EscapeMarkdownV2(agentId)}`\n\n" +
                                  $"{escapedMessage}";
 
             // Подготавливаем payload для Telegram API
@@ -84,28 +107,61 @@ public class TelegramEscalationService : ITelegramEscalationService
                 "application/json");
 
             var url = $"{TelegramApiUrl}{_options.BotToken}/sendMessage";
-            var response = await _httpClient.PostAsync(url, jsonContent, cancellationToken);
+
+            // Используем retry policy для resilient вызова
+            var response = await _retryPolicy.ExecuteAsync(
+                async ct =>
+                {
+                    try
+                    {
+                        return await _httpClient.PostAsync(url, jsonContent, ct);
+                    }
+                    catch (Exception)
+                    {
+                        // Record retry attempt on exception
+                        retryCount++;
+                        _metricsService?.RecordTelegramRetryAttempt(agentId, retryCount);
+                        throw;
+                    }
+                },
+                cancellationToken);
+
+            stopwatch.Stop();
 
             if (response.IsSuccessStatusCode)
             {
+                // Record metrics: Successful Telegram call
+                _metricsService?.RecordTelegramMessageSent(agentId, stopwatch.Elapsed.TotalMilliseconds);
+
                 _logger.LogInformation(
-                    "Эскалационное сообщение успешно отправлено в Telegram для агента {AgentId}",
-                    agentId);
+                    "Escalation message successfully sent to Telegram for agent {AgentId} in {Duration:F2}ms",
+                    agentId,
+                    stopwatch.Elapsed.TotalMilliseconds);
                 return true;
             }
 
             var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            // Record metrics: Failed Telegram call
+            var errorCode = (int)response.StatusCode;
+            _metricsService?.RecordTelegramMessageFailed(agentId, errorCode);
+
             _logger.LogError(
-                "Ошибка при отправке сообщения в Telegram. StatusCode: {StatusCode}, Response: {Response}",
+                "Error sending message to Telegram. StatusCode: {StatusCode}, Response: {Response}",
                 response.StatusCode,
                 responseContent);
             return false;
         }
         catch (Exception ex)
         {
+            stopwatch.Stop();
+
+            // Record metrics: Failed Telegram call (exception)
+            _metricsService?.RecordTelegramMessageFailed(agentId, null);
+
             _logger.LogError(
                 ex,
-                "Исключение при отправке эскалационного сообщения в Telegram для агента {AgentId}",
+                "Exception sending escalation message to Telegram for agent {AgentId}",
                 agentId);
             return false;
         }
@@ -129,12 +185,17 @@ public class TelegramEscalationService : ITelegramEscalationService
         try
         {
             var url = $"{TelegramApiUrl}{_options.BotToken}/getMe";
-            var response = await _httpClient.GetAsync(url, cancellationToken);
+
+            // Используем retry policy для проверки подключения
+            var response = await _retryPolicy.ExecuteAsync(
+                async ct => await _httpClient.GetAsync(url, ct),
+                cancellationToken);
+
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Ошибка при проверке подключения к Telegram API");
+            _logger.LogWarning(ex, "Error checking connection to Telegram API");
             return false;
         }
     }
@@ -145,62 +206,15 @@ public class TelegramEscalationService : ITelegramEscalationService
     public string GetConfigurationStatus()
     {
         if (!_options.Enabled)
+        {
             return "disabled";
+        }
 
         if (string.IsNullOrEmpty(_options.BotToken) || string.IsNullOrEmpty(_options.ChatId))
+        {
             return "not_configured";
+        }
 
         return "configured";
     }
-
-    /// <summary>
-    /// Экранирует специальные символы для Markdown V2 формата Telegram
-    /// </summary>
-    private static string EscapeMarkdownV2(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-            return text;
-
-        // Специальные символы в MarkdownV2, которые нужно экранировать
-        var specialChars = new[] { '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!' };
-
-        var result = text;
-        foreach (var ch in specialChars)
-        {
-            result = result.Replace(ch.ToString(), $"\\{ch}");
-        }
-
-        return result;
-    }
-}
-
-/// <summary>
-/// Конфигурационные опции для Telegram эскалации
-/// </summary>
-public class TelegramEscalationOptions
-{
-    /// <summary>
-    /// Токен Telegram бота (получается от BotFather)
-    /// </summary>
-    public string BotToken { get; set; } = string.Empty;
-
-    /// <summary>
-    /// ID чата для отправки сообщений (или user ID)
-    /// </summary>
-    public string ChatId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Включена ли эскалация через Telegram
-    /// </summary>
-    public bool Enabled { get; set; }
-
-    /// <summary>
-    /// Таймаут для HTTP запросов к Telegram API (в миллисекундах)
-    /// </summary>
-    public int RequestTimeoutMs { get; set; } = 30000;
-
-    /// <summary>
-    /// Количество повторных попыток при ошибке отправки
-    /// </summary>
-    public int MaxRetries { get; set; } = 3;
 }
