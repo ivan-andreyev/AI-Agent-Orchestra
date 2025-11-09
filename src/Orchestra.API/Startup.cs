@@ -1,5 +1,6 @@
 using Orchestra.Core;
 using Orchestra.Core.Data;
+using Orchestra.Core.Options;
 using Orchestra.Core.Services;
 using Orchestra.API.Jobs;
 using Orchestra.API.Services;
@@ -335,7 +336,24 @@ public class Startup
 
         // Register TelegramEscalationService for permission escalation (Phase 3)
         services.Configure<TelegramEscalationOptions>(configuration.GetSection("TelegramEscalation"));
+
+        // Register Polly resilience policies (Phase 4.1)
+        services.Configure<Orchestra.Core.Options.TelegramRetryOptions>(
+            configuration.GetSection("ClaudeCodeSubprocess:TelegramRetry"));
+        services.AddSingleton<Orchestra.Core.Services.Resilience.IPolicyRegistry,
+            Orchestra.Core.Services.Resilience.PolicyRegistry>();
+
         services.AddSingleton<ITelegramEscalationService, TelegramEscalationService>();
+
+        // Register ApprovalTimeoutService for timeout management (Phase 4.2)
+        services.Configure<ApprovalTimeoutOptions>(
+            configuration.GetSection("ClaudeCodeSubprocess:ApprovalTimeout"));
+
+        // Register ApprovalTimeoutService as HostedService (only for non-test environments)
+        if (!isTestEnvironment)
+        {
+            services.AddHostedService<ApprovalTimeoutService>();
+        }
 
         // Register PermissionDenialDetectionService for detecting permission_denials in Claude Code responses
         services.AddSingleton<IPermissionDenialDetectionService, PermissionDenialDetectionService>();

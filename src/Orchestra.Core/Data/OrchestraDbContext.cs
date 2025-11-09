@@ -69,6 +69,16 @@ public class OrchestraDbContext : DbContext
     public DbSet<ChatMessage> ChatMessages { get; set; } = null!;
 
     /// <summary>
+    /// Сессии агентов Claude Code
+    /// </summary>
+    public DbSet<AgentSession> AgentSessions { get; set; } = null!;
+
+    /// <summary>
+    /// Запросы на одобрение разрешений
+    /// </summary>
+    public DbSet<ApprovalRequest> ApprovalRequests { get; set; } = null!;
+
+    /// <summary>
     /// Конфигурирует модель данных при создании
     /// </summary>
     /// <param name="modelBuilder">Построитель модели EF Core</param>
@@ -343,6 +353,58 @@ public class OrchestraDbContext : DbContext
 
             // Configure enum conversion
             entity.Property(e => e.MessageType)
+                  .HasConversion<int>();
+        });
+
+        // AgentSession Configuration
+        modelBuilder.Entity<AgentSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AgentId);
+            entity.HasIndex(e => e.SessionId).IsUnique();
+            entity.HasIndex(e => new { e.AgentId, e.Status });
+
+            entity.Property(e => e.Id).HasMaxLength(128);
+            entity.Property(e => e.AgentId).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.SessionId).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.WorkingDirectory).HasMaxLength(500).IsRequired();
+
+            // Configure relationship with Agent
+            entity.HasOne(e => e.Agent)
+                  .WithMany()
+                  .HasForeignKey(e => e.AgentId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure enum conversion
+            entity.Property(e => e.Status)
+                  .HasConversion<int>();
+        });
+
+        // ApprovalRequest Configuration
+        modelBuilder.Entity<ApprovalRequest>(entity =>
+        {
+            entity.HasKey(e => e.ApprovalId);
+            entity.HasIndex(e => e.SessionId);
+            entity.HasIndex(e => e.AgentId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ExpiresAt);
+            entity.HasIndex(e => new { e.Status, e.ExpiresAt });
+
+            entity.Property(e => e.ApprovalId).HasMaxLength(128);
+            entity.Property(e => e.SessionId).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.AgentId).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.ApprovedBy).HasMaxLength(128);
+            entity.Property(e => e.RequestDetails).HasMaxLength(4000);
+            entity.Property(e => e.CancellationReason).HasMaxLength(500);
+
+            // Configure relationship with Agent
+            entity.HasOne(e => e.Agent)
+                  .WithMany()
+                  .HasForeignKey(e => e.AgentId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure enum conversion
+            entity.Property(e => e.Status)
                   .HasConversion<int>();
         });
     }

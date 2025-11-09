@@ -1,7 +1,11 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orchestra.Core.Data;
+using Orchestra.Core.Data.Entities;
+using Orchestra.Core.Options;
 using Orchestra.Core.Services;
+using System.Text.Json;
 
 namespace Orchestra.Core.Commands.Permissions;
 
@@ -11,8 +15,8 @@ namespace Orchestra.Core.Commands.Permissions;
 /// <remarks>
 /// Обработчик:
 /// 1. Логирует запрос одобрения
-/// 2. Отправляет эскалацию через TelegramEscalationService
-/// 3. Сохраняет запрос в базу данных (если нужно)
+/// 2. Создаёт ApprovalRequest в БД с timeout
+/// 3. Отправляет эскалацию через TelegramEscalationService
 /// 4. Возвращает ApprovalId для отслеживания статуса
 /// </remarks>
 public class RequestHumanApprovalCommandHandler : IRequestHandler<RequestHumanApprovalCommand, RequestHumanApprovalResult>
@@ -20,15 +24,18 @@ public class RequestHumanApprovalCommandHandler : IRequestHandler<RequestHumanAp
     private readonly ILogger<RequestHumanApprovalCommandHandler> _logger;
     private readonly ITelegramEscalationService _telegramService;
     private readonly OrchestraDbContext _context;
+    private readonly IOptions<ApprovalTimeoutOptions> _timeoutOptions;
 
     public RequestHumanApprovalCommandHandler(
         ILogger<RequestHumanApprovalCommandHandler> logger,
         ITelegramEscalationService telegramService,
-        OrchestraDbContext context)
+        OrchestraDbContext context,
+        IOptions<ApprovalTimeoutOptions> timeoutOptions)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _telegramService = telegramService ?? throw new ArgumentNullException(nameof(telegramService));
         _context = context ?? throw new ArgumentNullException(nameof(context));
+        _timeoutOptions = timeoutOptions ?? throw new ArgumentNullException(nameof(timeoutOptions));
     }
 
     /// <summary>
@@ -52,8 +59,56 @@ public class RequestHumanApprovalCommandHandler : IRequestHandler<RequestHumanAp
 
         try
         {
+            // Создаём уникальный ID одобрения для отслеживания
+            var approvalId = $"{request.AgentId}_{request.SessionId}_{DateTime.UtcNow:yyyyMMddHHmmss}";
+
+            // Вычисляем время истечения на основе конфигурации
+            var timeoutMinutes = _timeoutOptions.Value.DefaultTimeoutMinutes;
+            var expiresAt = DateTime.UtcNow.AddMinutes(timeoutMinutes);
+
+            // Сериализуем детали запроса для хранения в БД
+            string? requestDetails = null;
+            if (request.PermissionDenials != null && request.PermissionDenials.Count > 0)
+            {
+                try
+                {
+                    requestDetails = JsonSerializer.Serialize(request.PermissionDenials);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Не удалось сериализовать PermissionDenials для ApprovalId: {ApprovalId}",
+                        approvalId);
+                }
+            }
+
+            // Создаём approval request в БД
+            var approvalRequest = new ApprovalRequest
+            {
+                ApprovalId = approvalId,
+                SessionId = request.SessionId,
+                AgentId = request.AgentId,
+                Status = ApprovalStatus.Pending,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                ExpiresAt = expiresAt,
+                RequestDetails = requestDetails
+            };
+
+            _context.ApprovalRequests.Add(approvalRequest);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Approval request сохранён в БД. ApprovalId: {ApprovalId}, AgentId: {AgentId}, " +
+                "ExpiresAt: {ExpiresAt}, Timeout: {TimeoutMinutes}m",
+                approvalId,
+                request.AgentId,
+                expiresAt,
+                timeoutMinutes);
+
             // Формируем сообщение об эскалации
-            var escalationMessage = BuildEscalationMessage(request);
+            var escalationMessage = BuildEscalationMessage(request, approvalId, timeoutMinutes);
 
             // Отправляем эскалацию через Telegram
             var telegramSuccess = await _telegramService.SendEscalationAsync(
@@ -69,11 +124,8 @@ public class RequestHumanApprovalCommandHandler : IRequestHandler<RequestHumanAp
                     "Telegram может быть отключен или не сконфигурирован.",
                     request.AgentId);
 
-                // Даже если Telegram не работает, создаём ApprovalId для отслеживания
+                // Даже если Telegram не работает, ApprovalId уже создан в БД
             }
-
-            // Создаём уникальный ID одобрения для отслеживания
-            var approvalId = $"{request.AgentId}_{request.SessionId}_{DateTime.UtcNow:yyyyMMddHHmmss}";
 
             _logger.LogInformation(
                 "Запрос одобрения создан. ApprovalId: {ApprovalId}, AgentId: {AgentId}",
@@ -104,11 +156,13 @@ public class RequestHumanApprovalCommandHandler : IRequestHandler<RequestHumanAp
     /// <summary>
     /// Формирует сообщение об эскалации для оператора
     /// </summary>
-    private static string BuildEscalationMessage(RequestHumanApprovalCommand request)
+    private static string BuildEscalationMessage(RequestHumanApprovalCommand request, string approvalId, int timeoutMinutes)
     {
-        var message = "Permission Denials Detected\n\n";
+        var message = "⚠️ Permission Denials Detected\n\n";
+        message += $"Approval ID: {approvalId}\n";
         message += $"Сессия: {request.SessionId}\n";
-        message += $"Команда: {request.OriginalCommand}\n\n";
+        message += $"Команда: {request.OriginalCommand}\n";
+        message += $"Timeout: {timeoutMinutes} минут\n\n";
 
         if (request.PermissionDenials != null && request.PermissionDenials.Count > 0)
         {
@@ -128,7 +182,7 @@ public class RequestHumanApprovalCommandHandler : IRequestHandler<RequestHumanAp
         }
 
         message += "\nОтправьте одобрение через команду:\n";
-        message += $"/approve {request.SessionId}";
+        message += $"/approve {approvalId}";
 
         return message;
     }

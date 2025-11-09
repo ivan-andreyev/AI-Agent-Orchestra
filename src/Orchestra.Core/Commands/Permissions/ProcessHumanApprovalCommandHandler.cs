@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orchestra.Core.Commands.Sessions;
 using Orchestra.Core.Data;
@@ -13,9 +14,10 @@ namespace Orchestra.Core.Commands.Permissions;
 /// <remarks>
 /// Обработчик:
 /// 1. Проверяет валидность ApprovalId
-/// 2. Получает сессию из БД по SessionId
-/// 3. Устанавливает флаг для возобновления с --dangerously-skip-permissions
-/// 4. Логирует одобрение и кто его дал
+/// 2. Проверяет, что approval не expired и не cancelled
+/// 3. Получает сессию из БД по SessionId
+/// 4. Устанавливает флаг для возобновления с --dangerously-skip-permissions
+/// 5. Логирует одобрение и кто его дал
 /// </remarks>
 public class ProcessHumanApprovalCommandHandler : IRequestHandler<ProcessHumanApprovalCommand, ProcessHumanApprovalResult>
 {
@@ -55,12 +57,61 @@ public class ProcessHumanApprovalCommandHandler : IRequestHandler<ProcessHumanAp
                 request.Approved,
                 request.ApprovedBy);
 
+            // НОВАЯ ПРОВЕРКА: Проверяем approval request в БД
+            var approvalRequest = await _context.ApprovalRequests
+                .FirstOrDefaultAsync(a => a.ApprovalId == request.ApprovalId, cancellationToken);
+
+            if (approvalRequest == null)
+            {
+                _logger.LogWarning(
+                    "Approval request не найден в БД. ApprovalId: {ApprovalId}",
+                    request.ApprovalId);
+
+                return new ProcessHumanApprovalResult(
+                    Success: false,
+                    Message: $"Approval request не найден: {request.ApprovalId}");
+            }
+
+            // НОВАЯ ПРОВЕРКА: Проверяем, что approval не отменён
+            if (approvalRequest.Status == ApprovalStatus.Cancelled)
+            {
+                _logger.LogWarning(
+                    "Approval request уже отменён. ApprovalId: {ApprovalId}, Reason: {Reason}",
+                    request.ApprovalId,
+                    approvalRequest.CancellationReason);
+
+                return new ProcessHumanApprovalResult(
+                    Success: false,
+                    Message: $"Approval request отменён: {approvalRequest.CancellationReason}");
+            }
+
+            // НОВАЯ ПРОВЕРКА: Проверяем, что approval не истёк
+            if (approvalRequest.ExpiresAt <= DateTime.UtcNow)
+            {
+                var timeoutDuration = DateTime.UtcNow - approvalRequest.CreatedAt;
+                _logger.LogWarning(
+                    "Approval request истёк. ApprovalId: {ApprovalId}, ExpiresAt: {ExpiresAt}, Duration: {Duration:mm\\:ss}",
+                    request.ApprovalId,
+                    approvalRequest.ExpiresAt,
+                    timeoutDuration);
+
+                return new ProcessHumanApprovalResult(
+                    Success: false,
+                    Message: $"Approval request истёк (timeout: {timeoutDuration:mm\\:ss})");
+            }
+
             if (!request.Approved)
             {
                 _logger.LogWarning(
                     "Одобрение отклонено для SessionId: {SessionId}. Причина: {Reason}",
                     request.SessionId,
                     request.ApprovalNotes ?? "Не указана");
+
+                // Обновляем статус на Rejected
+                approvalRequest.Status = ApprovalStatus.Rejected;
+                approvalRequest.UpdatedAt = DateTime.UtcNow;
+                _context.ApprovalRequests.Update(approvalRequest);
+                await _context.SaveChangesAsync(cancellationToken);
 
                 return new ProcessHumanApprovalResult(
                     Success: true,
@@ -98,12 +149,19 @@ public class ProcessHumanApprovalCommandHandler : IRequestHandler<ProcessHumanAp
                     Message: $"Сессия не может быть возобновлена (статус: {session.Status})");
             }
 
+            // Обновляем approval request - помечаем как Approved
+            approvalRequest.Status = ApprovalStatus.Approved;
+            approvalRequest.ApprovedAt = DateTime.UtcNow;
+            approvalRequest.ApprovedBy = request.ApprovedBy;
+            approvalRequest.UpdatedAt = DateTime.UtcNow;
+
             // Обновляем сессию - помечаем, что она может возобновиться с пропуском разрешений
             // (это информация, которую будет использовать ClaudeCodeSubprocessConnector.ResumeSessionAsync)
             session.UpdatedAt = DateTime.UtcNow;
             session.LastResumedAt = DateTime.UtcNow;
 
             // Сохраняем изменения
+            _context.ApprovalRequests.Update(approvalRequest);
             _context.AgentSessions.Update(session);
             await _context.SaveChangesAsync(cancellationToken);
 
