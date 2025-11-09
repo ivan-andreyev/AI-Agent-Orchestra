@@ -332,6 +332,13 @@ public class Startup
         services.AddScoped<IDependencyGraphBuilder, DependencyGraphBuilder>();
         services.AddScoped<ITaskExecutionEngine, TaskExecutionEngine>();
         services.AddScoped<BatchTaskExecutor>();
+
+        // Register TelegramEscalationService for permission escalation (Phase 3)
+        services.Configure<TelegramEscalationOptions>(configuration.GetSection("TelegramEscalation"));
+        services.AddSingleton<ITelegramEscalationService, TelegramEscalationService>();
+
+        // Register PermissionDenialDetectionService for detecting permission_denials in Claude Code responses
+        services.AddSingleton<IPermissionDenialDetectionService, PermissionDenialDetectionService>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IConfiguration configuration)
