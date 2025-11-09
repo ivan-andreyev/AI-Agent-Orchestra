@@ -583,7 +583,18 @@ public class TerminalAgentConnector : IAgentConnector
                 nameof(pipeName));
         }
 
-        _logger.LogDebug("Connecting to Windows Named Pipe: {PipeName}", pipeName);
+        var fullPipePath = $@"\\.\pipe\{pipeName}";
+
+        _logger.LogDebug(
+            "Connecting to Windows Named Pipe: {PipeName}",
+            pipeName);
+
+        _logger.LogDebug(
+            "Pipe connection details: FullPath='{FullPath}', Timeout={TimeoutMs}ms, Server='.', Direction={Direction}, Options={Options}",
+            fullPipePath,
+            _options.ConnectionTimeoutMs,
+            "InOut",
+            "Asynchronous");
 
         // Create named pipe client stream
         var pipeClient = new NamedPipeClientStream(
@@ -592,14 +603,24 @@ public class TerminalAgentConnector : IAgentConnector
             PipeDirection.InOut,        // bidirectional
             PipeOptions.Asynchronous);  // async mode
 
+        var startTime = DateTime.UtcNow;
+
+        _logger.LogDebug(
+            "Starting connection attempt at {StartTime:yyyy-MM-dd HH:mm:ss.fff} UTC",
+            startTime);
+
         try
         {
             // Connect with configured timeout
             await pipeClient.ConnectAsync(_options.ConnectionTimeoutMs, cancellationToken);
 
+            var connectionTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
             _logger.LogInformation(
-                "Successfully connected to Windows Named Pipe '{PipeName}'",
-                pipeName);
+                "Successfully connected to Windows Named Pipe '{PipeName}' in {ConnectionTimeMs:F0}ms (IsConnected={IsConnected})",
+                pipeName,
+                connectionTime,
+                pipeClient.IsConnected);
 
             return pipeClient;
         }
@@ -607,6 +628,8 @@ public class TerminalAgentConnector : IAgentConnector
         {
             // Dispose pipe on any error
             pipeClient.Dispose();
+
+            var elapsedTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
 
             // Log appropriate error message based on exception type
             var errorType = ex switch
@@ -618,9 +641,12 @@ public class TerminalAgentConnector : IAgentConnector
 
             _logger.LogError(
                 ex,
-                "{ErrorType} connecting to Named Pipe '{PipeName}'",
+                "{ErrorType} connecting to Named Pipe '{PipeName}' after {ElapsedTimeMs:F0}ms (Timeout was {TimeoutMs}ms). FullPath='{FullPath}'",
                 errorType,
-                pipeName);
+                pipeName,
+                elapsedTime,
+                _options.ConnectionTimeoutMs,
+                fullPipePath);
 
             throw;
         }

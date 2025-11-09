@@ -2252,6 +2252,7 @@
 }
 
 .sidebar-overlay {
+    display: none; /* Hidden by default on desktop */
     will-change: opacity;
     backface-visibility: hidden;
 }
@@ -2738,6 +2739,7 @@ input, select, textarea {
     }
 
     .sidebar-overlay {
+        display: block; /* Show on mobile */
         position: fixed;
         top: var(--header-height);
         left: 0;

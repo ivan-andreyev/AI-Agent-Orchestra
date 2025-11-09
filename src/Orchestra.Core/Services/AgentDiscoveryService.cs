@@ -17,6 +17,7 @@ public class AgentDiscoveryService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AgentDiscoveryService> _logger;
     private readonly AgentDiscoveryOptions _options;
+    private readonly IProcessDiscoveryService _processDiscovery;
     private readonly HashSet<string> _knownAgents = new();
 
     /// <summary>
@@ -25,14 +26,17 @@ public class AgentDiscoveryService : BackgroundService
     /// <param name="scopeFactory">Фабрика для создания scope</param>
     /// <param name="logger">Логгер</param>
     /// <param name="options">Настройки discovery</param>
+    /// <param name="processDiscovery">Сервис для обнаружения процессов Claude Code</param>
     public AgentDiscoveryService(
         IServiceScopeFactory scopeFactory,
         ILogger<AgentDiscoveryService> logger,
-        IOptions<AgentDiscoveryOptions> options)
+        IOptions<AgentDiscoveryOptions> options,
+        IProcessDiscoveryService processDiscovery)
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _processDiscovery = processDiscovery ?? throw new ArgumentNullException(nameof(processDiscovery));
     }
 
     /// <inheritdoc />
@@ -80,6 +84,9 @@ public class AgentDiscoveryService : BackgroundService
         }
 
         await Task.WhenAll(discoveryTasks);
+
+        // Sync SessionIds for discovered agents
+        await SyncSessionIdsWithDiscoveredProcesses(mediator, cancellationToken);
 
         _logger.LogDebug("Agent discovery scan completed");
     }
@@ -372,6 +379,142 @@ public class AgentDiscoveryService : BackgroundService
             "cursor" => "cursor-ai",
             _ => string.Empty
         };
+    }
+
+    #endregion
+
+    #region SessionId Synchronization
+
+    /// <summary>
+    /// Синхронизирует SessionId для зарегистрированных агентов с обнаруженными процессами Claude Code
+    /// </summary>
+    private async Task SyncSessionIdsWithDiscoveredProcesses(IMediator mediator, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogDebug("Starting SessionId synchronization");
+
+            // Get all discovered Claude Code processes
+            var discoveredProcesses = await _processDiscovery.DiscoverClaudeProcessesAsync();
+
+            if (!discoveredProcesses.Any())
+            {
+                _logger.LogDebug("No Claude Code processes found for SessionId sync");
+                return;
+            }
+
+            _logger.LogInformation("Found {Count} Claude Code processes for SessionId synchronization",
+                discoveredProcesses.Count);
+
+            // Get all registered agents from database
+            var getAllAgentsQuery = new Orchestra.Core.Queries.Agents.GetAllAgentsQuery();
+            var allAgents = await mediator.Send(getAllAgentsQuery, cancellationToken);
+
+            int syncedCount = 0;
+
+            // Match agents with discovered processes and update SessionId
+            foreach (var agent in allAgents)
+            {
+                // Skip if SessionId already populated
+                if (!string.IsNullOrWhiteSpace(agent.SessionId))
+                {
+                    _logger.LogTrace("Agent {AgentId} already has SessionId: {SessionId}",
+                        agent.Id, agent.SessionId);
+                    continue;
+                }
+
+                // Try to match agent with discovered process
+                var matchedProcess = TryMatchAgentWithProcess(agent, discoveredProcesses);
+
+                if (matchedProcess != null)
+                {
+                    // Update agent's SessionId
+                    var updateCommand = new Orchestra.Core.Commands.Agents.UpdateAgentSessionIdCommand
+                    {
+                        AgentId = agent.Id,
+                        SessionId = matchedProcess.SessionId
+                    };
+
+                    var updateResult = await mediator.Send(updateCommand, cancellationToken);
+
+                    if (updateResult.Success)
+                    {
+                        syncedCount++;
+                        _logger.LogInformation("Synced SessionId for agent {AgentId}: {SessionId}",
+                            agent.Id, matchedProcess.SessionId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to update SessionId for agent {AgentId}: {Error}",
+                            agent.Id, updateResult.ErrorMessage);
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug("No matching process found for agent {AgentId}", agent.Id);
+                }
+            }
+
+            _logger.LogInformation("SessionId synchronization completed: {SyncedCount}/{TotalAgents} agents updated",
+                syncedCount, allAgents.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during SessionId synchronization");
+        }
+    }
+
+    /// <summary>
+    /// Пытается сопоставить агента с обнаруженным процессом
+    /// </summary>
+    private ClaudeProcessInfo? TryMatchAgentWithProcess(
+        Orchestra.Core.Data.Entities.Agent agent,
+        List<ClaudeProcessInfo> discoveredProcesses)
+    {
+        // Try to extract ProcessId from agent's ConfigurationJson
+        if (!string.IsNullOrWhiteSpace(agent.ConfigurationJson))
+        {
+            try
+            {
+                var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(agent.ConfigurationJson);
+
+                if (config != null && config.TryGetValue("ProcessId", out var processIdElement))
+                {
+                    var processId = processIdElement.GetInt32();
+
+                    // Match by ProcessId
+                    var matchedByPid = discoveredProcesses.FirstOrDefault(p => p.ProcessId == processId);
+                    if (matchedByPid != null)
+                    {
+                        _logger.LogDebug("Matched agent {AgentId} with process PID {ProcessId}",
+                            agent.Id, processId);
+                        return matchedByPid;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogTrace(ex, "Failed to parse ConfigurationJson for agent {AgentId}", agent.Id);
+            }
+        }
+
+        // Fallback: try to match by repository path
+        if (!string.IsNullOrWhiteSpace(agent.RepositoryPath))
+        {
+            var matchedByPath = discoveredProcesses.FirstOrDefault(p =>
+                !string.IsNullOrWhiteSpace(p.WorkingDirectory) &&
+                (p.WorkingDirectory.Equals(agent.RepositoryPath, StringComparison.OrdinalIgnoreCase) ||
+                 agent.RepositoryPath.StartsWith(p.WorkingDirectory, StringComparison.OrdinalIgnoreCase)));
+
+            if (matchedByPath != null)
+            {
+                _logger.LogDebug("Matched agent {AgentId} with process by repository path: {Path}",
+                    agent.Id, agent.RepositoryPath);
+                return matchedByPath;
+            }
+        }
+
+        return null;
     }
 
     #endregion

@@ -162,6 +162,23 @@ public class AgentInteractionHub : Hub
                 }
             }
 
+            // Check if session already exists and auto-cleanup zombie session
+            var existingSession = _sessionManager.GetSessionAsync(request.AgentId);
+            if (existingSession != null)
+            {
+                _logger.LogWarning("Session for agent {AgentId} already exists, attempting to disconnect old session", request.AgentId);
+
+                try
+                {
+                    await _sessionManager.DisconnectSessionAsync(request.AgentId, Context.ConnectionAborted);
+                    _logger.LogInformation("Successfully disconnected existing session for agent {AgentId}", request.AgentId);
+                }
+                catch (Exception cleanupEx)
+                {
+                    _logger.LogWarning(cleanupEx, "Failed to cleanup existing session for {AgentId}, attempting to proceed anyway", request.AgentId);
+                }
+            }
+
             // Create session via manager (NOTE: uses 2 params: agentId, connectionParams)
             var session = await _sessionManager.CreateSessionAsync(
                 request.AgentId,

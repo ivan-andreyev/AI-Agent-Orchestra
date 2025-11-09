@@ -34,9 +34,27 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
         }
 
         var processes = await DiscoverClaudeProcessesAsync();
-        var process = processes.FirstOrDefault(p => p.SessionId == sessionId);
 
-        return process?.ProcessId;
+        // Find all processes with matching SessionId
+        var matchingProcesses = processes.Where(p => p.SessionId == sessionId).ToList();
+
+        if (matchingProcesses.Count == 0)
+        {
+            return null;
+        }
+
+        // If multiple processes have same SessionId, pick the most recently started one
+        if (matchingProcesses.Count > 1)
+        {
+            _logger.LogWarning(
+                "Multiple processes found for SessionId {SessionId}: {ProcessIds}. Selecting most recent.",
+                sessionId,
+                string.Join(", ", matchingProcesses.Select(p => p.ProcessId)));
+
+            return matchingProcesses.OrderByDescending(p => p.StartTime).First().ProcessId;
+        }
+
+        return matchingProcesses[0].ProcessId;
     }
 
     /// <inheritdoc />
@@ -48,9 +66,27 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
         }
 
         var processes = await DiscoverClaudeProcessesAsync();
-        var process = processes.FirstOrDefault(p => p.SessionId == sessionId);
 
-        return process?.SocketPath;
+        // Find all processes with matching SessionId
+        var matchingProcesses = processes.Where(p => p.SessionId == sessionId).ToList();
+
+        if (matchingProcesses.Count == 0)
+        {
+            return null;
+        }
+
+        // If multiple processes have same SessionId, pick the most recently started one
+        if (matchingProcesses.Count > 1)
+        {
+            _logger.LogWarning(
+                "Multiple processes found for SessionId {SessionId}: {ProcessIds}. Selecting most recent for SocketPath.",
+                sessionId,
+                string.Join(", ", matchingProcesses.Select(p => p.ProcessId)));
+
+            return matchingProcesses.OrderByDescending(p => p.StartTime).First().SocketPath;
+        }
+
+        return matchingProcesses[0].SocketPath;
     }
 
     /// <inheritdoc />
@@ -323,47 +359,60 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
                 return null;
             }
 
-            // Кодируем projectPath: C:\Users\... → C--Users-...
-            var encodedProjectPath = projectPath
-                .Replace(":", "--")
-                .Replace(Path.DirectorySeparatorChar, '-')
-                .Replace(Path.AltDirectorySeparatorChar, '-');
+            // НОВАЯ СТРАТЕГИЯ: Вместо кодирования projectPath, проходим по всем директориям в .claude/projects
+            // и декодируем их имена, затем сравниваем с projectPath
+            // Это избегает проблем с обратным кодированием
 
-            var projectClaudeDir = Path.Combine(claudeProjectsPath, encodedProjectPath);
+            var projectDirs = Directory.GetDirectories(claudeProjectsPath);
 
-            if (!Directory.Exists(projectClaudeDir))
+            foreach (var projectDir in projectDirs)
             {
-                return null;
+                var encodedDirName = Path.GetFileName(projectDir);
+                var decodedPath = DecodeClaudeProjectPath(encodedDirName);
+
+                // Сравниваем decoded path с projectPath (case-insensitive для Windows)
+                if (string.Equals(decodedPath, projectPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Нашли соответствующую директорию! Извлекаем SessionId
+
+                    // Ищем .jsonl файлы
+                    var jsonlFiles = Directory.GetFiles(projectDir, "*.jsonl");
+                    if (jsonlFiles.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    // Берём самый свежий файл по времени модификации
+                    var latestFile = jsonlFiles
+                        .Select(f => new FileInfo(f))
+                        .OrderByDescending(fi => fi.LastWriteTimeUtc)
+                        .FirstOrDefault();
+
+                    if (latestFile == null)
+                    {
+                        continue;
+                    }
+
+                    // SessionId = имя файла без расширения
+                    var sessionId = Path.GetFileNameWithoutExtension(latestFile.Name);
+
+                    // Проверяем, что это валидный UUID
+                    var uuidPattern = @"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$";
+                    if (Regex.IsMatch(sessionId, uuidPattern, RegexOptions.IgnoreCase))
+                    {
+                        _logger.LogTrace(
+                            "Matched project path {ProjectPath} to .claude/projects dir {EncodedDirName}, extracted SessionId: {SessionId}",
+                            projectPath,
+                            encodedDirName,
+                            sessionId);
+
+                        return sessionId;
+                    }
+                }
             }
 
-            // Ищем .jsonl файлы
-            var jsonlFiles = Directory.GetFiles(projectClaudeDir, "*.jsonl");
-            if (jsonlFiles.Length == 0)
-            {
-                return null;
-            }
-
-            // Берём самый свежий файл по времени модификации
-            var latestFile = jsonlFiles
-                .Select(f => new FileInfo(f))
-                .OrderByDescending(fi => fi.LastWriteTimeUtc)
-                .FirstOrDefault();
-
-            if (latestFile == null)
-            {
-                return null;
-            }
-
-            // SessionId = имя файла без расширения
-            var sessionId = Path.GetFileNameWithoutExtension(latestFile.Name);
-
-            // Проверяем, что это валидный UUID
-            var uuidPattern = @"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$";
-            if (Regex.IsMatch(sessionId, uuidPattern, RegexOptions.IgnoreCase))
-            {
-                return sessionId;
-            }
-
+            // Не нашли соответствующую директорию
+            _logger.LogTrace("No matching .claude/projects directory found for path {ProjectPath}", projectPath);
             return null;
         }
         catch (Exception ex)
@@ -374,15 +423,61 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
     }
 
     /// <summary>
-    /// Получает Current Working Directory (CWD) процесса через поиск в .claude/projects
-    /// Упрощённая версия: возвращает проект с самым свежим .jsonl файлом
+    /// Получает Current Working Directory (CWD) процесса используя WMI (Windows) или /proc (Unix)
     /// </summary>
     private string? GetProcessWorkingDirectory(Process process)
     {
         try
         {
-            // Стратегия: находим САМЫЙ СВЕЖИЙ .jsonl файл во ВСЕХ проектах
-            // Это работает если у нас одна активная сессия Claude Code
+            // СТРАТЕГИЯ 1: Получаем реальный CWD из процесса через WMI (Windows) или /proc (Unix)
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                // Windows: используем WMI для получения environment variables
+                using var searcher = new System.Management.ManagementObjectSearcher(
+                    $"SELECT * FROM Win32_Process WHERE ProcessId = {process.Id}");
+                using var results = searcher.Get();
+
+                foreach (var obj in results)
+                {
+                    using var mo = (System.Management.ManagementObject)obj;
+
+                    // Пытаемся вызвать метод GetOwner для проверки доступа
+                    // Если нет доступа, WMI не даст получить environment variables
+
+                    // Вместо environment variables используем ExecutablePath как подсказку
+                    // Но для node.exe это будет "C:\Program Files\nodejs\node.exe", что не помогает
+
+                    // АЛЬТЕРНАТИВНЫЙ ПОДХОД: Используем CommandLine для поиска рабочей директории
+                    var commandLine = mo["CommandLine"]?.ToString();
+                    if (!string.IsNullOrEmpty(commandLine))
+                    {
+                        // Для Claude Code процессов парсим command line
+                        // Ожидаем: "C:\Program Files\nodejs\node.exe" C:\Users\...\cli.js [--resume]
+                        // К сожалению, command line НЕ содержит рабочую директорию напрямую
+
+                        // Поэтому используем СТРАТЕГИЮ 2: Matching by process start time
+                        _logger.LogTrace("Process {ProcessId} CommandLine: {CommandLine}", process.Id, commandLine);
+                    }
+                }
+            }
+            else
+            {
+                // Unix/Linux: используем /proc/{pid}/cwd
+                var cwdPath = $"/proc/{process.Id}/cwd";
+                if (Directory.Exists(cwdPath))
+                {
+                    var target = Directory.ResolveLinkTarget(cwdPath, false);
+                    if (target != null)
+                    {
+                        return target.FullName;
+                    }
+                }
+            }
+
+            // СТРАТЕГИЯ 2: Matching by process start time with .jsonl creation/modification time
+            // Находим .jsonl файлы, которые были созданы/модифицированы близко ко времени старта процесса
+            var processStartTime = process.StartTime;
+
             var claudeProjectsPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 ".claude",
@@ -393,8 +488,55 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
                 return null;
             }
 
-            // Получаем все проектные директории
             var projectDirs = Directory.GetDirectories(claudeProjectsPath);
+
+            // Ищем .jsonl файлы, у которых LastWriteTime близок к processStartTime
+            // Допускаем погрешность в 5 минут (процесс мог стартовать раньше/позже записи в .jsonl)
+            var timeTolerance = TimeSpan.FromMinutes(5);
+
+            FileInfo? bestMatchFile = null;
+            string? bestMatchProjectDir = null;
+            TimeSpan bestMatchDifference = TimeSpan.MaxValue;
+
+            foreach (var projectDir in projectDirs)
+            {
+                var jsonlFiles = Directory.GetFiles(projectDir, "*.jsonl");
+                foreach (var jsonlFile in jsonlFiles)
+                {
+                    var fileInfo = new FileInfo(jsonlFile);
+                    var timeDifference = (fileInfo.LastWriteTime - processStartTime).Duration();
+
+                    // Проверяем CreationTime и LastWriteTime
+                    var creationTimeDiff = (fileInfo.CreationTime - processStartTime).Duration();
+                    var minDifference = timeDifference < creationTimeDiff ? timeDifference : creationTimeDiff;
+
+                    if (minDifference < bestMatchDifference && minDifference < timeTolerance)
+                    {
+                        bestMatchDifference = minDifference;
+                        bestMatchFile = fileInfo;
+                        bestMatchProjectDir = projectDir;
+                    }
+                }
+            }
+
+            if (bestMatchProjectDir != null)
+            {
+                var dirName = Path.GetFileName(bestMatchProjectDir);
+                var decodedPath = DecodeClaudeProjectPath(dirName);
+
+                _logger.LogTrace(
+                    "Matched process {ProcessId} (started {StartTime}) to project {ProjectDir} (time diff: {TimeDiff}ms)",
+                    process.Id,
+                    processStartTime,
+                    decodedPath,
+                    bestMatchDifference.TotalMilliseconds);
+
+                return decodedPath;
+            }
+
+            // СТРАТЕГИЯ 3 (fallback): Возвращаем проект с самым свежим .jsonl файлом
+            // Это работает если у нас одна активная сессия
+            _logger.LogTrace("Could not match process {ProcessId} by start time, using latest .jsonl fallback", process.Id);
 
             FileInfo? latestJsonlFile = null;
             string? latestProjectDir = null;
@@ -402,11 +544,6 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
             foreach (var projectDir in projectDirs)
             {
                 var jsonlFiles = Directory.GetFiles(projectDir, "*.jsonl");
-                if (jsonlFiles.Length == 0)
-                {
-                    continue;
-                }
-
                 foreach (var jsonlFile in jsonlFiles)
                 {
                     var fileInfo = new FileInfo(jsonlFile);
@@ -420,23 +557,8 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
 
             if (latestProjectDir != null)
             {
-                // Декодируем путь из имени директории
                 var dirName = Path.GetFileName(latestProjectDir);
                 return DecodeClaudeProjectPath(dirName);
-            }
-
-            // Fallback: Unix/Linux /proc/{pid}/cwd
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                var cwdPath = $"/proc/{process.Id}/cwd";
-                if (Directory.Exists(cwdPath))
-                {
-                    var target = Directory.ResolveLinkTarget(cwdPath, false);
-                    if (target != null)
-                    {
-                        return target.FullName;
-                    }
-                }
             }
         }
         catch (Exception ex)
@@ -450,15 +572,54 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
     /// <summary>
     /// Декодирует путь проекта из имени директории .claude/projects
     /// Пример: C--Users-mrred-RiderProjects-AI-Agent-Orchestra → C:\Users\mrred\RiderProjects\AI-Agent-Orchestra
+    /// ПРОБЛЕМА: Не может надёжно различить дефисы-разделители от дефисов в названиях директорий.
+    /// РЕШЕНИЕ: Пробуем несколько вариантов декодирования, начиная с наиболее вероятных.
     /// </summary>
     private string DecodeClaudeProjectPath(string encodedPath)
     {
         // Обработка Windows путей: C--Users-...
         if (encodedPath.Length >= 3 && char.IsLetter(encodedPath[0]) && encodedPath.Substring(1, 2) == "--")
         {
-            // C--Users-mrred → C:\Users\mrred
             var driveLetter = encodedPath[0];
-            var restPath = encodedPath.Substring(3).Replace('-', '\\');
+            var pathPart = encodedPath.Substring(3); // Убираем "C--"
+
+            // Стратегия: пробуем разные варианты декодирования
+            // Обычно названия проектов (с дефисами) находятся в конце пути
+
+            var segments = pathPart.Split('-');
+
+            // Вариант 1: Пробуем сгруппировать последние 3 сегмента (например: AI-Agent-Orchestra)
+            if (segments.Length >= 4)
+            {
+                var decoded = TryDecodeWithLastNSegmentsGrouped(driveLetter, segments, 3);
+                if (decoded != null)
+                {
+                    return decoded;
+                }
+            }
+
+            // Вариант 2: Пробуем сгруппировать последние 2 сегмента (например: AI-Agent)
+            if (segments.Length >= 3)
+            {
+                var decoded = TryDecodeWithLastNSegmentsGrouped(driveLetter, segments, 2);
+                if (decoded != null)
+                {
+                    return decoded;
+                }
+            }
+
+            // Вариант 3: Пробуем без группировки (для простых путей без дефисов в названии)
+            if (segments.Length >= 2)
+            {
+                var decoded = TryDecodeWithLastNSegmentsGrouped(driveLetter, segments, 1);
+                if (decoded != null)
+                {
+                    return decoded;
+                }
+            }
+
+            // Вариант 4 (fallback): заменяем все дефисы на разделители
+            var restPath = pathPart.Replace('-', '\\');
             return $"{driveLetter}:\\{restPath}";
         }
 
@@ -470,6 +631,58 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
 
         // Fallback: просто замена дефисов
         return encodedPath.Replace('-', Path.DirectorySeparatorChar);
+    }
+
+    /// <summary>
+    /// Пробует декодировать путь, группируя последние N сегментов вместе (для поддержки дефисов в названиях проектов)
+    /// </summary>
+    private string? TryDecodeWithLastNSegmentsGrouped(char driveLetter, string[] segments, int lastNToGroup)
+    {
+        if (segments.Length < lastNToGroup + 1)
+        {
+            return null;
+        }
+
+        // Группируем последние N сегментов
+        var normalSegments = segments.Take(segments.Length - lastNToGroup);
+        var groupedSegment = string.Join("-", segments.Skip(segments.Length - lastNToGroup));
+
+        var pathParts = normalSegments.Append(groupedSegment);
+        var decodedPath = $"{driveLetter}:\\" + string.Join("\\", pathParts);
+
+        // Проверяем что путь выглядит реалистично:
+        // Должны существовать хотя бы первые 4 уровня (например: C:\Users\mrred\RiderProjects)
+        // (сам projectPath может не существовать, если это старая сессия)
+        try
+        {
+            var pathSegments = decodedPath.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // Для Windows путей: C: \ Users \ mrred \ RiderProjects должны существовать
+            if (pathSegments.Length >= 4)
+            {
+                // Проверяем 4 уровня: C:\Users\mrred\RiderProjects
+                var checkPath = $"{pathSegments[0]}\\{pathSegments[1]}\\{pathSegments[2]}\\{pathSegments[3]}";
+                if (Directory.Exists(checkPath))
+                {
+                    return decodedPath;
+                }
+            }
+            else if (pathSegments.Length == 3)
+            {
+                // Fallback для коротких путей: проверяем 3 уровня
+                var checkPath = $"{pathSegments[0]}\\{pathSegments[1]}\\{pathSegments[2]}";
+                if (Directory.Exists(checkPath))
+                {
+                    return decodedPath;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore
+        }
+
+        return null;
     }
 
 
@@ -488,8 +701,8 @@ public class ProcessDiscoveryService : IProcessDiscoveryService
         // Fallback: default socket paths
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            // Windows Named Pipe
-            return $@"\\.\pipe\claude_{process.Id}";
+            // Windows Named Pipe (without \\.\pipe\ prefix - NamedPipeClientStream adds it automatically)
+            return $"claude_{process.Id}";
         }
         else
         {

@@ -34,8 +34,20 @@ namespace Orchestra.Web.Components.AgentTerminal
         private string _connectAgentId = string.Empty;
         private string _connectType = "terminal";
 
+        // Advanced connection options
+        private bool _showAdvancedOptions = false;
+        private string _manualProcessId = string.Empty;
+        private string _manualPipeName = string.Empty;
+        private string _manualSocketPath = string.Empty;
+
         protected override async Task OnInitializedAsync()
         {
+            // Pre-fill connection dialog with AgentId from parameter
+            if (!string.IsNullOrEmpty(AgentId))
+            {
+                _connectAgentId = AgentId;
+            }
+
             // Show connection dialog if not connected on first load
             if (!IsConnected)
             {
@@ -43,6 +55,17 @@ namespace Orchestra.Web.Components.AgentTerminal
             }
 
             await base.OnInitializedAsync();
+        }
+
+        protected override void OnParametersSet()
+        {
+            // Update connection dialog when AgentId parameter changes
+            if (!string.IsNullOrEmpty(AgentId) && _connectAgentId != AgentId)
+            {
+                _connectAgentId = AgentId;
+            }
+
+            base.OnParametersSet();
         }
 
         /// <summary>
@@ -223,11 +246,29 @@ namespace Orchestra.Web.Components.AgentTerminal
                     await InitializeHubConnection();
                 }
 
+                // Create connection parameters from manual inputs
+                var connectionParams = new Dictionary<string, string>();
+
+                if (!string.IsNullOrWhiteSpace(_manualProcessId))
+                {
+                    connectionParams["ProcessId"] = _manualProcessId;
+                }
+
+                if (!string.IsNullOrWhiteSpace(_manualPipeName))
+                {
+                    connectionParams["PipeName"] = _manualPipeName;
+                }
+
+                if (!string.IsNullOrWhiteSpace(_manualSocketPath))
+                {
+                    connectionParams["SocketPath"] = _manualSocketPath;
+                }
+
                 // Create connection request
                 var request = new ConnectToAgentRequest(
                     _connectAgentId,
                     _connectType,
-                    new Dictionary<string, string>());
+                    connectionParams);
 
                 // Invoke server method to connect to agent
                 var response = await _hubConnection.InvokeAsync<ConnectToAgentResponse>(

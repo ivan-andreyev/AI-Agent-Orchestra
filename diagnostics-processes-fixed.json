@@ -1,0 +1,64 @@
+﻿{
+    "TotalProcessesFound":  5,
+    "ProcessesWithSessionId":  0,
+    "ProcessesWithoutSessionId":  5,
+    "Timestamp":  "2025-10-26T18:36:08.0718382Z",
+    "Platform":  "Microsoft Windows 10.0.26200",
+    "Processes":  [
+                      {
+                          "ProcessId":  12840,
+                          "ProcessName":  "node",
+                          "SessionId":  null,
+                          "WorkingDirectory":  "C:\\Users\\mrred\\RiderProjects\\AI\\Agent\\Orchestra",
+                          "SocketPath":  "\\\\.\\pipe\\claude_12840",
+                          "StartTime":  "2025-10-24T01:19:20.2368861+04:00",
+                          "CommandLine":  "\"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\mrred\\AppData\\Roaming\\npm/node_modules/@anthropic-ai/claude-code/cli.js --resume",
+                          "EnvironmentVariables":  null,
+                          "IsRunning":  true
+                      },
+                      {
+                          "ProcessId":  50532,
+                          "ProcessName":  "node",
+                          "SessionId":  null,
+                          "WorkingDirectory":  "C:\\Users\\mrred\\RiderProjects\\AI\\Agent\\Orchestra",
+                          "SocketPath":  "\\\\.\\pipe\\claude_50532",
+                          "StartTime":  "2025-10-25T02:54:56.8534765+04:00",
+                          "CommandLine":  "\"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\mrred\\AppData\\Roaming\\npm/node_modules/@anthropic-ai/claude-code/cli.js --resume",
+                          "EnvironmentVariables":  null,
+                          "IsRunning":  true
+                      },
+                      {
+                          "ProcessId":  73708,
+                          "ProcessName":  "node",
+                          "SessionId":  null,
+                          "WorkingDirectory":  "C:\\Users\\mrred\\RiderProjects\\AI\\Agent\\Orchestra\\src\\Orchestra\\API",
+                          "SocketPath":  "\\\\.\\pipe\\claude_73708",
+                          "StartTime":  "2025-10-25T03:47:40.073477+04:00",
+                          "CommandLine":  "\"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\mrred\\AppData\\Roaming\\npm/node_modules/@anthropic-ai/claude-code/cli.js --resume",
+                          "EnvironmentVariables":  null,
+                          "IsRunning":  true
+                      },
+                      {
+                          "ProcessId":  46820,
+                          "ProcessName":  "node",
+                          "SessionId":  null,
+                          "WorkingDirectory":  "C:\\Users\\mrred\\RiderProjects\\AI\\Agent\\Orchestra\\src\\Orchestra\\API",
+                          "SocketPath":  "\\\\.\\pipe\\claude_46820",
+                          "StartTime":  "2025-10-26T00:22:59.1749088+04:00",
+                          "CommandLine":  "\"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\mrred\\AppData\\Roaming\\npm/node_modules/@anthropic-ai/claude-code/cli.js ",
+                          "EnvironmentVariables":  null,
+                          "IsRunning":  true
+                      },
+                      {
+                          "ProcessId":  66440,
+                          "ProcessName":  "node",
+                          "SessionId":  null,
+                          "WorkingDirectory":  "C:\\Users\\mrred\\RiderProjects\\AI\\Agent\\Orchestra\\src\\Orchestra\\API",
+                          "SocketPath":  "\\\\.\\pipe\\claude_66440",
+                          "StartTime":  "2025-10-26T02:41:12.8866052+04:00",
+                          "CommandLine":  "\"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\mrred\\AppData\\Roaming\\npm/node_modules/@anthropic-ai/claude-code/cli.js ",
+                          "EnvironmentVariables":  null,
+                          "IsRunning":  true
+                      }
+                  ]
+}

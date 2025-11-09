@@ -2,6 +2,7 @@
 @using Orchestra.Web.Models
 @using Orchestra.Web.Services
 @using Orchestra.Web.Components
+@using Orchestra.Web.Components.AgentTerminal
 @using System.Text.Json
 @inject MonitoredOrchestratorService OrchestratorService
 @inject PerformanceMonitoringService PerformanceService
@@ -72,6 +73,8 @@
 
     @if (_state != null)
     {
+        <!-- Phase 4.2.2: Sidebar Overlay for Mobile - Positioned at dashboard level -->
+        <div class="sidebar-overlay @(_isSidebarOpen ? "active" : "")" @onclick="CloseSidebar"></div>
 
         <!-- Bootstrap Grid Phase 1 Implementation: Replace main-layout with container-fluid and row -->
         <div class="container-fluid" data-bs-theme="dark">
@@ -116,17 +119,56 @@
                     </div>
                 </div>
 
-                <!-- Phase 4.2.2: Sidebar Overlay for Mobile -->
-                <div class="sidebar-overlay @(_isSidebarOpen ? "active" : "")" @onclick="CloseSidebar"></div>
-
                 <!-- Enhanced Main Content per Design Specifications -->
                 <div class="col-md-9 enhanced-main-content main-content">
                     <!-- Bootstrap Grid Phase 1 Implementation: Replace content-panels with row -->
                     <div class="row g-3 h-100">
-                        <!-- Top Row: Agent History (70%) and Task Queue (30%) side by side -->
+                        <!-- Top Row: Agent Terminal with Tabs (70%) and Task Queue (30%) side by side -->
                         <div class="col-md-8">
-                            <div class="content-panel history-panel h-100">
-                                <AgentHistory SelectedAgentId="@GetSelectedAgentSessionId()" />
+                            <div class="content-panel h-100 d-flex flex-column">
+                                <!-- Bootstrap Tabs Navigation -->
+                                <ul class="nav nav-tabs mb-0" role="tablist">
+                                    <li class="nav-item">
+                                        <a class="nav-link @(_activeTerminalTab == "history" ? "active" : "")"
+                                           @onclick="@(() => SetActiveTerminalTab("history"))"
+                                           role="tab"
+                                           style="cursor: pointer;">
+                                            <i class="bi bi-clock-history me-1"></i>
+                                            History (Read-Only)
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link @(_activeTerminalTab == "connect" ? "active" : "")"
+                                           @onclick="@(() => SetActiveTerminalTab("connect"))"
+                                           role="tab"
+                                           style="cursor: pointer;">
+                                            <i class="bi bi-plug-fill me-1"></i>
+                                            Connect (Interactive)
+                                        </a>
+                                    </li>
+                                </ul>
+
+                                <!-- Tab Content -->
+                                <div class="tab-content flex-grow-1 overflow-hidden">
+                                    <!-- History Tab -->
+                                    <div class="tab-pane h-100 @(_activeTerminalTab == "history" ? "active show" : "")" role="tabpanel">
+                                        @if (_activeTerminalTab == "history")
+                                        {
+                                            <AgentHistory SelectedAgentId="@GetSelectedAgentSessionId()" />
+                                        }
+                                    </div>
+
+                                    <!-- Connect Tab -->
+                                    <div class="tab-pane h-100 @(_activeTerminalTab == "connect" ? "active show" : "")" role="tabpanel">
+                                        @if (_activeTerminalTab == "connect")
+                                        {
+                                            <AgentTerminalComponent @ref="_terminalComponent"
+                                                                   AgentId="@GetSelectedAgentSessionId()"
+                                                                   ConnectorType="terminal"
+                                                                   OnCommandExecuted="HandleTerminalCommandExecuted" />
+                                        }
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -163,6 +205,10 @@
 
     // Phase 4.2.2: Mobile sidebar state
     private bool _isSidebarOpen = false;
+
+    // Agent Terminal tab management
+    private string _activeTerminalTab = "history"; // Default to read-only history view
+    private AgentTerminalComponent? _terminalComponent;
 
     protected override async Task OnInitializedAsync()
     {
@@ -378,6 +424,24 @@
             _repositories?.Values.Sum(r => r.OfflineCount) ?? _state?.Agents.Values.Count(a => a.Status == AgentStatus.Offline) ?? 0,
             "offline_agents_count"
         );
+    }
+
+    /// <summary>
+    /// Переключает активную вкладку Agent Terminal (History / Connect)
+    /// </summary>
+    private void SetActiveTerminalTab(string tab)
+    {
+        _activeTerminalTab = tab;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Обработчик выполнения команды в терминале
+    /// </summary>
+    private Task HandleTerminalCommandExecuted(string command)
+    {
+        Console.WriteLine($"Terminal command executed: {command}");
+        return Task.CompletedTask;
     }
 
     public void Dispose()

@@ -59,21 +59,23 @@ public class AgentHealthCheckService : BackgroundService
 
     private async Task PerformHealthCheck(CancellationToken cancellationToken)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-
         _logger.LogDebug("Starting agent health check cycle");
 
         try
         {
-            // Получаем всех активных агентов
-            var getAllAgentsQuery = new GetAllAgentsQuery
+            // Получаем всех активных агентов - используем отдельный scope для запроса
+            List<Agent> agents;
+            using (var queryScope = _scopeFactory.CreateScope())
             {
-                ActiveOnly = true,
-                IncludeRelated = false
-            };
+                var mediator = queryScope.ServiceProvider.GetRequiredService<IMediator>();
+                var getAllAgentsQuery = new GetAllAgentsQuery
+                {
+                    ActiveOnly = true,
+                    IncludeRelated = false
+                };
 
-            var agents = await mediator.Send(getAllAgentsQuery, cancellationToken);
+                agents = await mediator.Send(getAllAgentsQuery, cancellationToken);
+            }
 
             if (!agents.Any())
             {
@@ -83,7 +85,8 @@ public class AgentHealthCheckService : BackgroundService
 
             _logger.LogDebug("Checking health of {Count} agents", agents.Count);
 
-            var healthCheckTasks = agents.Select(agent => CheckAgentHealth(mediator, agent, cancellationToken));
+            // ✅ FIX: Каждая задача создаёт свой собственный scope → свой DbContext
+            var healthCheckTasks = agents.Select(agent => CheckAgentHealthWithOwnScope(agent, cancellationToken));
             await Task.WhenAll(healthCheckTasks);
 
             _logger.LogDebug("Agent health check cycle completed");
@@ -92,6 +95,16 @@ public class AgentHealthCheckService : BackgroundService
         {
             _logger.LogError(ex, "Failed to perform agent health check");
         }
+    }
+
+    /// <summary>
+    /// Проверяет здоровье агента, создавая собственный scope для избежания DbContext concurrency issues
+    /// </summary>
+    private async Task CheckAgentHealthWithOwnScope(Agent agent, CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        await CheckAgentHealth(mediator, agent, cancellationToken);
     }
 
     private async Task CheckAgentHealth(IMediator mediator, Agent agent, CancellationToken cancellationToken)

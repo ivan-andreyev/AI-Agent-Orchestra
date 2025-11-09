@@ -112,9 +112,17 @@
                     <input type="text"
                            class="form-control"
                            @bind="_connectAgentId"
+                           @bind:event="oninput"
                            placeholder="Например: abc123def456 (из .claude/projects/)" />
                     <small class="form-text text-muted">
-                        Найдите Session ID в файлах .jsonl в вашей папке .claude/projects/
+                        @if (!string.IsNullOrEmpty(_connectAgentId))
+                        {
+                            <span class="text-success">✓ Agent ID подставлен автоматически из выбранного агента</span>
+                        }
+                        else
+                        {
+                            <span>Найдите Session ID в файлах .jsonl в вашей папке .claude/projects/</span>
+                        }
                     </small>
                 </div>
                 <div class="form-group mb-3">
@@ -124,6 +132,57 @@
                         <option value="tab">Tab-based (Cursor)</option>
                     </select>
                 </div>
+
+                <!-- Advanced Options Section -->
+                <div class="form-group mb-3">
+                    <button type="button"
+                            class="btn btn-link p-0 text-decoration-none"
+                            @onclick="@(() => _showAdvancedOptions = !_showAdvancedOptions)">
+                        <i class="bi @(_showAdvancedOptions ? "bi-chevron-down" : "bi-chevron-right")"></i>
+                        Advanced Options (Manual Connection)
+                    </button>
+
+                    @if (_showAdvancedOptions)
+                    {
+                        <div class="mt-3 p-3 border rounded bg-light">
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Fill in these fields to bypass auto-discovery and connect manually. Leave empty to use automatic discovery.
+                            </p>
+
+                            <div class="mb-3">
+                                <label class="form-label">Process ID:</label>
+                                <input type="text"
+                                       class="form-control"
+                                       @bind="_manualProcessId"
+                                       @bind:event="oninput"
+                                       placeholder="e.g., 12345" />
+                                <small class="form-text text-muted">Windows Process ID of Claude Code process</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Pipe Name:</label>
+                                <input type="text"
+                                       class="form-control"
+                                       @bind="_manualPipeName"
+                                       @bind:event="oninput"
+                                       placeholder="e.g., claude_12345" />
+                                <small class="form-text text-muted">Named pipe (Windows only, without \\.\pipe\ prefix)</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Socket Path:</label>
+                                <input type="text"
+                                       class="form-control"
+                                       @bind="_manualSocketPath"
+                                       @bind:event="oninput"
+                                       placeholder="e.g., /tmp/claude_12345.sock" />
+                                <small class="form-text text-muted">Unix socket path (Linux/Mac only)</small>
+                            </div>
+                        </div>
+                    }
+                </div>
+
                 <div class="dialog-actions">
                     <button class="btn btn-primary" @onclick="ConnectAsync">Connect</button>
                     <button class="btn btn-secondary" @onclick="CloseConnectionDialog">Cancel</button>
