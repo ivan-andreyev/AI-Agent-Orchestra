@@ -1,0 +1,419 @@
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<div class="card">
+    <div class="card-header bg-primary bg-opacity-10">
+        <h5 class="card-title mb-0 text-primary">
+            <i class="bi bi-telegram me-2"></i>
+            Telegram Bot Configuration
+        </h5>
+    </div>
+    <div class="card-body">
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else if (loadError != null)
+        {
+            <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                @loadError
+                <button type="button" class="btn btn-sm btn-outline-danger ms-3" @onclick="LoadSettings">
+                    Retry
+                </button>
+            </div>
+        }
+        else
+        {
+            <form @onsubmit="SaveSettings" @onsubmit:preventDefault>
+                <!-- Bot Token Field -->
+                <div class="mb-3">
+                    <label for="botToken" class="form-label">Bot Token</label>
+                    <div class="input-group">
+                        <input type="@(showBotToken ? "text" : "password")"
+                               class="form-control @(GetValidationClass(nameof(formModel.BotToken)))"
+                               id="botToken"
+                               @bind="formModel.BotToken"
+                               placeholder="123456789:ABCdefGHIjklmNOPQRstUVWxyz"
+                               disabled="@isSaving">
+                        <button class="btn btn-outline-secondary"
+                                type="button"
+                                @onclick="ToggleBotTokenVisibility"
+                                disabled="@isSaving">
+                            <i class="bi @(showBotToken ? "bi-eye-slash" : "bi-eye")"></i>
+                            @(showBotToken ? "Hide" : "Show")
+                        </button>
+                    </div>
+                    <div class="form-text">
+                        Get token from <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@@BotFather</a> on Telegram.
+                        <a href="https://core.telegram.org/bots/tutorial" target="_blank" rel="noopener noreferrer">Create Bot Guide</a>
+                    </div>
+                    @if (validationErrors.TryGetValue(nameof(formModel.BotToken), out var botTokenError))
+                    {
+                        <div class="invalid-feedback d-block">@botTokenError</div>
+                    }
+                </div>
+
+                <!-- Chat ID Field -->
+                <div class="mb-3">
+                    <label for="chatId" class="form-label">Chat ID (or User ID)</label>
+                    <input type="text"
+                           class="form-control @(GetValidationClass(nameof(formModel.ChatId)))"
+                           id="chatId"
+                           @bind="formModel.ChatId"
+                           placeholder="123456789"
+                           disabled="@isSaving">
+                    <div class="form-text">
+                        Your Telegram user ID or group chat ID where bot sends approvals.
+                    </div>
+                    @if (validationErrors.TryGetValue(nameof(formModel.ChatId), out var chatIdError))
+                    {
+                        <div class="invalid-feedback d-block">@chatIdError</div>
+                    }
+                </div>
+
+                <!-- Enabled Toggle -->
+                <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="enableToggle"
+                               @bind="formModel.Enabled"
+                               disabled="@isSaving">
+                        <label class="form-check-label" for="enableToggle">
+                            Enable Telegram Escalation
+                        </label>
+                    </div>
+                    <div class="form-text">
+                        When enabled, approval requests will be sent to your Telegram chat.
+                    </div>
+                </div>
+
+                <!-- Help Section -->
+                <div class="alert alert-info" role="alert">
+                    <h6 class="alert-heading">
+                        <i class="bi bi-question-circle me-2"></i>
+                        How to get your Chat ID:
+                    </h6>
+                    <ol class="mb-0 ps-3">
+                        <li>Start a conversation with your bot (send any message)</li>
+                        <li>Visit <code>https://api.telegram.org/bot[YOUR_BOT_TOKEN]/getUpdates</code></li>
+                        <li>Find your numeric <code>"id"</code> in the <code>"chat"</code> section of the response</li>
+                    </ol>
+                </div>
+
+                <!-- Status Messages -->
+                @if (!string.IsNullOrEmpty(statusMessage))
+                {
+                    <div class="alert @(isSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+                        <i class="bi @(isSuccess ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
+                        @statusMessage
+                        <button type="button" class="btn-close" @onclick="ClearStatusMessage"></button>
+                    </div>
+                }
+
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button"
+                            class="btn btn-outline-primary"
+                            @onclick="TestConnection"
+                            disabled="@(isSaving || testingConnection || string.IsNullOrWhiteSpace(formModel.BotToken))">
+                        @if (testingConnection)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span>Testing...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-broadcast me-2"></i>
+                            <span>Test Connection</span>
+                        }
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-success"
+                            disabled="@(isSaving || !IsFormDirty())">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span>Saving...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-save me-2"></i>
+                            <span>Save Settings</span>
+                        }
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            @onclick="DiscardChanges"
+                            disabled="@(isSaving || !IsFormDirty())">
+                        <i class="bi bi-x-lg me-2"></i>
+                        Discard
+                    </button>
+                </div>
+            </form>
+        }
+    </div>
+</div>
+
+@code {
+    // Form model
+    private TelegramSettingsFormModel formModel = new();
+
+    // Original settings for comparison
+    private TelegramSettingsDto? originalSettings;
+
+    // UI State
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool testingConnection = false;
+    private bool showBotToken = false;
+    private string? loadError = null;
+    private string? statusMessage = null;
+    private bool isSuccess = false;
+
+    // Validation
+    private Dictionary<string, string> validationErrors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettings();
+    }
+
+    private async Task LoadSettings()
+    {
+        isLoading = true;
+        loadError = null;
+        StateHasChanged();
+
+        try
+        {
+            originalSettings = await Http.GetFromJsonAsync<TelegramSettingsDto>("api/settings/telegram");
+
+            if (originalSettings != null)
+            {
+                formModel = new TelegramSettingsFormModel
+                {
+                    BotToken = originalSettings.BotTokenMasked,
+                    ChatId = originalSettings.ChatId,
+                    Enabled = originalSettings.Enabled
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Failed to load settings: {ex.Message}";
+            Console.WriteLine($"[TelegramSettingsPanel] Load error: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task TestConnection()
+    {
+        if (string.IsNullOrWhiteSpace(formModel.BotToken) || string.IsNullOrWhiteSpace(formModel.ChatId))
+        {
+            statusMessage = "Bot Token and Chat ID are required for testing.";
+            isSuccess = false;
+            return;
+        }
+
+        testingConnection = true;
+        ClearStatusMessage();
+        StateHasChanged();
+
+        try
+        {
+            var request = new { BotToken = formModel.BotToken, ChatId = formModel.ChatId };
+            var response = await Http.PostAsJsonAsync("api/settings/telegram/test", request);
+            var result = await response.Content.ReadFromJsonAsync<TestTelegramConnectionResult>();
+
+            if (result != null)
+            {
+                statusMessage = result.Message;
+                isSuccess = result.Success;
+            }
+            else
+            {
+                statusMessage = "Unexpected response from server.";
+                isSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Test error: {ex.Message}";
+            isSuccess = false;
+            Console.WriteLine($"[TelegramSettingsPanel] Test error: {ex}");
+        }
+        finally
+        {
+            testingConnection = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        validationErrors.Clear();
+
+        // Client-side validation
+        if (!ValidateForm())
+        {
+            return;
+        }
+
+        isSaving = true;
+        ClearStatusMessage();
+        StateHasChanged();
+
+        try
+        {
+            var request = new
+            {
+                BotToken = formModel.BotToken,
+                ChatId = formModel.ChatId,
+                Enabled = formModel.Enabled
+            };
+
+            var response = await Http.PutAsJsonAsync("api/settings/telegram", request);
+            var result = await response.Content.ReadFromJsonAsync<UpdateTelegramSettingsResult>();
+
+            if (result != null)
+            {
+                statusMessage = result.Message;
+                isSuccess = result.Success;
+
+                if (result.Success && result.Settings != null)
+                {
+                    originalSettings = result.Settings;
+                    formModel = new TelegramSettingsFormModel
+                    {
+                        BotToken = result.Settings.BotTokenMasked,
+                        ChatId = result.Settings.ChatId,
+                        Enabled = result.Settings.Enabled
+                    };
+                }
+            }
+            else
+            {
+                statusMessage = "Unexpected response from server.";
+                isSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Save error: {ex.Message}";
+            isSuccess = false;
+            Console.WriteLine($"[TelegramSettingsPanel] Save error: {ex}");
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void DiscardChanges()
+    {
+        if (originalSettings != null)
+        {
+            formModel = new TelegramSettingsFormModel
+            {
+                BotToken = originalSettings.BotTokenMasked,
+                ChatId = originalSettings.ChatId,
+                Enabled = originalSettings.Enabled
+            };
+        }
+        validationErrors.Clear();
+        ClearStatusMessage();
+        StateHasChanged();
+    }
+
+    private bool ValidateForm()
+    {
+        validationErrors.Clear();
+
+        if (formModel.Enabled)
+        {
+            if (string.IsNullOrWhiteSpace(formModel.BotToken))
+            {
+                validationErrors[nameof(formModel.BotToken)] = "Bot Token is required when Telegram is enabled.";
+            }
+
+            if (string.IsNullOrWhiteSpace(formModel.ChatId))
+            {
+                validationErrors[nameof(formModel.ChatId)] = "Chat ID is required when Telegram is enabled.";
+            }
+            else if (!System.Text.RegularExpressions.Regex.IsMatch(formModel.ChatId, @"^-?\d+$"))
+            {
+                validationErrors[nameof(formModel.ChatId)] = "Chat ID must be a number (negative for groups).";
+            }
+        }
+
+        StateHasChanged();
+        return validationErrors.Count == 0;
+    }
+
+    private bool IsFormDirty()
+    {
+        if (originalSettings == null)
+        {
+            return false;
+        }
+
+        return formModel.BotToken != originalSettings.BotTokenMasked ||
+               formModel.ChatId != originalSettings.ChatId ||
+               formModel.Enabled != originalSettings.Enabled;
+    }
+
+    private void ToggleBotTokenVisibility()
+    {
+        showBotToken = !showBotToken;
+        StateHasChanged();
+    }
+
+    private void ClearStatusMessage()
+    {
+        statusMessage = null;
+        StateHasChanged();
+    }
+
+    private string GetValidationClass(string fieldName)
+    {
+        return validationErrors.ContainsKey(fieldName) ? "is-invalid" : "";
+    }
+
+    // DTO Models (mirroring backend)
+    private class TelegramSettingsFormModel
+    {
+        public string BotToken { get; set; } = "";
+        public string ChatId { get; set; } = "";
+        public bool Enabled { get; set; } = false;
+    }
+
+    private record TelegramSettingsDto(
+        string BotTokenMasked,
+        string ChatId,
+        bool Enabled,
+        DateTime LastUpdatedAt);
+
+    private record TestTelegramConnectionResult(
+        bool Success,
+        string Message,
+        string? ErrorCode);
+
+    private record UpdateTelegramSettingsResult(
+        bool Success,
+        string Message,
+        TelegramSettingsDto? Settings);
+}

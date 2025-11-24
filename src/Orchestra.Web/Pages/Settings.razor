@@ -1,0 +1,67 @@
+@page "/settings"
+@using Orchestra.Web.Components
+
+<PageTitle>Settings - AI Agent Orchestra</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Settings</h1>
+
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-tabs mb-4" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link @(activeTab == "telegram" ? "active" : "")"
+                            @onclick='() => SetActiveTab("telegram")'
+                            type="button"
+                            role="tab">
+                        <i class="bi bi-telegram me-1"></i>
+                        Telegram Bot
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(activeTab == "general" ? "active" : "")"
+                            @onclick='() => SetActiveTab("general")'
+                            type="button"
+                            role="tab">
+                        <i class="bi bi-gear me-1"></i>
+                        General
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                @if (activeTab == "telegram")
+                {
+                    <div class="tab-pane active show" role="tabpanel">
+                        <TelegramSettingsPanel />
+                    </div>
+                }
+                else if (activeTab == "general")
+                {
+                    <div class="tab-pane active show" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="alert alert-info mb-0">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    General settings coming soon...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string activeTab = "telegram";
+
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        StateHasChanged();
+    }
+}
